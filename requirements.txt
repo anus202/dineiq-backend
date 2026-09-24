@@ -15,3 +15,26 @@ starlette==1.7.0
 typing-inspection==0.4.4
 typing_extensions==4.16.0
 uvicorn==0.53.0
+
+# --- Big data / Spark ---
+pyspark>=4.0,<5.0
+pyarrow>=18.0
+
+# --- Data science / ML ---
+# pandas capped below 3.0 for PySpark 4.x compatibility (toPandas / pandas UDFs)
+pandas>=2.2,<3.0
+numpy>=1.26,<3.0
+scikit-learn>=1.5
+joblib>=1.4
+openpyxl>=3.1
+
+# --- Config / API support ---
+pyyaml>=6.0
+pydantic-settings>=2.5
+pyjwt>=2.9
+bcrypt>=4.2
+python-multipart>=0.0.12
+
+# --- Testing ---
+pytest>=8.3
+httpx>=0.27
