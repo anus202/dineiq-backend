@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test'
 
-// End-to-end tests against the running dev servers (backend :8001, frontend :5173).
+// End-to-end tests against the running dev servers (backend :8000, frontend :5173).
 // Uses the locally installed Chrome, so no browser download is needed.
 //
 // Timeouts are generous because this app's dev database is a 500k-customer /

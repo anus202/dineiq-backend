@@ -28,7 +28,7 @@ export const tokenStore = {
 
 /** Axios instance for the DineIQ API, with the JWT attached to every request. */
 export const api: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1',
   timeout: 120_000,
 })
 
@@ -66,7 +66,7 @@ interface ValidationIssue {
 /** A readable message from any API error: FastAPI `detail`, validation errors or network failure. */
 export function apiErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    if (!error.response) return 'Cannot reach the DineIQ API. Is the backend running on port 8001?'
+    if (!error.response) return 'Cannot reach the DineIQ API. Is the backend running on port 8000?'
     const data = error.response.data as { detail?: string | ValidationIssue[]; Message?: string } | undefined
     if (typeof data?.detail === 'string') return data.detail
     if (Array.isArray(data?.detail)) {

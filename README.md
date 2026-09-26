@@ -242,8 +242,8 @@ hook, so those call `audit.record(...)` explicitly instead.
 
 ## API reference (60 endpoints)
 
-Base URL: `http://localhost:8001/api/v1`. Interactive docs (Swagger UI) at
-`http://localhost:8001/docs` — every request/response shape shown there is generated
+Base URL: `http://localhost:8000/api/v1`. Interactive docs (Swagger UI) at
+`http://localhost:8000/docs` — every request/response shape shown there is generated
 from the same Pydantic schemas the API actually uses. All timestamps are UTC.
 
 Legend: **401** = no/invalid token, **403** = wrong role for the endpoint.
@@ -426,11 +426,11 @@ python scripts/seed_demo_data.py
 ```bash
 cd frontend
 npm install
-copy .env.example .env        # VITE_API_BASE_URL, default http://localhost:8001/api/v1
+copy .env.example .env        # VITE_API_BASE_URL, default http://localhost:8000/api/v1
 npm run dev
 ```
 
-Open **http://localhost:5173**. Interactive API docs: **http://localhost:8001/docs**.
+Open **http://localhost:5173**. Interactive API docs: **http://localhost:8000/docs**.
 
 ---
 
@@ -504,7 +504,7 @@ runs, since the dev database (500k customers, 50k orders) can be slow on a cold 
 
 | Variable | Default |
 |---|---|
-| `VITE_API_BASE_URL` | `http://localhost:8001/api/v1` |
+| `VITE_API_BASE_URL` | `http://localhost:8000/api/v1` |
 
 ---
 

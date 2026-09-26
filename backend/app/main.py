@@ -70,3 +70,28 @@ app.include_router(branch_analytics_controller.router)
 @app.get("/", tags=["Health"], summary="Health check")
 def root():
     return {"status": "ok"}
+
+
+def _print_startup_banner(host: str, port: int) -> None:
+    base = f"http://{host}:{port}"
+    lines = [
+        "DineIQ API - starting up",
+        "",
+        f"  Base API URL     {base}",
+        f"  Swagger Docs     {base}/docs",
+        f"  ReDoc Docs       {base}/redoc",
+    ]
+    width = max(len(line) for line in lines) + 4
+    print("+" + "-" * width + "+", flush=True)
+    for line in lines:
+        print("|  " + line.ljust(width - 2) + "|", flush=True)
+    print("+" + "-" * width + "+", flush=True)
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    HOST, PORT = "127.0.0.1", 8000
+    _print_startup_banner(HOST, PORT)
+    uvicorn.run("app.main:app", host=HOST, port=PORT, reload=True)
+

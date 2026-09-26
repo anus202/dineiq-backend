@@ -1,7 +1,7 @@
 import { request } from '@playwright/test'
 import { PASSWORD, USERS } from './helpers'
 
-const API = process.env.E2E_API_BASE_URL ?? 'http://localhost:8001/api/v1'
+const API = process.env.E2E_API_BASE_URL ?? 'http://localhost:8000/api/v1'
 
 /**
  * Runs once before the suite. Warms SQL Server's buffer pool / plan cache for the

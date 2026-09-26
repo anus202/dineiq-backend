@@ -3,7 +3,7 @@
 Safe to run repeatedly: anything that already exists is left alone.
 
     cd backend
-    .venv\\Scripts\\python scripts\\seed_demo_data.py            # API at http://localhost:8001
+    .venv\\Scripts\\python scripts\\seed_demo_data.py            # API at http://localhost:8000
 
 The first ADMIN has to be bootstrapped in SQL (a fresh system has no admin to create
 one through the API); everything else goes through the API, so it is validated,
@@ -18,7 +18,7 @@ import pyodbc
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
-API = os.getenv("SEED_API_URL", "http://localhost:8001/api/v1")
+API = os.getenv("SEED_API_URL", "http://localhost:8000/api/v1")
 PASSWORD = os.getenv("DEMO_PASSWORD", "Demo@12345")
 
 ADMIN = {"FullName": "Demo Admin", "Email": "admin@dineiq.demo"}
