@@ -1,0 +1,49 @@
+import type { ReactNode } from 'react'
+
+export type BadgeTone = 'green' | 'yellow' | 'red' | 'blue' | 'gray' | 'purple' | 'teal'
+
+const tones: Record<BadgeTone, string> = {
+  green: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+  yellow: 'bg-amber-50 text-amber-700 ring-amber-600/25',
+  red: 'bg-rose-50 text-rose-700 ring-rose-600/20',
+  blue: 'bg-sky-50 text-sky-700 ring-sky-600/20',
+  gray: 'bg-slate-100 text-slate-600 ring-slate-500/20',
+  purple: 'bg-violet-50 text-violet-700 ring-violet-600/20',
+  teal: 'bg-brand-50 text-brand-700 ring-brand-600/20',
+}
+
+export function Badge({ tone = 'gray', children, dot = false }: { tone?: BadgeTone; children: ReactNode; dot?: boolean }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${tones[tone]}`}>
+      {dot && <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+      {children}
+    </span>
+  )
+}
+
+/** Consistent colours for statuses used across the app. */
+export const statusTone = (status: string): BadgeTone => {
+  switch (status) {
+    case 'AVAILABLE':
+    case 'Completed':
+    case 'MANUAL_ADDITION':
+    case 'INITIAL_STOCK':
+    case 'CREATE':
+      return 'green'
+    case 'RESERVED':
+    case 'Pending':
+    case 'UPDATE':
+      return 'yellow'
+    case 'OCCUPIED':
+    case 'ORDER_CONSUMPTION':
+      return 'blue'
+    case 'Cancelled':
+    case 'MANUAL_DEDUCTION':
+    case 'DELETE':
+      return 'red'
+    case 'LOGIN':
+      return 'purple'
+    default:
+      return 'gray'
+  }
+}
