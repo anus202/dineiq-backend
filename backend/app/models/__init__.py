@@ -15,6 +15,7 @@ from app.models.recipe import Recipe
 from app.models.stock_movement_log import StockMovementLog
 from app.models.payment import Payment
 from app.models.rating import Rating
+from app.models.promotion import Promotion
 from app.models.audit_log import AuditLog
 
 __all__ = [
@@ -36,5 +37,6 @@ __all__ = [
     "StockMovementLog",
     "Payment",
     "Rating",
+    "Promotion",
     "AuditLog",
 ]

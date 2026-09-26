@@ -6,9 +6,57 @@ file paths and the synthetic-dataset parameters — no magic numbers duplicated 
 scripts.
 """
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+# Pin PySpark's worker subprocess to the SAME interpreter running this driver code.
+# Left unset, PySpark defaults PYSPARK_PYTHON to the bare string "python3", resolved
+# via PATH -- on this machine that finds an unrelated, differently-versioned Python
+# install rather than this .venv-bigdata interpreter. That version mismatch between
+# driver and worker is what caused every "OSError: [WinError 10038]" / "Connection
+# reset" crash throughout this pipeline (it only ever surfaced when a real Python
+# worker process was actually spawned -- e.g. createDataFrame(row_list) or a UDF --
+# not on pure SQL/Parquet-only Spark operations). Must be set before any
+# SparkSession is created, so this module does it at import time.
+os.environ["PYSPARK_PYTHON"] = sys.executable
+os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
+
+
+def _patch_pyspark_ml_metadata_loader() -> None:
+    """PipelineModel.load() (and every other pyspark.ml Reader) always fetches its saved
+    metadata JSON via `sc.textFile(path, 1).first()` -- a genuine distributed-RDD read,
+    unlike DataFrame/Parquet operations. On this Windows machine that specific low-level
+    RDD-over-Python-worker code path crashes deterministically (OSError: [WinError 10038]
+    / "Python worker exited unexpectedly"), even though plain sc.parallelize(...).collect()
+    and all DataFrame-based Spark SQL operations work fine. The metadata file is always a
+    single small local JSON file, so read it directly with plain Python file I/O instead
+    of round-tripping it through a distributed Spark job.
+    """
+    try:
+        from pyspark.ml.util import DefaultParamsReader
+    except ImportError:
+        return
+
+    import glob
+
+    def _patched_load_metadata(path: str, sc, expectedClassName: str = ""):
+        metadata_dir = os.path.join(path, "metadata")
+        part_files = sorted(
+            f for f in glob.glob(os.path.join(metadata_dir, "part-*")) if not os.path.basename(f).startswith(".")
+        )
+        if not part_files:
+            metadata_str = sc.textFile(metadata_dir, 1).first()
+        else:
+            with open(part_files[0], "r", encoding="utf-8") as fh:
+                metadata_str = fh.readline()
+        return DefaultParamsReader._parseMetaData(metadata_str, expectedClassName)
+
+    DefaultParamsReader.loadMetadata = staticmethod(_patched_load_metadata)
+
+
+_patch_pyspark_ml_metadata_loader()
 
 REPO_ROOT = Path(__file__).resolve().parents[1]  # analytics-pipeline/
 GIT_ROOT = REPO_ROOT.parent  # the actual repo root, one level up from analytics-pipeline/

@@ -7,7 +7,9 @@ import type {
   BusinessRecommendation,
   Category,
   ChannelMixResponse,
+  ChurnRiskResponse,
   Customer,
+  DemandForecastItem,
   CustomerDetail,
   CustomerMe,
   CustomerRFM,
@@ -20,6 +22,8 @@ import type {
   MenuItem,
   MenuItemInput,
   MenuQuadrantResponse,
+  MLRecommendation,
+  MarketBasketRule,
   MovementType,
   MyOrder,
   Order,
@@ -27,7 +31,10 @@ import type {
   Overview,
   Page,
   PaymentPreview,
+  PriceSensitivityItem,
+  PromotionTrapItem,
   Rating,
+  RatingAnomalyItem,
   RatingCreateInput,
   Recipe,
   Recommendations,
@@ -44,8 +51,12 @@ import type {
   StockStatus,
   TableList,
   TopPerforming,
+  SlowMovingDish,
   User,
+  WastageRiskItem,
   WastageSummaryResponse,
+  WhatIfRequest,
+  WhatIfResponse,
 } from '../types/api'
 import { api } from './api'
 
@@ -96,6 +107,19 @@ export const branchAnalyticsApi = {
   branchComparison: (params: { start_date?: string; end_date?: string } = {}) =>
     get<BranchComparisonResponse>('/dashboard/admin/branch-comparison', params),
   anomalies: (params: { lookback_days?: number } = {}) => get<AnomalyReportResponse>('/dashboard/admin/anomalies', params),
+}
+
+export const mlAnalyticsApi = {
+  marketBasket: () => get<MarketBasketRule[]>('/ml-analytics/market-basket'),
+  priceSensitivity: () => get<PriceSensitivityItem[]>('/ml-analytics/price-sensitivity'),
+  promotionTraps: () => get<PromotionTrapItem[]>('/ml-analytics/promotion-traps'),
+  recommendations: () => get<MLRecommendation[]>('/ml-analytics/recommendations'),
+  churnRisk: (limit = 50) => get<ChurnRiskResponse>('/ml-analytics/churn-risk', { limit }),
+  whatIf: (body: WhatIfRequest) => post<WhatIfResponse>('/ml-analytics/what-if', body),
+  ratingAnomalies: () => get<RatingAnomalyItem[]>('/ml-analytics/rating-anomalies'),
+  slowMovingDishes: () => get<SlowMovingDish[]>('/ml-analytics/slow-moving-dishes'),
+  wastageRisk: (limit = 50) => get<WastageRiskItem[]>('/ml-analytics/wastage-risk', { limit }),
+  demandForecastMl: (limit = 50) => get<DemandForecastItem[]>('/ml-analytics/demand-forecast', { limit }),
 }
 
 export const ratingApi = {

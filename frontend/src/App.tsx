@@ -40,6 +40,15 @@ const BranchComparisonPage = lazy(() => import('./pages/BranchComparisonPage').t
 const AnomalyDetectionPage = lazy(() => import('./pages/AnomalyDetectionPage').then((m) => ({ default: m.AnomalyDetectionPage })))
 const MenuBrowsePage = lazy(() => import('./pages/MenuBrowsePage').then((m) => ({ default: m.MenuBrowsePage })))
 const RatingsFeedbackPage = lazy(() => import('./pages/RatingsFeedbackPage').then((m) => ({ default: m.RatingsFeedbackPage })))
+const MLRecommendationsPage = lazy(() => import('./pages/MLRecommendationsPage').then((m) => ({ default: m.MLRecommendationsPage })))
+const MarketBasketPage = lazy(() => import('./pages/MarketBasketPage').then((m) => ({ default: m.MarketBasketPage })))
+const PriceSensitivityPage = lazy(() => import('./pages/PriceSensitivityPage').then((m) => ({ default: m.PriceSensitivityPage })))
+const PromotionTrapsPage = lazy(() => import('./pages/PromotionTrapsPage').then((m) => ({ default: m.PromotionTrapsPage })))
+const ChurnRiskPage = lazy(() => import('./pages/ChurnRiskPage').then((m) => ({ default: m.ChurnRiskPage })))
+const WhatIfSimulatorPage = lazy(() => import('./pages/WhatIfSimulatorPage').then((m) => ({ default: m.WhatIfSimulatorPage })))
+const RatingAnomaliesPage = lazy(() => import('./pages/RatingAnomaliesPage').then((m) => ({ default: m.RatingAnomaliesPage })))
+const SlowMovingDishesPage = lazy(() => import('./pages/SlowMovingDishesPage').then((m) => ({ default: m.SlowMovingDishesPage })))
+const ForecastDashboardPage = lazy(() => import('./pages/ForecastDashboardPage').then((m) => ({ default: m.ForecastDashboardPage })))
 
 function Page({ roles, children }: { roles: RoleName[]; children: ReactNode }) {
   return (
@@ -294,6 +303,78 @@ export default function App() {
                 element={
                   <Page roles={['SUPER_ADMIN', 'ADMIN']}>
                     <AnomalyDetectionPage />
+                  </Page>
+                }
+              />
+              <Route
+                path="/ml-insights/recommendations"
+                element={
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                    <MLRecommendationsPage />
+                  </Page>
+                }
+              />
+              <Route
+                path="/ml-insights/market-basket"
+                element={
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                    <MarketBasketPage />
+                  </Page>
+                }
+              />
+              <Route
+                path="/ml-insights/price-sensitivity"
+                element={
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                    <PriceSensitivityPage />
+                  </Page>
+                }
+              />
+              <Route
+                path="/ml-insights/promotion-traps"
+                element={
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                    <PromotionTrapsPage />
+                  </Page>
+                }
+              />
+              <Route
+                path="/ml-insights/churn-risk"
+                element={
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                    <ChurnRiskPage />
+                  </Page>
+                }
+              />
+              <Route
+                path="/ml-insights/what-if"
+                element={
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                    <WhatIfSimulatorPage />
+                  </Page>
+                }
+              />
+              <Route
+                path="/ml-insights/rating-anomalies"
+                element={
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                    <RatingAnomaliesPage />
+                  </Page>
+                }
+              />
+              <Route
+                path="/ml-insights/slow-moving-dishes"
+                element={
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                    <SlowMovingDishesPage />
+                  </Page>
+                }
+              />
+              <Route
+                path="/ml-insights/forecast-dashboard"
+                element={
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER', 'INVENTORY_MANAGER']}>
+                    <ForecastDashboardPage />
                   </Page>
                 }
               />

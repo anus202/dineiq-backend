@@ -1,4 +1,5 @@
 import { PageHeader } from '../components/layout/AppLayout'
+import { ExportButtons } from '../components/common/ExportButtons'
 import { Badge, DataTable, ErrorBanner, type Column } from '../components/ui'
 import { useApi } from '../hooks/useApi'
 import { branchAnalyticsApi } from '../services/endpoints'
@@ -23,6 +24,21 @@ export function AnomalyDetectionPage() {
       <PageHeader
         title="Anomaly & Fraud Detection"
         subtitle="Branch-days whose revenue deviates 50%+ from their own trailing 7-day average — simple, explainable statistics on real order data"
+        actions={
+          <ExportButtons
+            filename="sales_anomalies"
+            data={anomalies.data?.SalesAnomalies}
+            columns={[
+              { header: 'Branch', accessor: (a) => a.BranchName },
+              { header: 'Date', accessor: (a) => a.Date },
+              { header: 'Type', accessor: (a) => a.Type },
+              { header: 'Severity', accessor: (a) => a.Severity },
+              { header: 'Revenue', accessor: (a) => a.Revenue },
+              { header: '7-Day Average', accessor: (a) => a.TrailingAverageRevenue },
+              { header: 'Deviation %', accessor: (a) => a.DeviationPercentage },
+            ]}
+          />
+        }
       />
       {anomalies.error && <ErrorBanner message={anomalies.error} onRetry={anomalies.reload} />}
       <DataTable

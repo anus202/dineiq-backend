@@ -148,6 +148,49 @@ def build_customer_features(spark: SparkSession) -> DataFrame:
     return rfm.join(fav_category, "CustomerId", "left")
 
 
+def build_menu_item_monthly_demand(spark: SparkSession) -> DataFrame:
+    """Per-item, per-month demand series with a next-month-quantity label, so the demand
+    regressor can be trained with a genuine chronological split (SRS Step 21: training
+    data must represent earlier periods, test data must represent later unseen periods --
+    a random row split over menu_item_features cannot satisfy this, since that table has
+    no time dimension at all: one row per item, aggregated over the whole history).
+
+    Each row's features describe a given month; its label is that item's *following*
+    month's quantity sold, so no row's label depends on information from its own or a
+    later period than what a real forecaster would have available.
+    """
+    fact_sales = read_clean(spark, "fact_sales")
+    ratings = read_clean(spark, "ratings")
+
+    monthly = (
+        fact_sales.withColumn("YearMonth", F.date_format("OrderDate", "yyyy-MM"))
+        .groupBy("MenuItemId", "MenuItemName", "YearMonth")
+        .agg(
+            F.sum("Quantity").alias("QuantitySold"),
+            F.sum("LineTotal").alias("Revenue"),
+            F.sum("LineMargin").alias("Margin"),
+            F.avg("UnitPrice").alias("AvgSellingPrice"),
+            F.countDistinct(F.when(F.col("PromotionId").isNotNull(), F.col("OrderId"))).alias("PromotedOrderCount"),
+        )
+    )
+    monthly = monthly.withColumn("MarginPercent", F.round(F.col("Margin") / F.col("Revenue") * 100, 2))
+
+    monthly_ratings = (
+        ratings.withColumn("YearMonth", F.date_format("RatingDate", "yyyy-MM"))
+        .groupBy("MenuItemId", "YearMonth")
+        .agg(F.avg("Score").alias("AvgRating"), F.count("RatingId").alias("RatingCount"))
+    )
+    monthly = monthly.join(monthly_ratings, ["MenuItemId", "YearMonth"], "left")
+    monthly = monthly.fillna({"AvgRating": 0.0, "RatingCount": 0})
+
+    # This month's features predict NEXT month's quantity (F.lead), never the reverse.
+    w = Window.partitionBy("MenuItemId").orderBy("YearMonth")
+    monthly = monthly.withColumn("NextMonthQuantitySold", F.lead("QuantitySold", 1).over(w))
+
+    # The most recent month per item has no "next month" yet -- drop those unlabeled rows.
+    return monthly.where(F.col("NextMonthQuantitySold").isNotNull())
+
+
 def write_clean(df: DataFrame, name: str) -> None:
     out = CLEAN_DIR / name
     import shutil
@@ -167,6 +210,9 @@ def main() -> None:
 
         customer_features = build_customer_features(spark)
         write_clean(customer_features, "customer_features")
+
+        monthly_demand = build_menu_item_monthly_demand(spark)
+        write_clean(monthly_demand, "menu_item_monthly_demand")
 
         log.info("Menu performance class distribution:")
         menu_features.groupBy("MenuPerformanceClass").count().show()

@@ -61,8 +61,8 @@ MENU_CLASSIFIER_FEATURES = [
     "PriceQuantityCorrelation", "PromotedOrderCount",
 ]
 DEMAND_REGRESSOR_FEATURES = [
-    "TotalRevenue", "MarginPercent", "AvgSellingPrice", "AvgRating", "RatingCount",
-    "WastagePercent", "PromotedOrderCount", "RecencyDays",
+    "QuantitySold", "Revenue", "MarginPercent", "AvgSellingPrice", "AvgRating",
+    "RatingCount", "PromotedOrderCount",
 ]
 WASTAGE_REGRESSOR_FEATURES = [
     "TotalQuantitySold", "TotalRevenue", "MarginPercent", "AvgSellingPrice", "AvgRating",
@@ -131,26 +131,45 @@ def train_menu_classifier(menu_df: pd.DataFrame) -> dict:
     return metrics
 
 
-def train_demand_regressor(menu_df: pd.DataFrame) -> dict:
-    df = menu_df.copy()
-    for c in DEMAND_REGRESSOR_FEATURES + ["TotalQuantitySold"]:
+def train_demand_regressor(monthly_df: pd.DataFrame) -> dict:
+    """Chronological split (SRS Step 21): every row is one item-month; the single most
+    recent YearMonth present is held out entirely as the test set and every earlier
+    month is used for training -- never a random row split, which would leak later
+    periods into training and earlier periods into testing.
+    """
+    df = monthly_df.copy()
+    for c in DEMAND_REGRESSOR_FEATURES + ["NextMonthQuantitySold"]:
         df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0.0)
 
-    X = df[DEMAND_REGRESSOR_FEATURES]
-    y = df["TotalQuantitySold"]
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=settings.RANDOM_SEED)
+    last_month = df["YearMonth"].max()
+    train_mask = df["YearMonth"] < last_month
+    X_train, y_train = df.loc[train_mask, DEMAND_REGRESSOR_FEATURES], df.loc[train_mask, "NextMonthQuantitySold"]
+    X_test, y_test = df.loc[~train_mask, DEMAND_REGRESSOR_FEATURES], df.loc[~train_mask, "NextMonthQuantitySold"]
 
+    # A small, shallow model: only ~2-3k item-months of training data are available per
+    # chronological split, so the original 400-tree/depth-6 configuration (tuned for the
+    # old, much larger random-split setup) badly overfit and underperformed even the
+    # naive baseline below. Fewer, shallower trees with L1/L2 regularization generalize
+    # far better at this sample size.
     model = XGBRegressor(
-        n_estimators=400, max_depth=6, learning_rate=0.06, subsample=0.85,
-        colsample_bytree=0.85, objective="reg:squarederror", random_state=settings.RANDOM_SEED, n_jobs=-1,
+        n_estimators=60, max_depth=3, learning_rate=0.05, subsample=0.8,
+        colsample_bytree=0.8, reg_alpha=0.5, reg_lambda=2.0,
+        objective="reg:squarederror", random_state=settings.RANDOM_SEED, n_jobs=-1,
     )
     model.fit(X_train, y_train)
     preds = model.predict(X_test)
+
+    # Naive baseline (SRS NFR-4: forecasts must beat a simple baseline): "next month
+    # equals this month" -- i.e. predict NextMonthQuantitySold as this month's QuantitySold.
+    baseline_preds = X_test["QuantitySold"].values
+    baseline_mae = mean_absolute_error(y_test, baseline_preds)
 
     metrics = {
         "mae": mean_absolute_error(y_test, preds),
         "rmse": float(np.sqrt(np.mean((y_test.values - preds) ** 2))),
         "mape_percent": mape(y_test.values, preds),
+        "baseline_mae": baseline_mae,
+        "improvement_over_baseline_percent": round((baseline_mae - mean_absolute_error(y_test, preds)) / baseline_mae * 100, 2) if baseline_mae else 0.0,
         "train_rows": len(X_train),
         "test_rows": len(X_test),
         "feature_columns": DEMAND_REGRESSOR_FEATURES,
@@ -227,13 +246,14 @@ def train_churn_classifier(customer_df: pd.DataFrame) -> dict:
 def main() -> None:
     menu_df = read_parquet_dir("menu_item_features")
     customer_df = read_parquet_dir("customer_features")
+    monthly_demand_df = read_parquet_dir("menu_item_monthly_demand")
 
     log.info("Training menu performance classifier (XGBoost)...")
     menu_classification_metrics = train_menu_classifier(menu_df)
     log.info(menu_classification_metrics)
 
-    log.info("Training demand forecasting regressor (XGBoost)...")
-    demand_metrics = train_demand_regressor(menu_df)
+    log.info("Training demand forecasting regressor (XGBoost, chronological split)...")
+    demand_metrics = train_demand_regressor(monthly_demand_df)
     log.info(demand_metrics)
 
     log.info("Training wastage predictor (XGBoost)...")

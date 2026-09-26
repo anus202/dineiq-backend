@@ -1,4 +1,5 @@
 import { PageHeader } from '../components/layout/AppLayout'
+import { ExportButtons } from '../components/common/ExportButtons'
 import { Badge, DataTable, ErrorBanner, type Column } from '../components/ui'
 import { useApi } from '../hooks/useApi'
 import { branchAnalyticsApi } from '../services/endpoints'
@@ -23,7 +24,28 @@ export function BranchComparisonPage() {
 
   return (
     <>
-      <PageHeader title="Multi-Branch Comparison" subtitle="Cross-location performance across every branch, in real time" />
+      <PageHeader
+        title="Multi-Branch Comparison"
+        subtitle="Cross-location performance across every branch, in real time"
+        actions={
+          <ExportButtons
+            filename="branch_comparison"
+            data={comparison.data?.Branches}
+            columns={[
+              { header: 'Branch', accessor: (b) => b.BranchName },
+              { header: 'City', accessor: (b) => b.City },
+              { header: 'Status', accessor: (b) => (b.IsActive ? 'Active' : 'Inactive') },
+              { header: 'Orders', accessor: (b) => b.OrderCount },
+              { header: 'Revenue', accessor: (b) => b.Revenue },
+              { header: 'Profit', accessor: (b) => b.Profit },
+              { header: 'Margin %', accessor: (b) => b.ProfitMarginPercentage },
+              { header: 'Wastage Cost', accessor: (b) => b.WastageCost },
+              { header: 'Avg Rating', accessor: (b) => b.AverageRating ?? '' },
+              { header: 'Customers', accessor: (b) => b.CustomerCount },
+            ]}
+          />
+        }
+      />
       {comparison.error && <ErrorBanner message={comparison.error} onRetry={comparison.reload} />}
       <DataTable
         columns={columns}

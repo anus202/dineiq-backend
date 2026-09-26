@@ -660,3 +660,131 @@ export interface RatingCreateInput {
   Score: number
   Comment?: string | null
 }
+
+export interface MarketBasketRule {
+  antecedent: string[]
+  consequent: string[]
+  support: number
+  confidence: number
+  lift: number
+}
+
+export interface PriceSensitivityItem {
+  menu_item_id: number
+  menu_item_name: string
+  price_quantity_correlation: number | null
+  elasticity_label: string
+  interpretation: string
+}
+
+export interface PromotionTrapItem {
+  promotion_id: number
+  promotion_name: string
+  menu_item_id: number
+  menu_item_name: string
+  revenue_lift_percent: number
+  margin_percent: number
+  volume_lift_percent: number
+  severity: string
+}
+
+export interface MLRecommendation {
+  priority: string
+  category: string
+  title: string
+  menu_item_id: number | null
+  menu_item_name: string | null
+  justification: string
+  metrics: Record<string, unknown>
+  action: string
+}
+
+export interface ChurnRiskCustomer {
+  CustomerId: number
+  Name: string
+  RecencyDays: number
+  Frequency: number
+  Monetary: number
+  AvgOrderValue: number
+  TenureDays: number
+  ChurnProbability: number
+  RiskLabel: string
+}
+
+export interface ChurnRiskResponse {
+  ScoredCustomers: number
+  Customers: ChurnRiskCustomer[]
+}
+
+export interface WhatIfRequest {
+  menu_item_id: number
+  price_change_percent: number
+  discount_percent: number
+  remove_item: boolean
+  prep_quantity_change_percent: number
+  wastage_assumption_change_percent: number
+}
+
+export interface WhatIfResponse {
+  menu_item_id: number
+  menu_item_name: string
+  price_change_percent: number
+  discount_percent: number
+  remove_item: boolean
+  prep_quantity_change_percent: number
+  wastage_assumption_change_percent: number
+  elasticity_coefficient: number
+  current_price: number
+  projected_price: number
+  current_quantity: number
+  projected_quantity: number
+  current_revenue: number
+  projected_revenue: number
+  current_profit: number
+  projected_profit: number
+  current_margin_percent: number
+  projected_margin_percent: number
+  revenue_delta_percent: number
+  profit_delta_percent: number
+  volume_delta_percent: number
+}
+
+export interface RatingAnomalyItem {
+  menu_item_id: number
+  menu_item_name: string
+  date: string
+  anomaly_type: string
+  rating_count: number
+  average_score: number
+  trailing_average_score: number
+  reason: string
+}
+
+export interface SlowMovingDish {
+  menu_item_id: number
+  menu_item_name: string
+  total_quantity_sold: number
+  order_count: number
+  recency_days: number
+  margin_percent: number
+  recent_30d_quantity: number
+  prior_30d_quantity: number
+  signal_count: number
+  signals: string[]
+}
+
+export interface WastageRiskItem {
+  MenuItemId: number
+  MenuItemName: string
+  PredictedWastagePercent: number
+  RiskLabel: string
+  TotalQuantitySold: number
+  AvgRating: number
+}
+
+export interface DemandForecastItem {
+  MenuItemId: number
+  MenuItemName: string
+  CurrentMonthQuantity: number
+  PredictedNextMonthQuantity: number
+}

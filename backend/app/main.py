@@ -13,6 +13,7 @@ from app.controllers import (
     dashboard_controller,
     inventory_controller,
     menu_controller,
+    ml_analytics_controller,
     order_controller,
     payment_controller,
     rating_controller,
@@ -65,6 +66,7 @@ app.include_router(audit_controller.router)
 app.include_router(restaurant_branch_controller.router)
 app.include_router(rating_controller.router)
 app.include_router(branch_analytics_controller.router)
+app.include_router(ml_analytics_controller.router)
 
 
 @app.get("/", tags=["Health"], summary="Health check")

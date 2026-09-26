@@ -1,5 +1,6 @@
 import { useBranch } from '../context/BranchContext'
 import { PageHeader } from '../components/layout/AppLayout'
+import { ExportButtons } from '../components/common/ExportButtons'
 import { DataTable, ErrorBanner, StatsCard, type Column } from '../components/ui'
 import { useApi } from '../hooks/useApi'
 import { branchAnalyticsApi } from '../services/endpoints'
@@ -29,6 +30,19 @@ export function WastageAnalyticsPage() {
       <PageHeader
         title="Wastage Analytics"
         subtitle="Tracked at the ingredient level (manual stock deductions) — this system doesn't yet attribute wastage to individual dishes"
+        actions={
+          <ExportButtons
+            filename="wastage_by_item"
+            data={w?.ByItem}
+            columns={[
+              { header: 'Ingredient', accessor: (i) => i.ItemName },
+              { header: 'Wasted', accessor: (i) => i.TotalWasted },
+              { header: 'Unit', accessor: (i) => i.Unit },
+              { header: 'Cost', accessor: (i) => i.WastageCost },
+              { header: 'Incidents', accessor: (i) => i.IncidentCount },
+            ]}
+          />
+        }
       />
       {wastage.error && <ErrorBanner message={wastage.error} onRetry={wastage.reload} />}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">

@@ -1,5 +1,6 @@
 import { useBranch } from '../context/BranchContext'
 import { PageHeader } from '../components/layout/AppLayout'
+import { ExportButtons } from '../components/common/ExportButtons'
 import { Badge, ErrorBanner, ShimmerSkeleton } from '../components/ui'
 import { useApi } from '../hooks/useApi'
 import { branchAnalyticsApi } from '../services/endpoints'
@@ -10,7 +11,22 @@ export function BranchRecommendationsPage() {
 
   return (
     <>
-      <PageHeader title="Business Recommendations" subtitle="Evidence-backed suggestions from real branch menu performance" />
+      <PageHeader
+        title="Business Recommendations"
+        subtitle="Evidence-backed suggestions from real branch menu performance"
+        actions={
+          <ExportButtons
+            filename="branch_recommendations"
+            data={recs.data}
+            columns={[
+              { header: 'Priority', accessor: (r) => r.Priority },
+              { header: 'Title', accessor: (r) => r.Title },
+              { header: 'Evidence', accessor: (r) => r.Evidence },
+              { header: 'Suggested Action', accessor: (r) => r.SuggestedAction },
+            ]}
+          />
+        }
+      />
       {recs.error && <ErrorBanner message={recs.error} onRetry={recs.reload} />}
       {recs.loading && !recs.data && <ShimmerSkeleton className="h-64" rounded="rounded-2xl" />}
       {recs.data?.length === 0 && <p className="text-sm text-slate-500">No recommendations yet — not enough sales data for this branch.</p>}

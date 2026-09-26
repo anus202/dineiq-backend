@@ -1,0 +1,347 @@
+"""Scale the operational database to SRS Big-Data volumes.
+
+Targets (SRS Phase 2):
+  - tbl_OrderDetails  >= 1,000,000 rows (order lines)
+  - tbl_Rating        >=   100,000 rows
+  - tbl_StockMovementLog (MANUAL_DEDUCTION / wastage) >= 50,000 rows
+  - tbl_Promotion     seeded with a realistic set of campaigns
+
+Safe to run repeatedly: every section checks its current count against its target
+first and only inserts the shortfall. Ensures the schema (including the new
+tbl_Promotion table) exists by running the app's own init_db() before touching data,
+exactly like a normal app startup would.
+
+    cd backend
+    .venv\\Scripts\\python scripts\\scale_bigdata_seed.py
+"""
+import asyncio
+import os
+import random
+import sys
+from datetime import date, datetime, timedelta
+from decimal import Decimal
+from pathlib import Path
+
+import pyodbc
+from dotenv import load_dotenv
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
+from app.db.init_db import init_db  # noqa: E402
+
+TARGET_ORDER_DETAILS = 1_000_000
+TARGET_RATINGS = 100_000
+TARGET_WASTAGE = 50_000
+ORDERS_PER_BATCH = 2000
+AVG_LINES_PER_ORDER = 2.6
+HISTORY_DAYS = 730
+
+ORDER_TYPES = ["Dine-in", "Takeaway", "Delivery"]
+PAYMENT_METHODS = ["Cash", "Card", "Wallet"]
+STATUS_WEIGHTS = [("Completed", 8), ("Pending", 1), ("Cancelled", 1)]
+STATUSES = [s for s, w in STATUS_WEIGHTS for _ in range(w)]
+
+WASTAGE_REASONS = [
+    "Spoilage - expired before use",
+    "Overproduction - excess prepared",
+    "Prep error - discarded",
+    "Dropped or contaminated during prep",
+    "Customer return - quality issue",
+    "Power outage spoilage",
+    "Over-portioned - trimmed off",
+]
+
+PROMOTIONS = [
+    ("Weekday Lunch Deal", "15% off all lunch orders, Monday to Thursday", 15),
+    ("Weekend Family Bundle", "Discount on family-size combo orders", 20),
+    ("Happy Hour Drinks", "Discount on beverages, 4-6 PM daily", 10),
+    ("New Customer Welcome", "First-order discount for new sign-ups", 25),
+    ("Ramadan Iftar Special", "Discount on iftar deals during Ramadan", 18),
+    ("Summer Cooldown", "Discount on cold beverages and desserts", 12),
+    ("Winter Comfort Food", "Discount on soups and hot entrees", 10),
+    ("Loyalty Member Exclusive", "Extra discount for loyalty-tier customers", 15),
+    ("Delivery Free-for-All", "Discount offsetting delivery order totals", 8),
+    ("Eid Celebration Offer", "Festive discount storewide", 20),
+    ("Midweek Biryani Bonanza", "Discount on biryani and rice dishes", 22),
+    ("Grand Opening Anniversary", "Storewide anniversary discount", 30),
+    ("Student Discount Days", "Discount for student ID holders", 12),
+    ("Late Night Cravings", "Discount on orders placed after 10 PM", 15),
+    ("Combo Meal Saver", "Discount on any combo meal", 10),
+    ("Flash Sale Friday", "One-day flash discount storewide", 25),
+    ("Corporate Lunch Order", "Bulk order discount for offices", 18),
+    ("Dessert Lovers Special", "Discount on dessert menu items", 10),
+    ("Birthday Treat", "Discount for customers ordering on their birthday", 20),
+    ("Rainy Day Delivery Discount", "Discount to encourage delivery on rainy days", 10),
+]
+
+
+def sql():
+    return pyodbc.connect(
+        f"Driver={{{os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server')}}};Server={os.getenv('DB_SERVER', '.')};"
+        f"Database={os.getenv('DB_NAME', 'DineIQ')};UID={os.getenv('DB_USER', 'sa')};PWD={os.getenv('DB_PASSWORD', '')};"
+        "TrustServerCertificate=yes",
+        autocommit=False,
+    )
+
+
+def random_datetime(start: datetime, end: datetime) -> datetime:
+    delta = end - start
+    seconds = random.uniform(0, delta.total_seconds())
+    return start + timedelta(seconds=seconds)
+
+
+def scale_orders_and_lines(conn) -> None:
+    cur = conn.cursor()
+    cur.fast_executemany = True
+
+    cur.execute("SELECT COUNT(*) FROM tbl_OrderDetails")
+    current = cur.fetchone()[0]
+    if current >= TARGET_ORDER_DETAILS:
+        print(f"tbl_OrderDetails already at {current:,} (target {TARGET_ORDER_DETAILS:,}) - skipping", flush=True)
+        return
+
+    shortfall = TARGET_ORDER_DETAILS - current
+    print(f"tbl_OrderDetails at {current:,}, need {shortfall:,} more", flush=True)
+
+    cur.execute("SELECT Id FROM tbl_Customer WHERE IsDeleted = 0")
+    customer_ids = [r[0] for r in cur.fetchall()]
+    cur.execute("SELECT Id FROM tbl_RestaurantBranch WHERE IsDeleted = 0")
+    branch_ids = [r[0] for r in cur.fetchall()]
+    cur.execute("SELECT Id, Price, Cost FROM tbl_MenuItem WHERE IsDeleted = 0")
+    menu_items = cur.fetchall()
+    cur.execute("SELECT COUNT(*) FROM tbl_Orders")
+    order_count = cur.fetchone()[0]
+
+    now = datetime.utcnow()
+    history_start = now - timedelta(days=HISTORY_DAYS)
+
+    order_counter = order_count
+    lines_inserted = 0
+
+    while lines_inserted < shortfall:
+        orders_batch = []
+        lines_by_order_index = []
+
+        for _ in range(ORDERS_PER_BATCH):
+            order_counter += 1
+            order_date = random_datetime(history_start, now)
+            n_lines = max(1, round(random.gauss(AVG_LINES_PER_ORDER, 1.2)))
+            lines = []
+            total = Decimal("0.00")
+            for _ in range(n_lines):
+                mi_id, price, cost = random.choice(menu_items)
+                qty = random.randint(1, 4)
+                unit_price = price
+                unit_cost = cost
+                line_total = unit_price * qty
+                total += line_total
+                lines.append((mi_id, qty, unit_price, unit_cost, line_total))
+            discount = (total * Decimal(random.choice([0, 0, 0, 5, 10])) / 100).quantize(Decimal("0.01"))
+            net = total - discount
+            customer_id = random.choice(customer_ids) if random.random() < 0.95 else None
+            branch_id = random.choice(branch_ids)
+            order_number = f"ORD-{order_date.year}-{order_counter:06d}"
+
+            orders_batch.append((
+                customer_id, branch_id, random.randint(1, 6), order_number, order_date,
+                random.choice(ORDER_TYPES), random.choice(PAYMENT_METHODS), random.choice(STATUSES),
+                total, discount, net, order_date, order_date,
+            ))
+            lines_by_order_index.append(lines)
+
+        cur.execute("SELECT IDENT_CURRENT('dbo.tbl_Orders')")
+        start_id = int(cur.fetchone()[0])
+
+        cur.executemany(
+            "INSERT INTO dbo.tbl_Orders "
+            "(CustomerId, BranchId, GuestCount, OrderNumber, OrderDate, OrderType, PaymentMethod, Status, "
+            "TotalAmount, Discount, NetAmount, CreatedAt, UpdatedAt) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            orders_batch,
+        )
+
+        new_order_ids = list(range(start_id + 1, start_id + 1 + len(orders_batch)))
+
+        detail_rows = []
+        for order_id, lines in zip(new_order_ids, lines_by_order_index):
+            for mi_id, qty, unit_price, unit_cost, line_total in lines:
+                detail_rows.append((order_id, mi_id, qty, unit_price, line_total, unit_cost))
+
+        cur.executemany(
+            "INSERT INTO dbo.tbl_OrderDetails (OrderId, MenuItemId, Quantity, UnitPrice, TotalPrice, UnitCost, CreatedAt, UpdatedAt) "
+            "VALUES (?, ?, ?, ?, ?, ?, GETUTCDATE(), GETUTCDATE())",
+            detail_rows,
+        )
+        conn.commit()
+
+        lines_inserted += len(detail_rows)
+        print(f"  +{len(orders_batch):,} orders / +{len(detail_rows):,} lines (total new lines: {lines_inserted:,} / {shortfall:,})", flush=True)
+
+    print("tbl_Orders / tbl_OrderDetails scale-up complete.", flush=True)
+
+
+def scale_ratings(conn) -> None:
+    cur = conn.cursor()
+    cur.fast_executemany = True
+
+    cur.execute("SELECT COUNT(*) FROM tbl_Rating")
+    current = cur.fetchone()[0]
+    if current >= TARGET_RATINGS:
+        print(f"tbl_Rating already at {current:,} (target {TARGET_RATINGS:,}) - skipping", flush=True)
+        return
+
+    shortfall = TARGET_RATINGS - current
+    print(f"tbl_Rating at {current:,}, need {shortfall:,} more", flush=True)
+
+    modulo = max(1, int(1000000 / (shortfall * 1.2)))
+    cur.execute(
+        "SELECT od.OrderId, od.MenuItemId, o.CustomerId, o.BranchId, o.OrderDate "
+        "FROM dbo.tbl_OrderDetails od "
+        "JOIN dbo.tbl_Orders o ON o.Id = od.OrderId "
+        "WHERE o.CustomerId IS NOT NULL AND od.Id % " + str(modulo) + " = 0"
+    )
+    candidates = cur.fetchall()
+    random.shuffle(candidates)
+    candidates = candidates[:shortfall]
+
+    comments_positive = ["Great taste!", "Loved it, will order again.", "Fresh and delicious.", None, None, None]
+    comments_negative = ["Was cold on arrival.", "Too salty for my taste.", "Portion was smaller than expected.", None]
+
+    batch = []
+    inserted = 0
+    for order_id, menu_item_id, customer_id, branch_id, order_date in candidates:
+        score = random.choices([5, 4, 3, 2, 1], weights=[45, 30, 15, 6, 4])[0]
+        comment = random.choice(comments_positive) if score >= 4 else random.choice(comments_negative)
+        rating_date = order_date + timedelta(days=random.randint(0, 5))
+        batch.append((menu_item_id, customer_id, order_id, branch_id, score, comment, rating_date, rating_date))
+        if len(batch) >= 5000:
+            cur.executemany(
+                "INSERT INTO dbo.tbl_Rating (MenuItemId, CustomerId, OrderId, BranchId, Score, Comment, CreatedAt, UpdatedAt) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                batch,
+            )
+            conn.commit()
+            inserted += len(batch)
+            print(f"  +{inserted:,} / {shortfall:,} ratings", flush=True)
+            batch = []
+    if batch:
+        cur.executemany(
+            "INSERT INTO dbo.tbl_Rating (MenuItemId, CustomerId, OrderId, BranchId, Score, Comment, CreatedAt, UpdatedAt) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            batch,
+        )
+        conn.commit()
+        inserted += len(batch)
+
+    print(f"tbl_Rating scale-up complete: +{inserted:,} rows.", flush=True)
+
+
+def scale_wastage(conn) -> None:
+    cur = conn.cursor()
+    cur.fast_executemany = True
+
+    cur.execute("SELECT COUNT(*) FROM tbl_StockMovementLog WHERE MovementType = 'MANUAL_DEDUCTION'")
+    current = cur.fetchone()[0]
+    if current >= TARGET_WASTAGE:
+        print(f"tbl_StockMovementLog wastage already at {current:,} (target {TARGET_WASTAGE:,}) - skipping", flush=True)
+        return
+
+    shortfall = TARGET_WASTAGE - current
+    print(f"tbl_StockMovementLog wastage at {current:,}, need {shortfall:,} more", flush=True)
+
+    cur.execute("SELECT Id, CurrentStock FROM tbl_InventoryItem WHERE IsDeleted = 0")
+    items = cur.fetchall()
+    cur.execute("SELECT Id FROM tbl_RestaurantBranch WHERE IsDeleted = 0")
+    branch_ids = [r[0] for r in cur.fetchall()]
+
+    now = datetime.utcnow()
+    history_start = now - timedelta(days=HISTORY_DAYS)
+
+    batch = []
+    inserted = 0
+    for _ in range(shortfall):
+        item_id, current_stock = random.choice(items)
+        qty_change = -round(random.uniform(0.5, 15), 3)
+        stock_after = round(max(0.0, float(current_stock) + random.uniform(-20, 60)), 3)
+        event_date = random_datetime(history_start, now)
+        batch.append((
+            item_id, "MANUAL_DEDUCTION", qty_change, stock_after,
+            random.choice(WASTAGE_REASONS), random.choice(branch_ids), event_date, event_date,
+        ))
+        if len(batch) >= 5000:
+            cur.executemany(
+                "INSERT INTO dbo.tbl_StockMovementLog "
+                "(InventoryItemId, MovementType, QuantityChange, StockAfter, Reason, BranchId, CreatedAt, UpdatedAt) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                batch,
+            )
+            conn.commit()
+            inserted += len(batch)
+            print(f"  +{inserted:,} / {shortfall:,} wastage records", flush=True)
+            batch = []
+    if batch:
+        cur.executemany(
+            "INSERT INTO dbo.tbl_StockMovementLog "
+            "(InventoryItemId, MovementType, QuantityChange, StockAfter, Reason, BranchId, CreatedAt, UpdatedAt) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            batch,
+        )
+        conn.commit()
+        inserted += len(batch)
+
+    print(f"tbl_StockMovementLog wastage scale-up complete: +{inserted:,} rows.", flush=True)
+
+
+def seed_promotions(conn) -> None:
+    cur = conn.cursor()
+    cur.fast_executemany = True
+
+    cur.execute("SELECT COUNT(*) FROM tbl_Promotion")
+    current = cur.fetchone()[0]
+    if current > 0:
+        print(f"tbl_Promotion already has {current:,} rows - skipping", flush=True)
+        return
+
+    cur.execute("SELECT Id FROM tbl_MenuItem WHERE IsDeleted = 0")
+    menu_item_ids = [r[0] for r in cur.fetchall()]
+    cur.execute("SELECT Id FROM tbl_RestaurantBranch WHERE IsDeleted = 0")
+    branch_ids = [r[0] for r in cur.fetchall()]
+
+    today = date.today()
+    rows = []
+    for name, description, discount in PROMOTIONS:
+        start_offset = random.randint(-365, 60)
+        duration = random.randint(7, 45)
+        start = today + timedelta(days=start_offset)
+        end = start + timedelta(days=duration)
+        menu_item_id = random.choice(menu_item_ids) if random.random() < 0.4 else None
+        branch_id = random.choice(branch_ids) if random.random() < 0.3 else None
+        rows.append((name, description, discount, start, end, menu_item_id, branch_id))
+
+    cur.executemany(
+        "INSERT INTO dbo.tbl_Promotion (Name, Description, DiscountPercent, StartDate, EndDate, MenuItemId, BranchId) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        rows,
+    )
+    conn.commit()
+    print(f"tbl_Promotion seeded: +{len(rows):,} campaigns.", flush=True)
+
+
+def main() -> None:
+    print("Ensuring schema is up to date (creates tbl_Promotion if missing)...", flush=True)
+    asyncio.run(init_db())
+
+    conn = sql()
+    try:
+        seed_promotions(conn)
+        scale_orders_and_lines(conn)
+        scale_ratings(conn)
+        scale_wastage(conn)
+    finally:
+        conn.close()
+    print("Phase 2 scale-up complete.", flush=True)
+
+
+if __name__ == "__main__":
+    main()

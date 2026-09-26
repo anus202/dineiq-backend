@@ -46,8 +46,8 @@ MENU_CLASSIFIER_FEATURES = [
     "PriceQuantityCorrelation", "PromotedOrderCount",
 ]
 DEMAND_REGRESSOR_FEATURES = [
-    "TotalRevenue", "MarginPercent", "AvgSellingPrice", "AvgRating", "RatingCount",
-    "WastagePercent", "PromotedOrderCount", "RecencyDays",
+    "QuantitySold", "Revenue", "MarginPercent", "AvgSellingPrice", "AvgRating",
+    "RatingCount", "PromotedOrderCount",
 ]
 
 
@@ -68,6 +68,16 @@ def load_menu_features(spark: SparkSession) -> DataFrame:
         raise FileNotFoundError(f"{path} not found — run spark_jobs/feature_engineering.py first.")
     df = spark.read.parquet(str(path))
     for c in MENU_CLASSIFIER_FEATURES:
+        df = df.withColumn(c, F.coalesce(F.col(c).cast("double"), F.lit(0.0)))
+    return df
+
+
+def load_monthly_demand(spark: SparkSession) -> DataFrame:
+    path = CLEAN_DIR / "menu_item_monthly_demand"
+    if not path.exists():
+        raise FileNotFoundError(f"{path} not found — run spark_jobs/feature_engineering.py first.")
+    df = spark.read.parquet(str(path))
+    for c in DEMAND_REGRESSOR_FEATURES:
         df = df.withColumn(c, F.coalesce(F.col(c).cast("double"), F.lit(0.0)))
     return df
 
@@ -145,10 +155,17 @@ def train_menu_classifiers(df: DataFrame) -> dict:
 
 
 def train_demand_regressor(df: DataFrame) -> dict:
+    """Chronological split (SRS Step 21): every row belongs to one calendar month; the
+    single most recent month present is held out entirely as the test set, and every
+    earlier month is used for training -- never the reverse, and never a random mix of
+    both within the same period."""
     assembler = VectorAssembler(inputCols=DEMAND_REGRESSOR_FEATURES, outputCol="features", handleInvalid="skip")
-    label_col = "TotalQuantitySold"
+    label_col = "NextMonthQuantitySold"
     prepared = assembler.transform(df.withColumn(label_col, F.col(label_col).cast("double")))
-    train_df, test_df = prepared.randomSplit([0.8, 0.2], seed=settings.RANDOM_SEED)
+
+    last_month = prepared.agg(F.max("YearMonth")).first()[0]
+    train_df = prepared.where(F.col("YearMonth") < F.lit(last_month))
+    test_df = prepared.where(F.col("YearMonth") == F.lit(last_month))
 
     regressor = GBTRegressor(featuresCol="features", labelCol=label_col, maxIter=80, maxDepth=6, seed=settings.RANDOM_SEED)
     model = regressor.fit(train_df)
@@ -189,7 +206,9 @@ def main() -> None:
         classifier_results = train_menu_classifiers(df)
         log.info("Best menu-performance model: %s (macro F1 = %.4f)", classifier_results["best_model"], classifier_results["best_macro_f1"])
 
-        regressor_results = train_demand_regressor(df)
+        monthly_demand_df = load_monthly_demand(spark)
+        monthly_demand_df.cache()
+        regressor_results = train_demand_regressor(monthly_demand_df)
         log.info("Demand regressor: MAE=%.3f RMSE=%.3f MAPE=%.2f%%", regressor_results["mae"], regressor_results["rmse"], regressor_results["mape_percent"])
 
         report = {

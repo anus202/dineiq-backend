@@ -29,6 +29,20 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    title: 'ML & Big Data Insights',
+    items: [
+      { to: '/ml-insights/recommendations', label: 'ML Recommendations', icon: '🧠', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
+      { to: '/ml-insights/market-basket', label: 'Market Basket Analysis', icon: '🛒', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
+      { to: '/ml-insights/price-sensitivity', label: 'Price Sensitivity', icon: '💲', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
+      { to: '/ml-insights/promotion-traps', label: 'Promotion Traps', icon: '⚠', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
+      { to: '/ml-insights/churn-risk', label: 'Customer Churn Risk', icon: '📉', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
+      { to: '/ml-insights/rating-anomalies', label: 'Rating Anomaly Detection', icon: '🚩', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
+      { to: '/ml-insights/slow-moving-dishes', label: 'Slow-Moving Dishes', icon: '🐌', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
+      { to: '/ml-insights/forecast-dashboard', label: 'Forecast & Wastage-Risk', icon: '📅', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER', 'INVENTORY_MANAGER'] },
+      { to: '/ml-insights/what-if', label: 'What-If Scenario Simulator', icon: '🎛', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
+    ],
+  },
+  {
     title: 'Inventory & Stock Management',
     items: [
       { to: '/inventory', label: 'Inventory Dashboard', icon: '▤', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'] },

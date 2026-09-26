@@ -66,12 +66,19 @@ def build_spark_session(app_name: str = "DineIQ-Ingestion") -> SparkSession:
     --source jdbc works with no other change once SQL Server's TCP/IP listener is on."""
     return (
         SparkSession.builder.appName(app_name)
-        .master("local[*]")
+        # local[2], not local[*]: PySpark's Python-worker sockets are unreliable on
+        # Windows under high local parallelism (WinError 10038 — "operation attempted
+        # on something that is not a socket"), a documented PySpark-on-Windows issue,
+        # not specific to this dataset. Two workers is enough for a single dev machine.
+        .master("local[2]")
         .config("spark.jars", str(settings.JDBC_JAR_PATH))
         .config("spark.sql.session.timeZone", "UTC")
         .config("spark.sql.shuffle.partitions", "8")  # local[*] on a single dev machine: fewer, bigger tasks
         .config("spark.driver.memory", "3g")
         .config("spark.sql.parquet.compression.codec", "snappy")
+        # spark.python.worker.reuse left at Spark's default (true): forcing a fresh
+        # worker per task (reuse=false) was tried as a fix for the Windows socket bug
+        # but instead maximizes exposure to it (more socket setup/teardown cycles).
         .getOrCreate()
     )
 
@@ -105,12 +112,20 @@ def load_dimensions_via_jdbc(spark: SparkSession) -> dict[str, DataFrame]:
 
 
 def load_dimensions_via_pyodbc(spark: SparkSession) -> dict[str, DataFrame]:
-    """Read the same three tables with pyodbc + pandas, then hand them to Spark.
+    """Read the same three tables with pyodbc + pandas, stage them as Parquet on local
+    disk, then have Spark read the Parquet files back.
 
     Works immediately in this environment (the FastAPI backend already proves this ODBC
-    connection is good). Everything downstream of this function is 100% Spark — this
-    function's only job is getting bytes out of SQL Server into a Spark DataFrame.
+    connection is good). Handing pandas data to Spark via createDataFrame()/parallelize()
+    ships every row through PySpark's Python-worker RDD serialization path, which on this
+    Windows machine reliably crashes with `OSError: [WinError 10038]` once the row count
+    gets large (confirmed on both Python 3.13 and 3.12 -- not a Python-version issue).
+    Routing through Parquet files instead avoids that code path entirely: pandas writes
+    the file with a plain file handle (pyarrow), and Spark's Parquet reader is a totally
+    separate, file-based ingestion path that never touches the RDD-over-socket protocol.
     """
+    import tempfile
+
     import pandas as pd
 
     conn = pyodbc.connect(settings.odbc_connection_string(), autocommit=True)
@@ -121,34 +136,43 @@ def load_dimensions_via_pyodbc(spark: SparkSession) -> dict[str, DataFrame]:
     finally:
         conn.close()
 
-    customer_schema = T.StructType([
-        T.StructField("Id", T.IntegerType(), False),
-        T.StructField("Name", T.StringType(), False),
-        T.StructField("Phone", T.StringType(), False),
-        T.StructField("Email", T.StringType(), True),
-        T.StructField("Address", T.StringType(), True),
-        T.StructField("LoyaltyPoints", T.IntegerType(), False),
-        T.StructField("CreatedAt", T.TimestampType(), False),
-    ])
-    menu_item_schema = T.StructType([
-        T.StructField("Id", T.IntegerType(), False),
-        T.StructField("CategoryId", T.IntegerType(), False),
-        T.StructField("Name", T.StringType(), False),
-        T.StructField("Description", T.StringType(), True),
-        T.StructField("Price", T.DecimalType(10, 2), False),
-        T.StructField("Cost", T.DecimalType(10, 2), False),
-        T.StructField("IsAvailable", T.BooleanType(), False),
-    ])
-    category_schema = T.StructType([
-        T.StructField("Id", T.IntegerType(), False),
-        T.StructField("Name", T.StringType(), False),
-    ])
+    customers_pd["Id"] = customers_pd["Id"].astype("int32")
+    customers_pd["LoyaltyPoints"] = customers_pd["LoyaltyPoints"].astype("int32")
+    menu_items_pd["Id"] = menu_items_pd["Id"].astype("int32")
+    menu_items_pd["CategoryId"] = menu_items_pd["CategoryId"].astype("int32")
+    menu_items_pd["Price"] = menu_items_pd["Price"].astype("float64")
+    menu_items_pd["Cost"] = menu_items_pd["Cost"].astype("float64")
+    categories_pd["Id"] = categories_pd["Id"].astype("int32")
 
-    # object dtype columns (e.g. Decimal, NaT-bearing datetimes) need to go through
-    # plain Python objects, not numpy arrays, for createDataFrame to infer correctly.
-    customers = spark.createDataFrame(customers_pd.astype(object).where(customers_pd.notna(), None).values.tolist(), schema=customer_schema)
-    menu_items = spark.createDataFrame(menu_items_pd.astype(object).where(menu_items_pd.notna(), None).values.tolist(), schema=menu_item_schema)
-    categories = spark.createDataFrame(categories_pd.astype(object).where(categories_pd.notna(), None).values.tolist(), schema=category_schema)
+    stage_dir = Path(tempfile.mkdtemp(prefix="dineiq_stage_"))
+    try:
+        customers_path = stage_dir / "customers.parquet"
+        menu_items_path = stage_dir / "menu_items.parquet"
+        categories_path = stage_dir / "categories.parquet"
+        # coerce_timestamps="us": pandas/pyarrow default to TIMESTAMP(NANOS), which this
+        # Spark/parquet-mr version's reader rejects outright ("Illegal Parquet type:
+        # INT64 (TIMESTAMP(NANOS,false))"). Microsecond precision is what Spark expects.
+        customers_pd.to_parquet(customers_path, engine="pyarrow", index=False, coerce_timestamps="us", allow_truncated_timestamps=True)
+        menu_items_pd.to_parquet(menu_items_path, engine="pyarrow", index=False)
+        categories_pd.to_parquet(categories_path, engine="pyarrow", index=False)
+
+        customers = spark.read.parquet(str(customers_path))
+        menu_items = (
+            spark.read.parquet(str(menu_items_path))
+            .withColumn("Price", F.col("Price").cast(T.DecimalType(10, 2)))
+            .withColumn("Cost", F.col("Cost").cast(T.DecimalType(10, 2)))
+        )
+        categories = spark.read.parquet(str(categories_path))
+
+        # Force materialization now (while stage_dir still exists) rather than lazily,
+        # since Spark's Parquet reads are lazy and stage_dir is removed once this
+        # function returns.
+        customers.cache().count()
+        menu_items.cache().count()
+        categories.cache().count()
+    finally:
+        shutil.rmtree(stage_dir, ignore_errors=True)
+
     return {"customers": customers, "menu_items": menu_items, "categories": categories}
 
 
@@ -172,8 +196,16 @@ def generate_locations(spark: SparkSession) -> DataFrame:
 
 
 def generate_channels(spark: SparkSession) -> DataFrame:
-    rows = [(i + 1, name, "Offline" if name == "Dine-in" else "Online") for i, name in enumerate(settings.ORDER_CHANNELS)]
-    return spark.createDataFrame(rows, ["ChannelId", "ChannelName", "ChannelType"])
+    # spark.range(), not createDataFrame(row_list): row-list-based DataFrame creation
+    # goes through PySpark's Python-worker RDD path, which crashes on this Windows
+    # machine with OSError: [WinError 10038] even for tiny (<10 row) lists.
+    names = settings.ORDER_CHANNELS
+    return (
+        spark.range(1, len(names) + 1)
+        .withColumnRenamed("id", "ChannelId")
+        .withColumn("ChannelName", F.element_at(F.array(*[F.lit(n) for n in names]), F.col("ChannelId").cast("int")))
+        .withColumn("ChannelType", F.when(F.col("ChannelName") == "Dine-in", "Offline").otherwise("Online"))
+    )
 
 
 def generate_promotions(spark: SparkSession, menu_items: DataFrame, history_start, history_end) -> DataFrame:
@@ -183,7 +215,12 @@ def generate_promotions(spark: SparkSession, menu_items: DataFrame, history_star
     n = settings.PROMOTION_COUNT
     trap_count = max(1, int(n * 0.35))  # roughly a third of campaigns are traps, so trap detection has real signal
     names = [f"Promo-{i:02d}" for i in range(1, n + 1)]
-    promos = spark.createDataFrame([(i + 1, names[i]) for i in range(n)], ["PromotionId", "PromotionName"])
+    # spark.range(), not createDataFrame(row_list) -- see generate_channels for why.
+    promos = (
+        spark.range(1, n + 1)
+        .withColumnRenamed("id", "PromotionId")
+        .withColumn("PromotionName", F.element_at(F.array(*[F.lit(nm) for nm in names]), F.col("PromotionId").cast("int")))
+    )
     span_days = (history_end - history_start).days
     return (
         promos
@@ -359,10 +396,10 @@ def generate_ratings(spark: SparkSession, order_lines: DataFrame, orders: DataFr
     rated = (
         order_lines.join(orders.select("OrderId", "CustomerId", "OrderDate"), "OrderId")
         .where(F.rand(301) < 0.35)  # not every line gets rated
-        .withColumn("Stars", F.least(F.lit(5), F.greatest(F.lit(1), (F.randn(302) * 0.9 + 4.3).cast("int"))))
+        .withColumn("Score", F.least(F.lit(5), F.greatest(F.lit(1), (F.randn(302) * 0.9 + 4.3).cast("int"))))
         .withColumn("RatingDate", F.date_add(F.col("OrderDate"), (F.rand(303) * 5).cast("int")))
         .withColumn("RatingId", F.monotonically_increasing_id())
-        .select("RatingId", "OrderId", "CustomerId", "MenuItemId", "Stars", "RatingDate")
+        .select("RatingId", "OrderId", "CustomerId", "MenuItemId", "Score", "RatingDate")
     )
     # Rating-drop anomaly: a fraction of items get every rating in a 30-day window forced
     # down by 2 stars (floored at 1) — a sudden, detectable drop for anomaly detection.
@@ -372,8 +409,8 @@ def generate_ratings(spark: SparkSession, order_lines: DataFrame, orders: DataFr
         rated.join(F.broadcast(trap_items.withColumn("IsDropItem", F.lit(True))), "MenuItemId", "left")
         .withColumn("InDropWindow", F.col("RatingDate").between(F.date_add(F.lit(window_start), 200), F.date_add(F.lit(window_start), 230)))
         .withColumn(
-            "Stars",
-            F.when(F.col("IsDropItem") & F.col("InDropWindow"), F.greatest(F.lit(1), F.col("Stars") - 2)).otherwise(F.col("Stars")),
+            "Score",
+            F.when(F.col("IsDropItem") & F.col("InDropWindow"), F.greatest(F.lit(1), F.col("Score") - 2)).otherwise(F.col("Score")),
         )
         .drop("IsDropItem", "InDropWindow")
     )

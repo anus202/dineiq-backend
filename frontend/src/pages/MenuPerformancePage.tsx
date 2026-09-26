@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useBranch } from '../context/BranchContext'
 import { PageHeader } from '../components/layout/AppLayout'
+import { ExportButtons } from '../components/common/ExportButtons'
 import { Badge, DataTable, ErrorBanner, type Column, type BadgeTone } from '../components/ui'
 import { useApi } from '../hooks/useApi'
 import { branchAnalyticsApi } from '../services/endpoints'
@@ -34,7 +35,24 @@ export function MenuPerformancePage() {
 
   return (
     <>
-      <PageHeader title="Menu Performance" subtitle="Profit Driver / Volume Driver / Hidden Opportunity / Low Performer, by quantity and margin" />
+      <PageHeader
+        title="Menu Performance"
+        subtitle="Profit Driver / Volume Driver / Hidden Opportunity / Low Performer, by quantity and margin"
+        actions={
+          <ExportButtons
+            filename="menu_performance"
+            data={rows}
+            columns={[
+              { header: 'Item', accessor: (i) => i.MenuItemName },
+              { header: 'Category', accessor: (i) => i.CategoryName },
+              { header: 'Qty Sold', accessor: (i) => i.QuantitySold },
+              { header: 'Revenue', accessor: (i) => i.Revenue },
+              { header: 'Margin %', accessor: (i) => i.MarginPercentage },
+              { header: 'Quadrant', accessor: (i) => i.Quadrant },
+            ]}
+          />
+        }
+      />
       {quadrants.error && <ErrorBanner message={quadrants.error} onRetry={quadrants.reload} />}
       {quadrants.data && (
         <p className="mb-4 text-sm text-slate-500">
