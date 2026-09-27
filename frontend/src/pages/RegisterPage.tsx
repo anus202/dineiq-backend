@@ -34,7 +34,7 @@ export function RegisterPage() {
   }
 
   return (
-    <AuthShell title="Join DineIQ Rewards" subtitle="Earn points on every bill and unlock Gold and Platinum discounts.">
+    <AuthShell title="Join DineIQ Rewards" subtitle="Earn points on every bill and unlock Gold and Platinum discounts." heroSide="right">
       <form onSubmit={submit} className="space-y-4">
         {error && <ErrorBanner message={error} />}
         <TextField label="Full name" required value={form.FullName} onChange={set('FullName')} />
