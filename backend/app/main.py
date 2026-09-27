@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.controllers import (
     analytics_controller,
+    assistant_controller,
     audit_controller,
     auth_controller,
     branch_analytics_controller,
@@ -81,6 +82,7 @@ app.include_router(branch_analytics_controller.router)
 app.include_router(ml_analytics_controller.router)
 app.include_router(favorite_controller.router)
 app.include_router(promotion_controller.router)
+app.include_router(assistant_controller.router)
 
 
 @app.get("/", tags=["Health"], summary="Health check")

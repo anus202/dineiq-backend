@@ -1,6 +1,8 @@
 import type {
   AdminSummary,
   AnomalyReportResponse,
+  AssistantChatRequest,
+  AssistantChatResponse,
   AuditLog,
   AuthResponse,
   BranchComparisonResponse,
@@ -232,4 +234,10 @@ export const customerPortalApi = {
   me: () => get<CustomerMe>('/dashboard/customer/me'),
   myOrders: (params: { skip: number; limit: number; open_only?: boolean }) => get<Page<MyOrder>>('/dashboard/customer/my-orders', params),
   recommendations: () => get<Recommendations>('/dashboard/customer/recommendations'),
+}
+
+/** The floating AI assistant widget, mounted globally so it's public (works on /login
+ * and /register before a token exists) and scoped to whatever page the caller is on. */
+export const assistantApi = {
+  chat: (body: AssistantChatRequest) => post<AssistantChatResponse>('/assistant/chat', body),
 }

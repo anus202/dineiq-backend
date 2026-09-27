@@ -916,3 +916,21 @@ export interface DemandForecastItem {
   CurrentMonthQuantity: number
   PredictedNextMonthQuantity: number
 }
+
+// --- Assistant (floating chat widget) ----------------------------------------------------
+
+export interface AssistantMessage {
+  Role: 'user' | 'assistant'
+  Text: string
+}
+
+export interface AssistantChatRequest {
+  Message: string
+  Page: string
+  History: AssistantMessage[]
+}
+
+export interface AssistantChatResponse {
+  Reply: string
+  Configured: boolean
+}

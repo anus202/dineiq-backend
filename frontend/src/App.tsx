@@ -1,6 +1,7 @@
 import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './components/layout/AppLayout'
+import { MascotChat } from './components/layout/MascotChat'
 import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import { ShimmerSkeleton, ToastProvider } from './components/ui'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -358,6 +359,7 @@ export default function App() {
           </Routes>
           </BranchProvider>
         </AuthProvider>
+        <MascotChat />
       </ToastProvider>
     </BrowserRouter>
     </ThemeProvider>

@@ -44,3 +44,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 
 if not JWT_SECRET_KEY:
     raise RuntimeError("JWT_SECRET_KEY is not set. Add it to your .env file.")
+
+# In-app AI assistant (floating chat widget). Optional: with no key set, the endpoint
+# stays up and replies with a "not configured yet" message instead of erroring, so the
+# widget itself never has to know whether it's wired up.
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+ASSISTANT_MODEL = os.getenv("ASSISTANT_MODEL", "claude-haiku-4-5-20251001")
