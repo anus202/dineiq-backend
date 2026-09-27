@@ -150,9 +150,6 @@ def scale_orders_and_lines(conn) -> None:
             ))
             lines_by_order_index.append(lines)
 
-        cur.execute("SELECT IDENT_CURRENT('dbo.Orders')")
-        start_id = int(cur.fetchone()[0])
-
         cur.executemany(
             "INSERT INTO dbo.Orders "
             "(CustomerId, BranchId, GuestCount, OrderNumber, OrderDate, OrderType, PaymentMethod, Status, "
@@ -161,6 +158,13 @@ def scale_orders_and_lines(conn) -> None:
             orders_batch,
         )
 
+        # IDENT_CURRENT read *after* the insert: read before, IDENT_CURRENT returns the
+        # seed value (not 0) on a table with no rows yet, which is off by one on the very
+        # first batch and misassigns every Order_Items.OrderId in it (the last line ends
+        # up pointing at an order ID that was never inserted, failing the FK constraint).
+        cur.execute("SELECT IDENT_CURRENT('dbo.Orders')")
+        last_id = int(cur.fetchone()[0])
+        start_id = last_id - len(orders_batch)
         new_order_ids = list(range(start_id + 1, start_id + 1 + len(orders_batch)))
 
         detail_rows = []
