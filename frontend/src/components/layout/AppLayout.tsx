@@ -4,7 +4,6 @@ import {
   GitCompare,
   Award,
   BookOpen,
-  BrainCircuit,
   Building2,
   CalendarClock,
   CalendarRange,
@@ -28,7 +27,6 @@ import {
   Scale,
   Search,
   ScrollText,
-  Settings,
   ShieldAlert,
   ShieldPlus,
   ShoppingBag,
@@ -38,7 +36,6 @@ import {
   Star,
   Sun,
   Trash2,
-  TrendingUp,
   UserCircle,
   Users,
   UtensilsCrossed,
@@ -97,21 +94,6 @@ const ROUTE_ICONS: Record<string, LucideIcon> = {
   '/customer/ratings': Star,
 }
 
-// One icon + gradient chip colour per sidebar GROUP (distinct from ROUTE_ICONS above,
-// which is per individual page). Purely cosmetic, keyed by the group's own title so it
-// needs no change to NavGroup's shape in utils/roles.ts.
-const GROUP_STYLES: Record<string, { icon: LucideIcon; gradient: string }> = {
-  'Dashboards & Analytics': { icon: LayoutDashboard, gradient: 'from-indigo-400 to-indigo-600' },
-  'Branch Performance': { icon: TrendingUp, gradient: 'from-orange-400 to-orange-600' },
-  'ML & Big Data Insights': { icon: BrainCircuit, gradient: 'from-cyan-400 to-cyan-600' },
-  'Inventory & Stock Management': { icon: Package, gradient: 'from-emerald-400 to-emerald-600' },
-  'Menu & Category Management': { icon: UtensilsCrossed, gradient: 'from-rose-400 to-rose-600' },
-  'POS & Tables': { icon: LayoutGrid, gradient: 'from-amber-400 to-amber-600' },
-  'Customer & Audit': { icon: Search, gradient: 'from-violet-400 to-violet-600' },
-  'Administrative & Setup': { icon: Settings, gradient: 'from-slate-500 to-slate-700' },
-  'My Account': { icon: UserCircle, gradient: 'from-brand-400 to-brand-600' },
-}
-const DEFAULT_GROUP_STYLE = { icon: LayoutDashboard, gradient: 'from-slate-400 to-slate-600' }
 
 function SidebarGroup({ group, isExactMatchOnly }: { group: NavGroup; isExactMatchOnly: (to: string) => boolean }) {
   const location = useLocation()
@@ -127,25 +109,15 @@ function SidebarGroup({ group, isExactMatchOnly }: { group: NavGroup; isExactMat
     if (isGroupActive) setOpen(true)
   }, [isGroupActive])
 
-  const { icon: GroupIcon, gradient } = GROUP_STYLES[group.title] ?? DEFAULT_GROUP_STYLE
-
   return (
-    <div className="mb-2.5 px-3">
+    <div className="mb-1.5 px-3">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/60"
+        className="flex w-full items-center gap-2.5 rounded-r-lg border-l-[2.5px] border-teal-200 py-2.5 pr-2.5 pl-3 text-left transition-colors hover:bg-slate-50 dark:border-teal-900 dark:hover:bg-slate-800/60"
       >
-        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br ${gradient} text-white shadow-sm`}>
-          <GroupIcon className="h-4 w-4" aria-hidden="true" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[13px] leading-tight font-bold tracking-tight text-slate-800 dark:text-slate-100">{group.title}</span>
-          <span className="block text-[10px] font-semibold text-slate-400 dark:text-slate-500">
-            {group.items.length} {group.items.length === 1 ? 'page' : 'pages'}
-          </span>
-        </span>
+        <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-slate-700 dark:text-slate-300">{group.title}</span>
         <ChevronDown
           className={`h-4 w-4 shrink-0 text-slate-300 transition-transform duration-200 dark:text-slate-600 ${open ? 'rotate-180' : ''}`}
           aria-hidden="true"
@@ -188,6 +160,26 @@ function SidebarGroup({ group, isExactMatchOnly }: { group: NavGroup; isExactMat
         </div>
       </div>
     </div>
+  )
+}
+
+/** A dedicated sign-out button in the sidebar itself, in addition to the one inside the
+ * navbar's UserMenu dropdown -- same real logout() + redirect, not a second auth path. */
+function SidebarSignOutButton() {
+  const { logout } = useAuth()
+  const navigate = useNavigate()
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        logout()
+        navigate('/login', { replace: true })
+      }}
+      className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-100 bg-rose-50 py-2.5 text-sm font-semibold text-rose-600 transition hover:border-rose-200 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-950/70"
+    >
+      <LogOut className="h-4 w-4" aria-hidden="true" />
+      Sign out
+    </button>
   )
 }
 
@@ -356,7 +348,7 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-full">
-      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r border-slate-200 bg-white md:flex dark:border-slate-800 dark:bg-slate-950">
+      <aside className="sticky top-0 hidden h-screen w-[340px] shrink-0 flex-col border-r border-slate-200 bg-white md:flex dark:border-slate-800 dark:bg-slate-950">
         <div className="flex items-center gap-2.5 px-5 py-5">
           <img src="/favicon.svg" alt="" className="h-7 w-7" />
           <div>
@@ -364,11 +356,17 @@ export function AppLayout() {
             <p className="text-[10.5px] leading-tight text-slate-400 dark:text-slate-500">Dining Intelligence</p>
           </div>
         </div>
-        <nav className="flex-1 overflow-y-auto pt-1 pb-4">
+        {/* sidebar-scroll (index.css): a thin, near-invisible scrollbar -- this list gets
+           long (9 groups, several expanded), so it must still scroll, just without a
+           heavy default scrollbar competing with the nav for attention. */}
+        <nav className="sidebar-scroll flex-1 overflow-y-auto pt-1 pb-2">
           {visibleGroups.map((group) => (
             <SidebarGroup key={group.title} group={group} isExactMatchOnly={isExactMatchOnly} />
           ))}
         </nav>
+        <div className="px-3 pt-1 pb-2">
+          <SidebarSignOutButton />
+        </div>
         <div className="flex items-center gap-2 border-t border-slate-100 px-5 py-3.5 text-xs text-slate-400 dark:border-slate-800 dark:text-slate-500">
           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.15)]" />
           <span className="truncate">API: {import.meta.env.VITE_API_BASE_URL}</span>

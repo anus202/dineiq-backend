@@ -38,6 +38,32 @@
   .field-input {
     @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-xs transition outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:bg-slate-50 disabled:text-slate-400;
   }
+  /* Thin, near-invisible scrollbar for the sidebar's nav list -- it still scrolls (9
+     groups, several expanded, can exceed the viewport height), just without a bulky
+     default scrollbar track competing with the nav for attention. */
+  .sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .sidebar-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 999px;
+  }
+  .sidebar-scroll:hover {
+    scrollbar-color: #cbd5e1 transparent;
+  }
+  .sidebar-scroll:hover::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+  }
+  .dark .sidebar-scroll:hover {
+    scrollbar-color: #475569 transparent;
+  }
+  .dark .sidebar-scroll:hover::-webkit-scrollbar-thumb {
+    background: #475569;
+  }
 }
 
 @media print {
