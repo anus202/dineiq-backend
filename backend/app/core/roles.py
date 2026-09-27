@@ -32,5 +32,9 @@ MENU_MANAGERS = [RoleName.ADMIN]
 FRONT_OF_HOUSE = [RoleName.ADMIN, RoleName.CASHIER]
 STOCK_MANAGERS = [RoleName.ADMIN, RoleName.INVENTORY_MANAGER]
 BRANCH_MANAGERS = [RoleName.ADMIN, RoleName.RESTAURANT_MANAGER]
+# Demand/wastage-risk forecasts are useful to both branch and stock management, unlike the
+# rest of ml_analytics_controller (churn, basket, pricing, promotions) which is sales/
+# marketing-facing and stays BRANCH_MANAGERS-only.
+FORECAST_VIEWERS = [RoleName.ADMIN, RoleName.RESTAURANT_MANAGER, RoleName.INVENTORY_MANAGER]
 ALL_STAFF = [RoleName.ADMIN, RoleName.RESTAURANT_MANAGER, RoleName.INVENTORY_MANAGER, RoleName.CASHIER]
 EVERYONE = [*ALL_STAFF, RoleName.CUSTOMER]

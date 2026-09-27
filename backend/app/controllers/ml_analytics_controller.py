@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import require_roles
-from app.core.roles import BRANCH_MANAGERS
+from app.core.roles import BRANCH_MANAGERS, FORECAST_VIEWERS
 from app.db.session import get_db
 from app.schemas.ml_analytics_schema import (
     ChurnRiskResponse,
@@ -146,7 +146,7 @@ async def slow_moving_dishes(db: AsyncSession = Depends(get_db)):
 @router.get(
     "/wastage-risk",
     response_model=list[WastageRiskItem],
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(FORECAST_VIEWERS))],
     summary="Menu items scored by the trained wastage-risk regressor, from live sales/rating data",
 )
 async def wastage_risk(limit: int = Query(50, ge=1, le=500), db: AsyncSession = Depends(get_db)):
@@ -159,7 +159,7 @@ async def wastage_risk(limit: int = Query(50, ge=1, le=500), db: AsyncSession = 
 @router.get(
     "/demand-forecast",
     response_model=list[DemandForecastItem],
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(FORECAST_VIEWERS))],
     summary="Next-month quantity-sold projection per menu item from the trained demand regressor",
 )
 async def demand_forecast(limit: int = Query(50, ge=1, le=500), db: AsyncSession = Depends(get_db)):

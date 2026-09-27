@@ -111,9 +111,15 @@ def train_menu_classifier(menu_df: pd.DataFrame) -> dict:
         X, y, df.index, test_size=0.3, random_state=settings.RANDOM_SEED, stratify=y
     )
 
+    # Fewer, shallower trees with L1/L2 regularization: with leakage removed (see
+    # MENU_CLASSIFIER_FEATURES above) and only ~135 training rows across 4 classes, the
+    # original 300-tree/depth-6 configuration (tuned when TotalQuantitySold/MarginPercent
+    # were still leaking the label) overfit badly. This mirrors the same fix already
+    # applied to train_demand_regressor for the same reason.
     model = XGBClassifier(
-        n_estimators=300, max_depth=6, learning_rate=0.08, subsample=0.85,
-        colsample_bytree=0.85, objective="multi:softprob", num_class=len(encoder.classes_),
+        n_estimators=120, max_depth=3, learning_rate=0.05, subsample=0.8,
+        colsample_bytree=0.8, reg_alpha=0.5, reg_lambda=2.0,
+        objective="multi:softprob", num_class=len(encoder.classes_),
         eval_metric="mlogloss", random_state=settings.RANDOM_SEED, n_jobs=-1,
     )
     model.fit(X_train, y_train)

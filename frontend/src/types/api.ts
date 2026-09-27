@@ -598,11 +598,21 @@ export interface StockingRecommendation {
   Reasoning: string
 }
 
+export interface DemandModelAccuracy {
+  mae: number | null
+  rmse: number | null
+  mape_percent: number | null
+  improvement_over_baseline_percent: number | null
+}
+
 export interface DemandForecastResponse {
   BranchId: number | null
   HourlyPattern: DemandForecastHour[]
   PeakHour: number | null
   Recommendations: StockingRecommendation[]
+  IsMLPowered: boolean
+  ModelAccuracy: DemandModelAccuracy | null
+  UsedSystemWideFallback: boolean
 }
 
 export interface BranchComparisonRow {

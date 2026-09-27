@@ -1,8 +1,10 @@
 """Branch-scoped business intelligence: channel mix, menu-quadrant classification, wastage
-analytics, simple demand forecasting, multi-branch comparison, sales-anomaly detection and
-rule-based recommendations — all computed with real SQL aggregations against the actual
-31-branch dataset (no Spark/XGBoost, no mock data). See AI_USAGE.md / conversation history
-for why: a full ML pipeline needs a training dataset this operational app doesn't have yet.
+analytics, demand forecasting, multi-branch comparison, sales-anomaly detection and
+rule-based recommendations — computed with real SQL aggregations against the actual
+31-branch dataset. Demand forecasting additionally calls into ml_analytics_service's
+trained XGBoost regressor (see _get_demand_forecast_uncached) and translates its per-menu-
+item predictions into ingredient-level stocking needs via the recipe mapping; every other
+function here is deliberately plain SQL, not ML.
 """
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
@@ -13,8 +15,9 @@ from sqlalchemy import Date, cast, func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import TTLCache
+from app.services import ml_analytics_service
 from app.core.config import BUSINESS_UTC_OFFSET_MINUTES
-from app.models import InventoryItem, MenuItem, Order, OrderDetail, RestaurantBranch, StockMovementLog, Wastage
+from app.models import InventoryItem, MenuItem, Order, OrderDetail, Recipe, RestaurantBranch, StockMovementLog, Wastage
 from app.schemas.branch_analytics_schema import (
     AnomalyReportResponse,
     BranchComparisonResponse,
@@ -23,6 +26,7 @@ from app.schemas.branch_analytics_schema import (
     ChannelMixEntry,
     ChannelMixResponse,
     DemandForecastHour,
+    DemandModelAccuracy,
     DemandForecastResponse,
     MenuQuadrantItem,
     MenuQuadrantResponse,
@@ -285,29 +289,87 @@ async def get_demand_forecast(db: AsyncSession, branch_id: Optional[int], days: 
     )
 
 
-async def _get_demand_forecast_uncached(db: AsyncSession, branch_id: Optional[int], days: int = 30) -> DemandForecastResponse:
-    since = datetime.utcnow() - timedelta(days=days)
+_MIN_HOURS_WITH_DATA_FOR_BRANCH_PATTERN = 5
+
+
+async def _hourly_consumption_pattern(db: AsyncSession, scope_branch_id: Optional[int], since: datetime) -> dict[int, float]:
     local_time = func.dateadd(literal_column("minute"), literal_column(str(int(BUSINESS_UTC_OFFSET_MINUTES))), Order.OrderDate)
     hour = func.datepart(literal_column("hour"), local_time)
-    consumed = (-StockMovementLog.QuantityChange)
+    consumed = -StockMovementLog.QuantityChange
+    filters = [StockMovementLog.MovementType == "ORDER_CONSUMPTION", StockMovementLog.CreatedAt >= since]
+    if scope_branch_id is not None:
+        filters.append(StockMovementLog.BranchId == scope_branch_id)
+    rows = (
+        await db.execute(
+            select(hour, func.avg(consumed)).select_from(StockMovementLog).join(Order, Order.Id == StockMovementLog.OrderId).where(*filters).group_by(hour)
+        )
+    ).all()
+    return {int(h): float(avg) for h, avg in rows}
 
+
+async def _ml_stocking_recommendations(
+    db: AsyncSession, branch_id: Optional[int], peak_hour: Optional[int]
+) -> tuple[list[StockingRecommendation], Optional[DemandModelAccuracy]]:
+    """Translates the trained XGBoost demand model's per-menu-item next-month predictions
+    into ingredient-level stocking needs via the recipe mapping (predicted menu-item qty x
+    recipe QuantityRequired, summed per ingredient) -- real ML output, not a rolling average.
+    Returns ([], None) if the model/predictions aren't usable, so the caller can fall back.
+    """
+    predictions = await ml_analytics_service.get_demand_forecast_ml(db, limit=1000, branch_id=branch_id)
+    predicted_by_menu_item = {p["MenuItemId"]: p["PredictedNextMonthQuantity"] for p in predictions}
+    if not predicted_by_menu_item:
+        return [], None
+
+    recipe_rows = (
+        await db.execute(
+            select(Recipe.MenuItemId, InventoryItem.Id, InventoryItem.ItemName, InventoryItem.Unit, Recipe.QuantityRequired)
+            .join(InventoryItem, InventoryItem.Id == Recipe.InventoryItemId)
+            .where(Recipe.IsDeleted == False, InventoryItem.IsDeleted == False)  # noqa: E712
+        )
+    ).all()
+
+    predicted_monthly_by_item: dict[int, float] = {}
+    item_meta: dict[int, tuple[str, str]] = {}
+    for menu_item_id, inv_item_id, item_name, unit, qty_required in recipe_rows:
+        predicted_qty = predicted_by_menu_item.get(menu_item_id)
+        if predicted_qty is None:
+            continue
+        predicted_monthly_by_item[inv_item_id] = predicted_monthly_by_item.get(inv_item_id, 0.0) + predicted_qty * float(qty_required)
+        item_meta[inv_item_id] = (item_name, unit)
+    if not predicted_monthly_by_item:
+        return [], None
+
+    accuracy_raw = ml_analytics_service.get_demand_model_accuracy()
+    accuracy = DemandModelAccuracy(**accuracy_raw) if accuracy_raw else None
+    accuracy_note = f" The trained model's mean absolute error is {accuracy.mae:.1f} units on unseen data." if accuracy and accuracy.mae is not None else ""
+
+    top_predicted = sorted(predicted_monthly_by_item.items(), key=lambda kv: kv[1], reverse=True)[:5]
+    recommendations = [
+        StockingRecommendation(
+            ItemName=item_meta[inv_item_id][0],
+            PeakHour=peak_hour if peak_hour is not None else 12,
+            RecommendedPrepQuantity=round((monthly_qty / 30) * 1.2, 3),
+            Unit=item_meta[inv_item_id][1],
+            Reasoning=(
+                f"Trained XGBoost demand model projects {round(monthly_qty, 1)} {item_meta[inv_item_id][1]} needed next month across "
+                f"all recipes using this ingredient (~{round(monthly_qty / 30, 2)} {item_meta[inv_item_id][1]}/day); a 20% buffer "
+                f"covers normal variation.{accuracy_note}"
+            ),
+        )
+        for inv_item_id, monthly_qty in top_predicted
+    ]
+    return recommendations, accuracy
+
+
+async def _historical_average_recommendations(
+    db: AsyncSession, branch_id: Optional[int], days: int, since: datetime, peak_hour: Optional[int]
+) -> list[StockingRecommendation]:
+    """Fallback used only if the trained model/report is unavailable (e.g. the analytics
+    pipeline hasn't been run yet) -- a plain historical average, not fabricated ML output."""
+    consumed = -StockMovementLog.QuantityChange
     filters = [StockMovementLog.MovementType == "ORDER_CONSUMPTION", StockMovementLog.CreatedAt >= since]
     if branch_id is not None:
         filters.append(StockMovementLog.BranchId == branch_id)
-
-    hourly_rows = (
-        await db.execute(
-            select(hour, func.avg(consumed))
-            .select_from(StockMovementLog)
-            .join(Order, Order.Id == StockMovementLog.OrderId)
-            .where(*filters)
-            .group_by(hour)
-        )
-    ).all()
-    by_hour = {int(h): float(avg) for h, avg in hourly_rows}
-    hourly_pattern = [DemandForecastHour(Hour=h, AverageQuantityConsumed=round(by_hour.get(h, 0.0), 3)) for h in range(24)]
-    peak_hour = max(by_hour, key=by_hour.get) if by_hour else None
-
     top_items = (
         await db.execute(
             select(InventoryItem.ItemName, InventoryItem.Unit, func.sum(consumed) / days)
@@ -319,17 +381,57 @@ async def _get_demand_forecast_uncached(db: AsyncSession, branch_id: Optional[in
             .limit(5)
         )
     ).all()
-    recommendations = [
+    return [
         StockingRecommendation(
             ItemName=name,
             PeakHour=peak_hour if peak_hour is not None else 12,
             RecommendedPrepQuantity=round(float(avg_daily) * 1.2, 3) if avg_daily else 0,
             Unit=unit,
-            Reasoning=f"Averages {round(float(avg_daily), 2)} {unit}/day over the last {days} days; a 20% buffer covers normal demand variation, concentrated around the {peak_hour:02d}:00 peak." if peak_hour is not None else f"Averages {round(float(avg_daily), 2)} {unit}/day over the last {days} days.",
+            Reasoning=(
+                f"Averages {round(float(avg_daily), 2)} {unit}/day over the last {days} days; a 20% buffer covers normal demand "
+                f"variation, concentrated around the {peak_hour:02d}:00 peak."
+                if peak_hour is not None
+                else f"Averages {round(float(avg_daily), 2)} {unit}/day over the last {days} days."
+            ),
         )
         for name, unit, avg_daily in top_items
     ]
-    return DemandForecastResponse(BranchId=branch_id, HourlyPattern=hourly_pattern, PeakHour=peak_hour, Recommendations=recommendations)
+
+
+async def _get_demand_forecast_uncached(db: AsyncSession, branch_id: Optional[int], days: int = 30) -> DemandForecastResponse:
+    since = datetime.utcnow() - timedelta(days=days)
+
+    by_hour = await _hourly_consumption_pattern(db, branch_id, since)
+    used_system_wide_fallback = False
+    if branch_id is not None and len(by_hour) < _MIN_HOURS_WITH_DATA_FOR_BRANCH_PATTERN:
+        by_hour = await _hourly_consumption_pattern(db, None, since)
+        used_system_wide_fallback = True
+
+    hourly_pattern = [DemandForecastHour(Hour=h, AverageQuantityConsumed=round(by_hour.get(h, 0.0), 3)) for h in range(24)]
+    peak_hour = max(by_hour, key=by_hour.get) if by_hour else None
+
+    recommendations: list[StockingRecommendation] = []
+    model_accuracy: Optional[DemandModelAccuracy] = None
+    try:
+        recommendations, model_accuracy = await _ml_stocking_recommendations(db, branch_id, peak_hour)
+    except RuntimeError:
+        # Trained model/report not available (e.g. pipeline not yet run) -- degrade to the
+        # historical average below instead of failing the whole dashboard.
+        pass
+
+    is_ml_powered = bool(recommendations)
+    if not recommendations:
+        recommendations = await _historical_average_recommendations(db, branch_id, days, since, peak_hour)
+
+    return DemandForecastResponse(
+        BranchId=branch_id,
+        HourlyPattern=hourly_pattern,
+        PeakHour=peak_hour,
+        Recommendations=recommendations,
+        IsMLPowered=is_ml_powered,
+        ModelAccuracy=model_accuracy,
+        UsedSystemWideFallback=used_system_wide_fallback,
+    )
 
 
 # --- Multi-branch comparison (Admin) --------------------------------------------------------

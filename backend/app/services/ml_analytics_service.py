@@ -325,14 +325,28 @@ async def _get_wastage_risk_uncached(db: AsyncSession, limit: int = 50) -> list[
 # --- Demand forecast: trained Spark/XGBoost next-month-quantity regressor, live scoring --
 
 
-async def get_demand_forecast_ml(db: AsyncSession, limit: int = 50) -> list[dict]:
-    return await _demand_forecast_ml_cache.get_or_set(limit, _ML_CACHE_TTL_SECONDS, lambda: _get_demand_forecast_ml_uncached(db, limit))
+async def get_demand_forecast_ml(db: AsyncSession, limit: int = 50, branch_id: Optional[int] = None) -> list[dict]:
+    return await _demand_forecast_ml_cache.get_or_set(
+        (limit, branch_id), _ML_CACHE_TTL_SECONDS, lambda: _get_demand_forecast_ml_uncached(db, limit, branch_id)
+    )
 
 
-async def _get_demand_forecast_ml_uncached(db: AsyncSession, limit: int = 50) -> list[dict]:
+# Below this many distinct menu items with current-month orders, a branch's own features
+# are too thin to trust (the model would effectively be extrapolating from 1-2 points) --
+# fall back to the system-wide prediction instead of returning a near-empty result.
+_MIN_MENU_ITEMS_FOR_BRANCH_FORECAST = 3
+
+
+async def _get_demand_forecast_ml_uncached(db: AsyncSession, limit: int = 50, branch_id: Optional[int] = None) -> list[dict]:
     """Scores each real menu item's CURRENT month features through the trained Python
     demand_forecast_regressor.pkl (trained with a chronological split on the analytics
     pipeline's monthly item-demand series) to project next month's quantity sold.
+
+    branch_id, when given, scores that branch's own current-month sales mix through the
+    same system-wide-trained model (the model itself is trained on combined data across
+    all branches -- there isn't a separate per-branch model). If that branch has too few
+    menu items with recent orders to trust, this transparently falls back to the
+    system-wide aggregation rather than returning a sparse, misleading result.
     """
     bundle = _load_demand_bundle()
     model = bundle["model"]
@@ -342,6 +356,15 @@ async def _get_demand_forecast_ml_uncached(db: AsyncSession, limit: int = 50) ->
     month_start = today.replace(day=1)
 
     unit_cost = func.coalesce(OrderDetail.UnitCost, MenuItem.Cost)
+    filters = [
+        OrderDetail.IsDeleted == False,  # noqa: E712
+        Order.Status != "Cancelled",
+        Order.IsDeleted == False,  # noqa: E712
+        cast(Order.OrderDate, Date) >= month_start,
+    ]
+    if branch_id is not None:
+        filters.append(Order.BranchId == branch_id)
+
     rows = (
         await db.execute(
             select(
@@ -356,15 +379,12 @@ async def _get_demand_forecast_ml_uncached(db: AsyncSession, limit: int = 50) ->
             .select_from(MenuItem)
             .join(OrderDetail, OrderDetail.MenuItemId == MenuItem.Id)
             .join(Order, Order.Id == OrderDetail.OrderId)
-            .where(
-                OrderDetail.IsDeleted == False,  # noqa: E712
-                Order.Status != "Cancelled",
-                Order.IsDeleted == False,  # noqa: E712
-                cast(Order.OrderDate, Date) >= month_start,
-            )
+            .where(*filters)
             .group_by(MenuItem.Id, MenuItem.Name)
         )
     ).all()
+    if branch_id is not None and len(rows) < _MIN_MENU_ITEMS_FOR_BRANCH_FORECAST:
+        return await _get_demand_forecast_ml_uncached(db, limit, branch_id=None)
     if not rows:
         return []
 
@@ -426,6 +446,32 @@ def _load_demand_bundle() -> dict:
         with open(DEMAND_MODEL_PATH, "rb") as f:
             _demand_bundle_cache = pickle.load(f)
     return _demand_bundle_cache
+
+
+_demand_accuracy_cache: Optional[dict] = None
+
+
+def get_demand_model_accuracy() -> Optional[dict]:
+    """Real accuracy metrics for demand_forecast_regressor.pkl, from the training run's own
+    saved report -- never fabricated, and None (not a fake perfect score) if the report is
+    missing so callers can render 'accuracy unavailable' honestly."""
+    global _demand_accuracy_cache
+    if _demand_accuracy_cache is None:
+        metrics_path = ANALYTICS_PIPELINE_DIR / "reports" / "python_model_metrics.json"
+        if not metrics_path.exists():
+            return None
+        with open(metrics_path, encoding="utf-8") as f:
+            report = json.load(f)
+        demand = report.get("demand_forecasting")
+        if not demand:
+            return None
+        _demand_accuracy_cache = {
+            "mae": demand.get("mae"),
+            "rmse": demand.get("rmse"),
+            "mape_percent": demand.get("mape_percent"),
+            "improvement_over_baseline_percent": demand.get("improvement_over_baseline_percent"),
+        }
+    return _demand_accuracy_cache
 
 
 # --- Rating Anomaly Detection: sudden spikes/drops, unusual volume, identical clusters ---
