@@ -5,6 +5,7 @@ import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import { ShimmerSkeleton, ToastProvider } from './components/ui'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { BranchProvider } from './context/BranchContext'
+import { ThemeProvider } from './context/ThemeContext'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import type { RoleName } from './types/api'
@@ -68,6 +69,7 @@ function Home() {
 
 export default function App() {
   return (
+    <ThemeProvider>
     <BrowserRouter>
       <ToastProvider>
         <AuthProvider>
@@ -403,5 +405,6 @@ export default function App() {
         </AuthProvider>
       </ToastProvider>
     </BrowserRouter>
+    </ThemeProvider>
   )
 }

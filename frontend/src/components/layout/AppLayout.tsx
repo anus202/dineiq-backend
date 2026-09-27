@@ -17,6 +17,8 @@ import {
   LayoutDashboard,
   LayoutGrid,
   Lightbulb,
+  LogOut,
+  Moon,
   Package,
   PackagePlus,
   PieChart,
@@ -32,6 +34,7 @@ import {
   SlidersHorizontal,
   Snail,
   Star,
+  Sun,
   Trash2,
   UserCircle,
   Users,
@@ -39,9 +42,10 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useTheme } from '../../context/ThemeContext'
 import { useGlobalRevalidating } from '../../hooks/useApi'
 import { NAV, NAV_GROUPS, roleLabel, type NavGroup } from '../../utils/roles'
 import { Badge, ShimmerSkeleton } from '../ui'
@@ -159,10 +163,133 @@ function SyncIndicator() {
   )
 }
 
-export function AppLayout() {
-  const { user, restoring, logout } = useAuth()
-  const location = useLocation()
+/** Light/dark toggle. No search or highlighting wired up yet -- see its own comment below --
+ * this is deliberately UI-only, same as SearchBox, so nothing here claims to do more than
+ * it does. */
+function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme()
+  const isDark = theme === 'dark'
+  return (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+    >
+      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </button>
+  )
+}
+
+/** UI-only search box: no global search API exists yet in this app, so this renders the
+ * input and nothing else -- it deliberately does not call an endpoint or filter anything,
+ * per "don't invent fake API functionality". Wire an onSubmit/onChange here once a real
+ * search endpoint exists. Width is responsive so it stays usable (icon + a little typing
+ * room) down to phone width instead of disappearing entirely. */
+function SearchBox() {
+  return (
+    <label className="relative flex min-w-0 flex-1 items-center justify-center">
+      <span className="sr-only">Search</span>
+      <Search className="pointer-events-none absolute left-3 h-4 w-4 text-slate-400" />
+      <input
+        type="search"
+        placeholder="Search…"
+        className="w-9 min-w-0 rounded-lg border border-slate-200 bg-slate-50 py-2 pr-3 pl-9 text-sm text-slate-700 placeholder:text-slate-400 transition-[width] outline-none focus:w-full focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-100 lg:w-48 lg:focus:w-72 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500 dark:focus:bg-slate-800"
+      />
+    </label>
+  )
+}
+
+/** The logged-in user's name/email/role, as a click-to-open profile dropdown instead of a
+ * static block + separate sign-out button. Reuses useAuth()'s own logout -- no new auth
+ * logic. */
+function UserMenu() {
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => setOpen(false), [location.pathname])
+
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  if (!user) return null
+
+  const handleSignOut = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
+
+  return (
+    <div className="relative shrink-0" ref={rootRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`${user.FullName}, ${roleLabel[user.Role]}. Open account menu`}
+        className="flex items-center gap-2.5 rounded-lg border border-transparent py-1.5 pr-2 pl-1.5 transition hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-700 dark:hover:bg-slate-800"
+      >
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700 dark:bg-brand-900 dark:text-brand-100">
+          {user.FullName.charAt(0).toUpperCase()}
+        </span>
+        <span className="hidden text-left lg:block">
+          <span className="block text-sm font-medium text-ink dark:text-slate-100">{user.FullName}</span>
+          <span className="block text-xs text-slate-500 dark:text-slate-400">{user.Email}</span>
+        </span>
+        <span className="hidden lg:inline-flex">
+          <Badge tone="teal">{roleLabel[user.Role]}</Badge>
+        </span>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute top-full right-0 z-40 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-900"
+        >
+          <div className="px-4 py-2.5">
+            <p className="truncate text-sm font-medium text-ink dark:text-slate-100">{user.FullName}</p>
+            <p className="truncate text-xs text-slate-500 dark:text-slate-400">{user.Email}</p>
+            <span className="mt-1.5 inline-block">
+              <Badge tone="teal">{roleLabel[user.Role]}</Badge>
+            </span>
+          </div>
+          <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+          <button
+            type="button"
+            role="menuitem"
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50 dark:hover:bg-rose-950/40"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function AppLayout() {
+  const { user, restoring } = useAuth()
+  const location = useLocation()
   if (restoring) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -201,8 +328,11 @@ export function AppLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-6 py-3 backdrop-blur">
-          <nav className="flex gap-1 overflow-x-auto md:hidden">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur sm:gap-4 sm:px-6 dark:border-slate-800 dark:bg-slate-950/80">
+          {/* min-w-0: without it, this row's full (unscrolled) content width wins the
+             flexbox space negotiation against its siblings, squeezing the search box and
+             user menu to 0px on narrow screens even though this nav scrolls internally. */}
+          <nav className="flex min-w-0 max-w-[38%] shrink gap-1 overflow-x-auto md:hidden">
             {links.map((item) => (
               <NavLink
                 key={item.to}
@@ -214,24 +344,16 @@ export function AppLayout() {
               </NavLink>
             ))}
           </nav>
-          <div className="hidden md:block" />
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 justify-end sm:justify-center">
+            <SearchBox />
+          </div>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <SyncIndicator />
-            <BranchSelector />
-            <div className="text-right">
-              <p className="text-sm font-medium text-ink">{user.FullName}</p>
-              <p className="text-xs text-slate-500">{user.Email}</p>
+            <div className="max-w-[108px] lg:max-w-none [&_select]:w-full">
+              <BranchSelector />
             </div>
-            <Badge tone="teal">{roleLabel[user.Role]}</Badge>
-            <button
-              onClick={() => {
-                logout()
-                navigate('/login', { replace: true })
-              }}
-              className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
-            >
-              Sign out
-            </button>
+            <ThemeToggle />
+            <UserMenu />
           </div>
         </header>
 
