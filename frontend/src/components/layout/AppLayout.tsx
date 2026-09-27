@@ -9,6 +9,8 @@ import {
   CalendarRange,
   ChefHat,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   DollarSign,
   Flag,
@@ -94,6 +96,48 @@ const ROUTE_ICONS: Record<string, LucideIcon> = {
   '/customer/ratings': Star,
 }
 
+
+// Slightly narrower than before (was 340px) per feedback, and collapsible -- see
+// useSidebarCollapsed below.
+const SIDEBAR_WIDTH = 288
+const SIDEBAR_COLLAPSED_KEY = 'dineiq.sidebarCollapsed'
+
+/** Persists the sidebar's collapsed/expanded state across reloads, same pattern as
+ * ThemeContext's localStorage use. */
+function useSidebarCollapsed() {
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0')
+    } catch {
+      // localStorage can throw in private-browsing/blocked-storage contexts -- collapsing
+      // still works for the session, it just won't persist across reloads.
+    }
+  }, [collapsed])
+  return [collapsed, setCollapsed] as const
+}
+
+/** Small circular tab pinned to the sidebar's right edge -- collapses it to width 0 when
+ * expanded, and stays visible as a click-to-reopen tab when collapsed. */
+function SidebarCollapseToggle({ collapsed, onClick }: { collapsed: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={collapsed ? 'Show sidebar' : 'Hide sidebar'}
+      title={collapsed ? 'Show sidebar' : 'Hide sidebar'}
+      className="absolute top-20 -right-3 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+    >
+      {collapsed ? <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" /> : <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />}
+    </button>
+  )
+}
 
 function SidebarGroup({ group, isExactMatchOnly }: { group: NavGroup; isExactMatchOnly: (to: string) => boolean }) {
   const location = useLocation()
@@ -327,6 +371,7 @@ function UserMenu() {
 export function AppLayout() {
   const { user, restoring } = useAuth()
   const location = useLocation()
+  const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed()
   if (restoring) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -348,30 +393,43 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-full">
-      <aside className="sticky top-0 hidden h-screen w-[340px] shrink-0 flex-col border-r border-slate-200 bg-white md:flex dark:border-slate-800 dark:bg-slate-950">
-        <div className="flex items-center gap-2.5 px-5 py-5">
-          <img src="/favicon.svg" alt="" className="h-7 w-7" />
-          <div>
-            <p className="text-[15px] leading-tight font-bold text-ink dark:text-white">DineIQ</p>
-            <p className="text-[10.5px] leading-tight text-slate-400 dark:text-slate-500">Dining Intelligence</p>
+      <div className="relative hidden md:block">
+        <motion.aside
+          animate={{ width: sidebarCollapsed ? 0 : SIDEBAR_WIDTH }}
+          initial={false}
+          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          className="sticky top-0 h-screen shrink-0 overflow-hidden border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
+        >
+          {/* Fixed inner width so the header/nav text doesn't wrap or reflow mid-animation
+             while the outer <aside> itself shrinks toward 0. */}
+          <div className="flex h-full flex-col" style={{ width: SIDEBAR_WIDTH }}>
+            <div className="flex items-center gap-2.5 px-5 py-5">
+              <img src="/favicon.svg" alt="" className="h-7 w-7" />
+              <div>
+                <p className="text-[15px] leading-tight font-bold text-ink dark:text-white">DineIQ</p>
+                <p className="text-[10.5px] leading-tight text-slate-400 dark:text-slate-500">Dining Intelligence</p>
+              </div>
+            </div>
+            {/* sidebar-scroll (index.css): a thin, near-invisible scrollbar -- this list gets
+               long (9 groups, several expanded), so it must still scroll, just without a
+               heavy default scrollbar competing with the nav for attention. */}
+            <nav className="sidebar-scroll flex-1 overflow-y-auto pt-1 pb-2">
+              {visibleGroups.map((group) => (
+                <SidebarGroup key={group.title} group={group} isExactMatchOnly={isExactMatchOnly} />
+              ))}
+            </nav>
+            <div className="px-3 pt-1 pb-2">
+              <SidebarSignOutButton />
+            </div>
+            <div className="flex items-center gap-2 border-t border-slate-100 px-5 py-3.5 text-xs text-slate-400 dark:border-slate-800 dark:text-slate-500">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.15)]" />
+              <span className="truncate">API: {import.meta.env.VITE_API_BASE_URL}</span>
+            </div>
           </div>
-        </div>
-        {/* sidebar-scroll (index.css): a thin, near-invisible scrollbar -- this list gets
-           long (9 groups, several expanded), so it must still scroll, just without a
-           heavy default scrollbar competing with the nav for attention. */}
-        <nav className="sidebar-scroll flex-1 overflow-y-auto pt-1 pb-2">
-          {visibleGroups.map((group) => (
-            <SidebarGroup key={group.title} group={group} isExactMatchOnly={isExactMatchOnly} />
-          ))}
-        </nav>
-        <div className="px-3 pt-1 pb-2">
-          <SidebarSignOutButton />
-        </div>
-        <div className="flex items-center gap-2 border-t border-slate-100 px-5 py-3.5 text-xs text-slate-400 dark:border-slate-800 dark:text-slate-500">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.15)]" />
-          <span className="truncate">API: {import.meta.env.VITE_API_BASE_URL}</span>
-        </div>
-      </aside>
+        </motion.aside>
+
+        <SidebarCollapseToggle collapsed={sidebarCollapsed} onClick={() => setSidebarCollapsed((c) => !c)} />
+      </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur sm:gap-4 sm:px-6 dark:border-slate-800 dark:bg-slate-950/80">
