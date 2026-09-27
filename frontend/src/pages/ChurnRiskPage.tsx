@@ -1,12 +1,25 @@
 import { PageHeader } from '../components/layout/AppLayout'
-import { Badge, ErrorBanner, ShimmerSkeleton } from '../components/ui'
+import { Badge, DataTable, ErrorBanner, type Column } from '../components/ui'
 import { ExportButtons } from '../components/common/ExportButtons'
 import { useApi } from '../hooks/useApi'
 import { mlAnalyticsApi } from '../services/endpoints'
 import type { ChurnRiskCustomer } from '../types/api'
 
+const columns: Column<ChurnRiskCustomer>[] = [
+  { key: 'name', header: 'Customer', render: (c) => <span className="font-medium text-ink">{c.Name}</span>, sortValue: (c) => c.Name },
+  { key: 'risk', header: 'Risk', render: (c) => <Badge tone={c.RiskLabel === 'At Risk' ? 'red' : 'green'}>{c.RiskLabel}</Badge>, sortValue: (c) => c.RiskLabel },
+  { key: 'prob', header: 'Probability', align: 'right', render: (c) => `${(c.ChurnProbability * 100).toFixed(1)}%`, sortValue: (c) => c.ChurnProbability },
+  { key: 'recency', header: 'Recency', align: 'right', render: (c) => `${c.RecencyDays}d`, sortValue: (c) => c.RecencyDays },
+  { key: 'frequency', header: 'Frequency', align: 'right', render: (c) => c.Frequency, sortValue: (c) => c.Frequency },
+  { key: 'monetary', header: 'Monetary', align: 'right', render: (c) => c.Monetary.toLocaleString(), sortValue: (c) => c.Monetary },
+  { key: 'aov', header: 'Avg Order Value', align: 'right', render: (c) => c.AvgOrderValue.toLocaleString(), sortValue: (c) => c.AvgOrderValue },
+  { key: 'tenure', header: 'Tenure', align: 'right', render: (c) => `${c.TenureDays}d`, sortValue: (c) => c.TenureDays },
+]
+
 export function ChurnRiskPage() {
-  const churn = useApi(() => mlAnalyticsApi.churnRisk(100), [])
+  // Fetches the top 500 by risk (up from 100) — safe now that DataTable paginates
+  // client-side at 20 rows/page instead of rendering every row as a DOM node at once.
+  const churn = useApi(() => mlAnalyticsApi.churnRisk(500), [])
 
   return (
     <>
@@ -31,38 +44,21 @@ export function ChurnRiskPage() {
         }
       />
       {churn.data && (
-        <p className="mb-4 text-sm text-slate-500">{churn.data.ScoredCustomers.toLocaleString()} customers scored — showing top 100 by risk</p>
+        <p className="mb-4 text-sm text-slate-500">
+          {churn.data.ScoredCustomers.toLocaleString()} customers scored — showing top {churn.data.Customers.length} by risk
+        </p>
       )}
       {churn.error && <ErrorBanner message={churn.error} onRetry={churn.reload} />}
-      {churn.loading && !churn.data && <ShimmerSkeleton className="h-64" rounded="rounded-2xl" />}
-      <div className="card overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead>
-            <tr className="text-left text-xs font-medium tracking-wide text-slate-500 uppercase">
-              <th className="px-4 py-3">Customer</th>
-              <th className="px-4 py-3">Risk</th>
-              <th className="px-4 py-3">Probability</th>
-              <th className="px-4 py-3">Recency</th>
-              <th className="px-4 py-3">Frequency</th>
-              <th className="px-4 py-3">Monetary</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {churn.data?.Customers.map((c) => (
-              <tr key={c.CustomerId}>
-                <td className="px-4 py-2.5 font-medium text-ink">{c.Name}</td>
-                <td className="px-4 py-2.5">
-                  <Badge tone={c.RiskLabel === 'At Risk' ? 'red' : 'green'}>{c.RiskLabel}</Badge>
-                </td>
-                <td className="px-4 py-2.5">{(c.ChurnProbability * 100).toFixed(1)}%</td>
-                <td className="px-4 py-2.5">{c.RecencyDays}d</td>
-                <td className="px-4 py-2.5">{c.Frequency}</td>
-                <td className="px-4 py-2.5">{c.Monetary.toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={columns}
+        rows={churn.data?.Customers ?? []}
+        rowKey={(c) => c.CustomerId}
+        loading={churn.loading && !churn.data}
+        searchText={(c) => c.Name}
+        searchPlaceholder="Search customers…"
+        pageSize={20}
+        emptyTitle="No customers scored yet"
+      />
     </>
   )
 }

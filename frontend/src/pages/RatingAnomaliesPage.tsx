@@ -1,5 +1,5 @@
 import { PageHeader } from '../components/layout/AppLayout'
-import { Badge, ErrorBanner, ShimmerSkeleton } from '../components/ui'
+import { Badge, DataTable, ErrorBanner, type Column } from '../components/ui'
 import { ExportButtons } from '../components/common/ExportButtons'
 import { useApi } from '../hooks/useApi'
 import { mlAnalyticsApi } from '../services/endpoints'
@@ -11,6 +11,16 @@ function anomalyTone(type: string) {
   if (type === 'IDENTICAL_CLUSTER') return 'yellow' as const
   return 'blue' as const
 }
+
+const columns: Column<RatingAnomalyItem>[] = [
+  { key: 'item', header: 'Menu Item', render: (a) => <span className="font-medium text-ink">{a.menu_item_name}</span>, sortValue: (a) => a.menu_item_name },
+  { key: 'date', header: 'Date', render: (a) => a.date, sortValue: (a) => a.date },
+  { key: 'type', header: 'Type', render: (a) => <Badge tone={anomalyTone(a.anomaly_type)}>{a.anomaly_type.replace('_', ' ')}</Badge>, sortValue: (a) => a.anomaly_type },
+  { key: 'count', header: 'Ratings', align: 'right', render: (a) => a.rating_count, sortValue: (a) => a.rating_count },
+  { key: 'avg', header: 'Avg Score', align: 'right', render: (a) => a.average_score, sortValue: (a) => a.average_score },
+  { key: 'trailing', header: 'Trailing Avg', align: 'right', render: (a) => a.trailing_average_score, sortValue: (a) => a.trailing_average_score },
+  { key: 'reason', header: 'Reason', render: (a) => <span className="text-slate-500">{a.reason}</span> },
+]
 
 export function RatingAnomaliesPage() {
   const anomalies = useApi(() => mlAnalyticsApi.ratingAnomalies(), [])
@@ -37,21 +47,17 @@ export function RatingAnomaliesPage() {
         }
       />
       {anomalies.error && <ErrorBanner message={anomalies.error} onRetry={anomalies.reload} />}
-      {anomalies.loading && !anomalies.data && <ShimmerSkeleton className="h-64" rounded="rounded-2xl" />}
-      {anomalies.data?.length === 0 && <p className="text-sm text-slate-500">No unusual rating patterns detected in the lookback window.</p>}
-      <div className="space-y-3">
-        {anomalies.data?.map((a, idx) => (
-          <div key={idx} className="card p-4">
-            <div className="mb-1 flex items-center justify-between gap-3">
-              <p className="font-medium text-ink">
-                {a.menu_item_name} — {a.date}
-              </p>
-              <Badge tone={anomalyTone(a.anomaly_type)}>{a.anomaly_type.replace('_', ' ')}</Badge>
-            </div>
-            <p className="text-sm text-slate-500">{a.reason}</p>
-          </div>
-        ))}
-      </div>
+      <DataTable
+        columns={columns}
+        rows={anomalies.data ?? []}
+        rowKey={(a) => `${a.menu_item_id}-${a.date}-${a.anomaly_type}`}
+        loading={anomalies.loading && !anomalies.data}
+        searchText={(a) => `${a.menu_item_name} ${a.anomaly_type}`}
+        searchPlaceholder="Search anomalies…"
+        pageSize={20}
+        emptyTitle="No unusual rating patterns detected"
+        emptyMessage="Nothing in the lookback window stood out from each item's own trailing average."
+      />
     </>
   )
 }

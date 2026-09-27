@@ -207,6 +207,47 @@ MIGRATIONS = [
         WHERE L.BranchId IS NULL AND BC.cnt > 0
         """,
     ),
+    # --- Performance: covering indexes for the analytics/dashboard read path -----------
+    # Added once the operational tables reached Big-Data scale (1M+ tbl_OrderDetails,
+    # 380k+ tbl_Orders). Each one is shaped around a real query pattern already in the
+    # codebase (see _order_filters in analytics_service.py, and the wastage/rating-anomaly
+    # queries in branch_analytics_service.py / ml_analytics_service.py) rather than a
+    # guess: leading column(s) match the equality filters, range filter last, and every
+    # column the query selects afterward is in INCLUDE so the engine never needs a key
+    # lookup back to the base table.
+    (
+        "covering index: tbl_Orders (BranchId, Status, OrderDate)",
+        "SELECT 1 FROM sys.indexes WHERE name = 'ix_tbl_Orders_BranchId_Status_OrderDate' AND object_id = OBJECT_ID('dbo.tbl_Orders')",
+        "CREATE INDEX ix_tbl_Orders_BranchId_Status_OrderDate ON dbo.tbl_Orders (BranchId, Status, OrderDate) "
+        "INCLUDE (CustomerId, NetAmount, TotalAmount, Discount, IsDeleted)",
+    ),
+    (
+        # Covers the RFM / churn-risk aggregation (GROUP BY CustomerId across all branches).
+        "covering index: tbl_Orders (CustomerId) for RFM/churn",
+        "SELECT 1 FROM sys.indexes WHERE name = 'ix_tbl_Orders_CustomerId_Covering' AND object_id = OBJECT_ID('dbo.tbl_Orders')",
+        "CREATE INDEX ix_tbl_Orders_CustomerId_Covering ON dbo.tbl_Orders (CustomerId) "
+        "INCLUDE (OrderDate, NetAmount, Status, IsDeleted)",
+    ),
+    (
+        # The single highest-impact index in the app: every menu/branch/ML analytics query
+        # joins tbl_OrderDetails to tbl_Orders on OrderId and needs these exact columns.
+        "covering index: tbl_OrderDetails (OrderId)",
+        "SELECT 1 FROM sys.indexes WHERE name = 'ix_tbl_OrderDetails_OrderId_Covering' AND object_id = OBJECT_ID('dbo.tbl_OrderDetails')",
+        "CREATE INDEX ix_tbl_OrderDetails_OrderId_Covering ON dbo.tbl_OrderDetails (OrderId) "
+        "INCLUDE (MenuItemId, Quantity, UnitPrice, UnitCost, TotalPrice, IsDeleted)",
+    ),
+    (
+        "covering index: tbl_Rating (MenuItemId, CreatedAt)",
+        "SELECT 1 FROM sys.indexes WHERE name = 'ix_tbl_Rating_MenuItemId_CreatedAt' AND object_id = OBJECT_ID('dbo.tbl_Rating')",
+        "CREATE INDEX ix_tbl_Rating_MenuItemId_CreatedAt ON dbo.tbl_Rating (MenuItemId, CreatedAt) "
+        "INCLUDE (Score, IsDeleted)",
+    ),
+    (
+        "covering index: tbl_StockMovementLog (BranchId, MovementType, CreatedAt)",
+        "SELECT 1 FROM sys.indexes WHERE name = 'ix_tbl_StockMovementLog_BranchId_Type_CreatedAt' AND object_id = OBJECT_ID('dbo.tbl_StockMovementLog')",
+        "CREATE INDEX ix_tbl_StockMovementLog_BranchId_Type_CreatedAt ON dbo.tbl_StockMovementLog (BranchId, MovementType, CreatedAt) "
+        "INCLUDE (QuantityChange, Reason, InventoryItemId, IsDeleted)",
+    ),
 ]
 
 

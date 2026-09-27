@@ -12,6 +12,7 @@ from typing import Optional
 from sqlalchemy import Date, case, cast, func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import TTLCache
 from app.core.config import BUSINESS_UTC_OFFSET_MINUTES
 from app.models import Customer, InventoryItem, MenuItem, Order, OrderDetail, RestaurantBranch, StockMovementLog
 from app.schemas.branch_analytics_schema import (
@@ -36,6 +37,17 @@ from app.services.analytics_service import _money, _order_filters
 from app.services.rating_service import branch_average_rating
 
 ZERO = Decimal("0")
+
+# TTL caches for branch-scoped dashboard aggregations, each keyed on its actual
+# filter values (never the db session). 5 minutes: fresh enough for a dashboard,
+# far cheaper than re-scanning 1M+ order-line rows on every page view.
+_DASHBOARD_TTL_SECONDS = 300
+_channel_mix_cache = TTLCache()
+_menu_quadrants_cache = TTLCache()
+_wastage_summary_cache = TTLCache()
+_branch_demand_forecast_cache = TTLCache()
+_branch_comparison_cache = TTLCache()
+_sales_anomalies_cache = TTLCache()
 WASTAGE_THRESHOLD_PERCENT = Decimal("15")
 
 
@@ -46,7 +58,13 @@ def _pct2(part, whole) -> Decimal:
 # --- Channel mix -------------------------------------------------------------------------
 
 
-async def get_channel_mix(
+async def get_channel_mix(db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int]) -> ChannelMixResponse:
+    return await _channel_mix_cache.get_or_set(
+        (start, end, branch_id), _DASHBOARD_TTL_SECONDS, lambda: _get_channel_mix_uncached(db, start, end, branch_id)
+    )
+
+
+async def _get_channel_mix_uncached(
     db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int]
 ) -> ChannelMixResponse:
     rows = (
@@ -67,7 +85,13 @@ async def get_channel_mix(
 # --- Menu performance quadrants ----------------------------------------------------------
 
 
-async def get_menu_quadrants(
+async def get_menu_quadrants(db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int]) -> MenuQuadrantResponse:
+    return await _menu_quadrants_cache.get_or_set(
+        (start, end, branch_id), _DASHBOARD_TTL_SECONDS, lambda: _get_menu_quadrants_uncached(db, start, end, branch_id)
+    )
+
+
+async def _get_menu_quadrants_uncached(
     db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int]
 ) -> MenuQuadrantResponse:
     unit_cost = func.coalesce(OrderDetail.UnitCost, MenuItem.Cost)
@@ -182,7 +206,13 @@ async def get_recommendations(
 # --- Wastage -------------------------------------------------------------------------------
 
 
-async def get_wastage_summary(
+async def get_wastage_summary(db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int]) -> WastageSummaryResponse:
+    return await _wastage_summary_cache.get_or_set(
+        (start, end, branch_id), _DASHBOARD_TTL_SECONDS, lambda: _get_wastage_summary_uncached(db, start, end, branch_id)
+    )
+
+
+async def _get_wastage_summary_uncached(
     db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int]
 ) -> WastageSummaryResponse:
     """MANUAL_DEDUCTION movements are the closest tracked concept to wastage/spoilage/
@@ -236,6 +266,12 @@ async def get_wastage_summary(
 
 
 async def get_demand_forecast(db: AsyncSession, branch_id: Optional[int], days: int = 30) -> DemandForecastResponse:
+    return await _branch_demand_forecast_cache.get_or_set(
+        (branch_id, days), _DASHBOARD_TTL_SECONDS, lambda: _get_demand_forecast_uncached(db, branch_id, days)
+    )
+
+
+async def _get_demand_forecast_uncached(db: AsyncSession, branch_id: Optional[int], days: int = 30) -> DemandForecastResponse:
     since = datetime.utcnow() - timedelta(days=days)
     local_time = func.dateadd(literal_column("minute"), literal_column(str(int(BUSINESS_UTC_OFFSET_MINUTES))), Order.OrderDate)
     hour = func.datepart(literal_column("hour"), local_time)
@@ -286,6 +322,12 @@ async def get_demand_forecast(db: AsyncSession, branch_id: Optional[int], days: 
 
 
 async def get_branch_comparison(db: AsyncSession, start: Optional[date], end: Optional[date]) -> BranchComparisonResponse:
+    return await _branch_comparison_cache.get_or_set(
+        (start, end), _DASHBOARD_TTL_SECONDS, lambda: _get_branch_comparison_uncached(db, start, end)
+    )
+
+
+async def _get_branch_comparison_uncached(db: AsyncSession, start: Optional[date], end: Optional[date]) -> BranchComparisonResponse:
     branches = list(await db.scalars(select(RestaurantBranch).where(RestaurantBranch.IsDeleted == False)))  # noqa: E712
     unit_cost = func.coalesce(OrderDetail.UnitCost, MenuItem.Cost)
 
@@ -362,6 +404,12 @@ async def get_branch_comparison(db: AsyncSession, start: Optional[date], end: Op
 
 
 async def detect_sales_anomalies(db: AsyncSession, lookback_days: int = 30, trailing_window: int = 7) -> AnomalyReportResponse:
+    return await _sales_anomalies_cache.get_or_set(
+        (lookback_days, trailing_window), _DASHBOARD_TTL_SECONDS, lambda: _detect_sales_anomalies_uncached(db, lookback_days, trailing_window)
+    )
+
+
+async def _detect_sales_anomalies_uncached(db: AsyncSession, lookback_days: int = 30, trailing_window: int = 7) -> AnomalyReportResponse:
     """Flags a branch-day whose revenue deviates >50% from its own trailing 7-day average.
     Simple, explainable statistics — not an ML model — run against real daily branch revenue.
     """

@@ -25,6 +25,7 @@ from typing import Optional
 from sqlalchemy import Date, case, cast, func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import TTLCache
 from app.models import Customer, MenuItem, Order, OrderDetail, Rating
 
 ANALYTICS_PIPELINE_DIR = Path(__file__).resolve().parents[3] / "analytics-pipeline"
@@ -52,6 +53,19 @@ DEFAULT_ELASTICITY_WHEN_UNKNOWN = -0.3
 MAX_ASSUMED_ELASTICITY = 2.0
 
 _churn_bundle_cache: Optional[dict] = None
+
+# TTL caches for the pipeline-backed (parquet/pandas) analytics and the live SQL/model
+# scoring endpoints. Keyed on actual request filters; never on the db session.
+_ML_CACHE_TTL_SECONDS = 300
+_market_basket_cache = TTLCache()
+_price_sensitivity_cache = TTLCache()
+_promotion_traps_cache = TTLCache()
+_ml_recommendations_cache = TTLCache()
+_wastage_risk_cache = TTLCache()
+_demand_forecast_ml_cache = TTLCache()
+_rating_anomalies_cache = TTLCache()
+_slow_moving_dishes_cache = TTLCache()
+
 _wastage_bundle_cache: Optional[dict] = None
 
 # Scoring every customer against the model is expensive (full RFM aggregation over
@@ -72,21 +86,37 @@ def _require_pipeline() -> None:
 
 
 def get_market_basket_rules() -> list[dict]:
+    return _market_basket_cache.get_or_set_sync((), _ML_CACHE_TTL_SECONDS, _get_market_basket_rules_uncached)
+
+
+def _get_market_basket_rules_uncached() -> list[dict]:
     _require_pipeline()
     return basket_rules_to_dicts(run_market_basket_analysis())
 
 
 def get_price_sensitivity() -> list[dict]:
+    return _price_sensitivity_cache.get_or_set_sync((), _ML_CACHE_TTL_SECONDS, _get_price_sensitivity_uncached)
+
+
+def _get_price_sensitivity_uncached() -> list[dict]:
     _require_pipeline()
     return price_sensitivity_to_dicts(analyze_price_sensitivity())
 
 
 def get_promotion_traps() -> list[dict]:
+    return _promotion_traps_cache.get_or_set_sync((), _ML_CACHE_TTL_SECONDS, _get_promotion_traps_uncached)
+
+
+def _get_promotion_traps_uncached() -> list[dict]:
     _require_pipeline()
     return promotion_traps_to_dicts(detect_promotion_traps())
 
 
 def get_ml_recommendations() -> list[dict]:
+    return _ml_recommendations_cache.get_or_set_sync((), _ML_CACHE_TTL_SECONDS, _get_ml_recommendations_uncached)
+
+
+def _get_ml_recommendations_uncached() -> list[dict]:
     _require_pipeline()
     return recommendations_to_dicts(generate_recommendations())
 
@@ -202,6 +232,10 @@ def _load_wastage_bundle() -> dict:
 
 
 async def get_wastage_risk(db: AsyncSession, limit: int = 50) -> list[dict]:
+    return await _wastage_risk_cache.get_or_set(limit, _ML_CACHE_TTL_SECONDS, lambda: _get_wastage_risk_uncached(db, limit))
+
+
+async def _get_wastage_risk_uncached(db: AsyncSession, limit: int = 50) -> list[dict]:
     """Scores every real menu item's predicted wastage % using the trained Python
     wastage_predictor.pkl (features: quantity sold, revenue, margin, price, rating,
     rating count, promoted-order count), computed live from real order/rating data."""
@@ -290,6 +324,10 @@ async def get_wastage_risk(db: AsyncSession, limit: int = 50) -> list[dict]:
 
 
 async def get_demand_forecast_ml(db: AsyncSession, limit: int = 50) -> list[dict]:
+    return await _demand_forecast_ml_cache.get_or_set(limit, _ML_CACHE_TTL_SECONDS, lambda: _get_demand_forecast_ml_uncached(db, limit))
+
+
+async def _get_demand_forecast_ml_uncached(db: AsyncSession, limit: int = 50) -> list[dict]:
     """Scores each real menu item's CURRENT month features through the trained Python
     demand_forecast_regressor.pkl (trained with a chronological split on the analytics
     pipeline's monthly item-demand series) to project next month's quantity sold.
@@ -392,6 +430,12 @@ def _load_demand_bundle() -> dict:
 
 
 async def get_rating_anomalies(db: AsyncSession, lookback_days: int = 180, trailing_window: int = 30) -> list[dict]:
+    return await _rating_anomalies_cache.get_or_set(
+        (lookback_days, trailing_window), _ML_CACHE_TTL_SECONDS, lambda: _get_rating_anomalies_uncached(db, lookback_days, trailing_window)
+    )
+
+
+async def _get_rating_anomalies_uncached(db: AsyncSession, lookback_days: int = 180, trailing_window: int = 30) -> list[dict]:
     """Flags per-item, per-day rating patterns that look unusual: a sudden jump or drop
     in average score versus that item's own trailing average, a day with far more
     ratings than usual, or a cluster of suspiciously identical scores on one day.
@@ -489,6 +533,12 @@ async def get_rating_anomalies(db: AsyncSession, lookback_days: int = 180, trail
 
 
 async def get_slow_moving_dishes(db: AsyncSession, branch_id: Optional[int] = None, min_signals: int = 2) -> list[dict]:
+    return await _slow_moving_dishes_cache.get_or_set(
+        (branch_id, min_signals), _ML_CACHE_TTL_SECONDS, lambda: _get_slow_moving_dishes_uncached(db, branch_id, min_signals)
+    )
+
+
+async def _get_slow_moving_dishes_uncached(db: AsyncSession, branch_id: Optional[int] = None, min_signals: int = 2) -> list[dict]:
     """Combines five independent signals (low volume, low order frequency, long recency
     gap, weak margin, declining trend) rather than any single hard-coded threshold, per
     the SRS's explicit requirement that slow-moving detection use a combination of

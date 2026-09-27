@@ -11,6 +11,7 @@ from typing import Optional
 from sqlalchemy import Integer, Numeric, case, cast, desc, func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import TTLCache
 from app.core.config import BUSINESS_UTC_OFFSET_MINUTES
 from app.models import Category, Customer, MenuItem, Order, OrderDetail
 from app.models.base import utc_now
@@ -49,6 +50,16 @@ SEGMENT_RULES = {
 }
 
 
+# TTL caches for the heaviest dashboard aggregations. Keyed on the actual filter
+# values (never the db session -- see app/core/cache.py). 5 minutes balances
+# freshness against the cost of re-scanning 1M+ order-line rows on every request.
+_OVERVIEW_TTL_SECONDS = 300
+_RFM_TTL_SECONDS = 600  # RFM segments/matrix change slowly; cache a bit longer.
+_overview_cache = TTLCache()
+_rfm_segmentation_cache = TTLCache()
+_rfm_matrix_cache = TTLCache()
+
+
 def _money(value) -> Decimal:
     return Decimal(value or 0).quantize(TWO_PLACES)
 
@@ -81,7 +92,7 @@ def _order_filters(
 # --- Overview --------------------------------------------------------------------------
 
 
-async def get_overview(
+async def _get_overview_uncached(
     db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int] = None
 ) -> OverviewResponse:
     totals = (
@@ -133,6 +144,14 @@ async def get_overview(
         AverageOrderValue=_money(revenue / orders) if orders else _money(0),
         TotalGuests=guests,
         AverageSpendPerGuest=_money(gross / guests) if guests else _money(0),
+    )
+
+
+async def get_overview(
+    db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int] = None
+) -> OverviewResponse:
+    return await _overview_cache.get_or_set(
+        (start, end, branch_id), _OVERVIEW_TTL_SECONDS, lambda: _get_overview_uncached(db, start, end, branch_id)
     )
 
 
@@ -284,7 +303,7 @@ def _scored_customers(as_of: datetime):
     return select(scores, segment.label("Segment")).subquery("scored")
 
 
-async def get_rfm_segmentation(db: AsyncSession, as_of: Optional[datetime]) -> RFMSegmentationResponse:
+async def _get_rfm_segmentation_uncached(db: AsyncSession, as_of: Optional[datetime]) -> RFMSegmentationResponse:
     as_of = as_of or utc_now()
     scored = _scored_customers(as_of)
 
@@ -350,6 +369,12 @@ async def get_rfm_segmentation(db: AsyncSession, as_of: Optional[datetime]) -> R
     )
 
 
+async def get_rfm_segmentation(db: AsyncSession, as_of: Optional[datetime]) -> RFMSegmentationResponse:
+    return await _rfm_segmentation_cache.get_or_set(
+        as_of or "latest", _RFM_TTL_SECONDS, lambda: _get_rfm_segmentation_uncached(db, as_of)
+    )
+
+
 async def get_customer_rfm(
     db: AsyncSession, customer: Customer, as_of: Optional[datetime]
 ) -> CustomerRFMResponse:
@@ -406,28 +431,51 @@ async def get_hourly_heatmap(db: AsyncSession, start: Optional[date], end: Optio
     return HourlyHeatmapResponse(Period=_period(start, end), Cells=cells, MaxOrders=busiest.Orders if busiest else 0, BusiestSlot=busiest)
 
 
-async def get_rfm_matrix(db: AsyncSession, as_of: Optional[datetime]) -> RFMMatrixResponse:
+async def _get_rfm_matrix_uncached(db: AsyncSession, as_of: Optional[datetime]) -> RFMMatrixResponse:
+    """Single pass over the scored-customers subquery (grouped by R, F, and M together),
+    not two separate passes. The old version re-ran the whole triple-PERCENT_RANK window
+    computation over every customer a second time just to get the monetary matrix instead
+    of the frequency matrix -- doubling the cost of the single most expensive query in the
+    app for no reason, since both matrices can be built from one (R, F, M) grouping.
+    """
     as_of = as_of or utc_now()
     scored = _scored_customers(as_of)
 
-    async def matrix(score_column) -> list[RFMMatrixCell]:
-        rows = (
-            await db.execute(
-                select(scored.c.R, score_column, func.count(), func.avg(scored.c.Monetary)).group_by(scored.c.R, score_column)
+    rows = (
+        await db.execute(
+            select(scored.c.R, scored.c.F, scored.c.M, func.count(), func.sum(scored.c.Monetary)).group_by(
+                scored.c.R, scored.c.F, scored.c.M
             )
-        ).all()
-        found = {(r[0], r[1]): (r[2], _money(r[3])) for r in rows}
+        )
+    ).all()
+
+    def build(score_index: int) -> list[RFMMatrixCell]:
+        agg: dict[tuple[int, int], list] = {}
+        for r, f, m, cnt, total_monetary in rows:
+            key = (r, f if score_index == 1 else m)
+            entry = agg.setdefault(key, [0, ZERO])
+            entry[0] += cnt
+            entry[1] += Decimal(total_monetary or 0)
         return [
-            RFMMatrixCell(RScore=r, Score=s, Customers=found.get((r, s), (0, ZERO))[0], AverageMonetary=found.get((r, s), (0, ZERO))[1])
+            RFMMatrixCell(
+                RScore=r,
+                Score=s,
+                Customers=agg.get((r, s), [0, ZERO])[0],
+                AverageMonetary=_money(agg[(r, s)][1] / agg[(r, s)][0]) if agg.get((r, s)) and agg[(r, s)][0] else ZERO,
+            )
             for r in range(1, 6)
             for s in range(1, 6)
         ]
 
-    frequency = await matrix(scored.c.F)
-    monetary = await matrix(scored.c.M)
+    frequency = build(1)
+    monetary = build(2)
     return RFMMatrixResponse(
         AsOf=as_of,
         PurchasingCustomers=sum(c.Customers for c in frequency),
         FrequencyMatrix=frequency,
         MonetaryMatrix=monetary,
     )
+
+
+async def get_rfm_matrix(db: AsyncSession, as_of: Optional[datetime]) -> RFMMatrixResponse:
+    return await _rfm_matrix_cache.get_or_set(as_of or "latest", _RFM_TTL_SECONDS, lambda: _get_rfm_matrix_uncached(db, as_of))
