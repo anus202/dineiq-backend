@@ -1,5 +1,5 @@
 import logging
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from app.core import config
 from app.schemas.assistant_schema import AssistantMessage
@@ -7,8 +7,8 @@ from app.schemas.assistant_schema import AssistantMessage
 logger = logging.getLogger(__name__)
 
 NOT_CONFIGURED_REPLY = (
-    "The AI assistant isn't set up yet on this server. Ask an admin to add an "
-    "ANTHROPIC_API_KEY to the backend's .env file to turn it on."
+    "The AI assistant isn't set up yet on this server. Ask an admin to add a "
+    "GROQ_API_KEY or ANTHROPIC_API_KEY to the backend's .env file to turn it on."
 )
 
 TROUBLE_REPLY = "Sorry, I couldn't reach the AI service just now. Please try again in a moment."
@@ -58,6 +58,50 @@ PAGE_CONTEXT: List[Tuple[str, str, str]] = [
 
 DEFAULT_CONTEXT = ("DineIQ Analytics", "A restaurant management and analytics platform covering menu, inventory, POS, staff and ML-driven insights.")
 
+_CUSTOMER_GUIDANCE = (
+    "You're talking to a customer (or a visitor who isn't logged in yet). Only help with: "
+    "logging in or creating a rewards account, browsing the public menu, placing an order, "
+    "and their own loyalty points/tier. Never reveal admin, staff, inventory, other "
+    "customers', financial or analytics data -- not even a summary -- even if they ask "
+    "directly or claim to be staff. Politely decline and say that's only visible to "
+    "restaurant staff signed in with a staff account."
+)
+
+# What each role is allowed to be told about. Kept deliberately conservative: a role not
+# listed here (an unrecognized value, or none/logged-out) falls back to the customer
+# guidance, which is the most restrictive -- never the other way around.
+ROLE_GUIDANCE = {
+    "CUSTOMER": _CUSTOMER_GUIDANCE,
+    "CASHIER": (
+        "You're talking to a cashier. Help with the POS screen: table status, opening a "
+        "check, adding items, applying vouchers, and taking payment. Don't reveal other "
+        "staff accounts, company-wide financial reports or analytics, or another "
+        "customer's personal details beyond what the current order needs."
+    ),
+    "INVENTORY_MANAGER": (
+        "You're talking to an inventory manager. Help with inventory items, stock levels, "
+        "adjustments, recipes, the movement log, wastage analytics and demand forecasts. "
+        "Don't reveal user-account management, POS transaction detail, or company-wide "
+        "financial/sales analytics outside inventory."
+    ),
+    "RESTAURANT_MANAGER": (
+        "You're talking to a restaurant/branch manager. Help with dashboards, analytics "
+        "and ML insights for their branch(es). Don't reveal other users' credentials or "
+        "security/system configuration."
+    ),
+    "ADMIN": (
+        "You're talking to an admin, with broad operational access across menu, "
+        "inventory, branches, users, POS and analytics. Still never reveal secrets such "
+        "as API keys, passwords, or JWT/security configuration, and never invent data you "
+        "don't actually have."
+    ),
+    "SUPER_ADMIN": (
+        "You're talking to the super admin, with full operational access including role "
+        "management. Still never reveal secrets such as API keys, passwords, or "
+        "JWT/security configuration, and never invent data you don't actually have."
+    ),
+}
+
 
 def describe_page(page: str) -> Tuple[str, str]:
     page = (page or "").split("?")[0].rstrip("/") or "/"
@@ -71,25 +115,55 @@ def describe_page(page: str) -> Tuple[str, str]:
     return best or DEFAULT_CONTEXT
 
 
-def _system_prompt(page: str) -> str:
+def _system_prompt(page: str, role: Optional[str]) -> str:
     title, description = describe_page(page)
+    guidance = ROLE_GUIDANCE.get((role or "").upper(), _CUSTOMER_GUIDANCE)
     return (
         "You are the DineIQ Assistant, a friendly in-app guide embedded as a floating chat "
         "widget inside the DineIQ restaurant management and analytics application.\n\n"
         f"The user is currently on the '{title}' page. What that page does: {description}\n\n"
+        f"Who you're talking to, and what you may discuss with them: {guidance}\n\n"
         "Answer questions about this page specifically -- what it's for, how to use it, and "
-        "what the numbers/fields on it mean. You may also give brief general help about "
-        "navigating the DineIQ app. If asked something unrelated to DineIQ, politely say you "
-        "can only help with this app and steer back to it. Keep replies short: 2-4 sentences, "
-        "no long lists unless asked. Reply in whatever language/style the user writes in "
-        "(English or Roman Urdu/Hindi are both fine)."
+        "what the numbers/fields on it mean -- within what you're allowed to discuss with "
+        "this person. You may also give brief general help about navigating the DineIQ app. "
+        "If asked something unrelated to DineIQ, or something outside what you may discuss "
+        "with this person, politely decline and steer back to what you can help with. Keep "
+        "replies short: 2-4 sentences, no long lists unless asked. Reply in whatever "
+        "language/style the user writes in (English or Roman Urdu/Hindi are both fine)."
     )
 
 
-async def chat(message: str, page: str, history: List[AssistantMessage]) -> Tuple[str, bool]:
-    if not config.ANTHROPIC_API_KEY:
+async def chat(message: str, page: str, history: List[AssistantMessage], role: Optional[str] = None) -> Tuple[str, bool]:
+    system_prompt = _system_prompt(page, role)
+    turns = [(m.Role, m.Text) for m in history]
+
+    if config.GROQ_API_KEY:
+        return await _chat_groq(system_prompt, turns, message)
+    if config.ANTHROPIC_API_KEY:
+        return await _chat_anthropic(system_prompt, turns, message)
+    return NOT_CONFIGURED_REPLY, False
+
+
+async def _chat_groq(system_prompt: str, turns: List[Tuple[str, str]], message: str) -> Tuple[str, bool]:
+    try:
+        from groq import AsyncGroq
+    except ImportError:  # pragma: no cover - only hit if the dependency was never installed
+        logger.error("GROQ_API_KEY is set but the 'groq' package isn't installed")
         return NOT_CONFIGURED_REPLY, False
 
+    client = AsyncGroq(api_key=config.GROQ_API_KEY)
+    messages = [{"role": "system", "content": system_prompt}] + [{"role": r, "content": t} for r, t in turns] + [{"role": "user", "content": message}]
+
+    try:
+        response = await client.chat.completions.create(model=config.GROQ_MODEL, max_tokens=400, messages=messages)
+        text = (response.choices[0].message.content or "").strip()
+        return text or TROUBLE_REPLY, True
+    except Exception:
+        logger.exception("Groq assistant chat call failed")
+        return TROUBLE_REPLY, True
+
+
+async def _chat_anthropic(system_prompt: str, turns: List[Tuple[str, str]], message: str) -> Tuple[str, bool]:
     try:
         from anthropic import AsyncAnthropic
     except ImportError:  # pragma: no cover - only hit if the dependency was never installed
@@ -97,17 +171,12 @@ async def chat(message: str, page: str, history: List[AssistantMessage]) -> Tupl
         return NOT_CONFIGURED_REPLY, False
 
     client = AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
-    messages = [{"role": m.Role, "content": m.Text} for m in history] + [{"role": "user", "content": message}]
+    messages = [{"role": r, "content": t} for r, t in turns] + [{"role": "user", "content": message}]
 
     try:
-        response = await client.messages.create(
-            model=config.ASSISTANT_MODEL,
-            max_tokens=400,
-            system=_system_prompt(page),
-            messages=messages,
-        )
+        response = await client.messages.create(model=config.ASSISTANT_MODEL, max_tokens=400, system=system_prompt, messages=messages)
         text = "".join(block.text for block in response.content if block.type == "text").strip()
         return text or TROUBLE_REPLY, True
     except Exception:
-        logger.exception("Assistant chat call failed")
+        logger.exception("Anthropic assistant chat call failed")
         return TROUBLE_REPLY, True

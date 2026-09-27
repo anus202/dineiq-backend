@@ -47,6 +47,9 @@ if not JWT_SECRET_KEY:
 
 # In-app AI assistant (floating chat widget). Optional: with no key set, the endpoint
 # stays up and replies with a "not configured yet" message instead of erroring, so the
-# widget itself never has to know whether it's wired up.
+# widget itself never has to know whether it's wired up. GROQ_API_KEY is tried first
+# (cheap/fast), then ANTHROPIC_API_KEY -- set either one.
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 ASSISTANT_MODEL = os.getenv("ASSISTANT_MODEL", "claude-haiku-4-5-20251001")

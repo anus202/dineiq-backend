@@ -358,8 +358,8 @@ export default function App() {
             <Route path="*" element={<Home />} />
           </Routes>
           </BranchProvider>
+          <MascotChat />
         </AuthProvider>
-        <MascotChat />
       </ToastProvider>
     </BrowserRouter>
     </ThemeProvider>

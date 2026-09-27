@@ -19,5 +19,5 @@ router = APIRouter(prefix="/api/v1/assistant", tags=["Assistant"])
     ),
 )
 async def chat(payload: AssistantChatRequest):
-    reply, configured = await assistant_service.chat(payload.Message, payload.Page, payload.History)
+    reply, configured = await assistant_service.chat(payload.Message, payload.Page, payload.History, payload.UserRole)
     return AssistantChatResponse(Reply=reply, Configured=configured)

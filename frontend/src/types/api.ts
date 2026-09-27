@@ -928,6 +928,7 @@ export interface AssistantChatRequest {
   Message: string
   Page: string
   History: AssistantMessage[]
+  UserRole?: RoleName | null
 }
 
 export interface AssistantChatResponse {

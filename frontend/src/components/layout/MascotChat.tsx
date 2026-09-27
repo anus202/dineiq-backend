@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import { assistantApi } from '../../services/endpoints'
 import type { AssistantMessage } from '../../types/api'
 
@@ -33,6 +34,7 @@ function pageLabel(pathname: string): string {
  * unclosed, across every route including /login and /register. */
 export function MascotChat() {
   const location = useLocation()
+  const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -59,7 +61,7 @@ export function MascotChat() {
     setInput('')
     setSending(true)
     try {
-      const res = await assistantApi.chat({ Message: trimmed, Page: location.pathname, History: history })
+      const res = await assistantApi.chat({ Message: trimmed, Page: location.pathname, History: history, UserRole: user?.Role ?? null })
       setUnconfigured(!res.Configured)
       setMessages((prev) => [...prev, { role: 'assistant', text: res.Reply }])
     } catch {
