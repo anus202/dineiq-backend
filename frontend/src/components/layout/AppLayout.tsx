@@ -4,6 +4,7 @@ import {
   GitCompare,
   Award,
   BookOpen,
+  BrainCircuit,
   Building2,
   CalendarClock,
   CalendarRange,
@@ -27,6 +28,7 @@ import {
   Scale,
   Search,
   ScrollText,
+  Settings,
   ShieldAlert,
   ShieldPlus,
   ShoppingBag,
@@ -36,6 +38,7 @@ import {
   Star,
   Sun,
   Trash2,
+  TrendingUp,
   UserCircle,
   Users,
   UtensilsCrossed,
@@ -94,6 +97,22 @@ const ROUTE_ICONS: Record<string, LucideIcon> = {
   '/customer/ratings': Star,
 }
 
+// One icon + gradient chip colour per sidebar GROUP (distinct from ROUTE_ICONS above,
+// which is per individual page). Purely cosmetic, keyed by the group's own title so it
+// needs no change to NavGroup's shape in utils/roles.ts.
+const GROUP_STYLES: Record<string, { icon: LucideIcon; gradient: string }> = {
+  'Dashboards & Analytics': { icon: LayoutDashboard, gradient: 'from-indigo-400 to-indigo-600' },
+  'Branch Performance': { icon: TrendingUp, gradient: 'from-orange-400 to-orange-600' },
+  'ML & Big Data Insights': { icon: BrainCircuit, gradient: 'from-cyan-400 to-cyan-600' },
+  'Inventory & Stock Management': { icon: Package, gradient: 'from-emerald-400 to-emerald-600' },
+  'Menu & Category Management': { icon: UtensilsCrossed, gradient: 'from-rose-400 to-rose-600' },
+  'POS & Tables': { icon: LayoutGrid, gradient: 'from-amber-400 to-amber-600' },
+  'Customer & Audit': { icon: Search, gradient: 'from-violet-400 to-violet-600' },
+  'Administrative & Setup': { icon: Settings, gradient: 'from-slate-500 to-slate-700' },
+  'My Account': { icon: UserCircle, gradient: 'from-brand-400 to-brand-600' },
+}
+const DEFAULT_GROUP_STYLE = { icon: LayoutDashboard, gradient: 'from-slate-400 to-slate-600' }
+
 function SidebarGroup({ group, isExactMatchOnly }: { group: NavGroup; isExactMatchOnly: (to: string) => boolean }) {
   const location = useLocation()
   const isGroupActive = group.items.some((item) =>
@@ -108,38 +127,64 @@ function SidebarGroup({ group, isExactMatchOnly }: { group: NavGroup; isExactMat
     if (isGroupActive) setOpen(true)
   }, [isGroupActive])
 
+  const { icon: GroupIcon, gradient } = GROUP_STYLES[group.title] ?? DEFAULT_GROUP_STYLE
+
   return (
-    <div>
+    <div className="mb-2.5 px-3">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between px-4 pt-4 pb-2 text-[11px] font-bold tracking-wider text-slate-400 uppercase transition-colors hover:text-slate-100"
+        aria-expanded={open}
+        className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/60"
       >
-        <span>{group.title}</span>
-        <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${open ? 'rotate-0' : '-rotate-90'}`} aria-hidden="true" />
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br ${gradient} text-white shadow-sm`}>
+          <GroupIcon className="h-4 w-4" aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] leading-tight font-bold tracking-tight text-slate-800 dark:text-slate-100">{group.title}</span>
+          <span className="block text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+            {group.items.length} {group.items.length === 1 ? 'page' : 'pages'}
+          </span>
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 text-slate-300 transition-transform duration-200 dark:text-slate-600 ${open ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        />
       </button>
       <div className={`grid overflow-hidden transition-all duration-200 ease-in-out ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-        <div className="min-h-0 space-y-0.5 border-l border-slate-800 py-1 pl-6">
-          {group.items.map((item) => {
-            const Icon = ROUTE_ICONS[item.to] ?? LayoutDashboard
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={isExactMatchOnly(item.to)}
-                className={({ isActive }) =>
-                  `-ml-px flex items-center gap-3 border-l-4 py-2 pr-3 pl-3 text-sm transition-all duration-150 ${
-                    isActive
-                      ? 'border-indigo-500 bg-indigo-600/20 font-semibold text-indigo-400'
-                      : 'border-transparent text-slate-400 hover:bg-slate-800/60 hover:text-slate-100'
-                  }`
-                }
-              >
-                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="truncate">{item.label}</span>
-              </NavLink>
-            )
-          })}
+        <div className="min-h-0">
+          <div className="mt-0.5 space-y-0.5 rounded-xl bg-slate-50 p-1.5 dark:bg-slate-900/60">
+            {group.items.map((item) => {
+              const Icon = ROUTE_ICONS[item.to] ?? LayoutDashboard
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={isExactMatchOnly(item.to)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-all duration-150 ${
+                      isActive
+                        ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-800 dark:text-brand-300 dark:ring-slate-700'
+                        : 'text-slate-500 hover:bg-white/70 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-200'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <span
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
+                          isActive ? 'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-200' : 'bg-slate-200/70 text-slate-500 dark:bg-slate-700/60 dark:text-slate-400'
+                        }`}
+                      >
+                        <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                      </span>
+                      <span className="truncate">{item.label}</span>
+                    </>
+                  )}
+                </NavLink>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -311,20 +356,23 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-full">
-      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r border-slate-800 bg-slate-950 md:flex">
-        <div className="flex items-center gap-3 px-6 py-6">
-          <img src="/favicon.svg" alt="" className="h-9 w-9" />
+      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r border-slate-200 bg-white md:flex dark:border-slate-800 dark:bg-slate-950">
+        <div className="flex items-center gap-2.5 px-5 py-5">
+          <img src="/favicon.svg" alt="" className="h-7 w-7" />
           <div>
-            <p className="text-lg font-semibold text-white">DineIQ</p>
-            <p className="text-xs text-slate-500">Dining Intelligence</p>
+            <p className="text-[15px] leading-tight font-bold text-ink dark:text-white">DineIQ</p>
+            <p className="text-[10.5px] leading-tight text-slate-400 dark:text-slate-500">Dining Intelligence</p>
           </div>
         </div>
-        <nav className="flex-1 space-y-1 overflow-y-auto pb-4">
+        <nav className="flex-1 overflow-y-auto pt-1 pb-4">
           {visibleGroups.map((group) => (
             <SidebarGroup key={group.title} group={group} isExactMatchOnly={isExactMatchOnly} />
           ))}
         </nav>
-        <div className="border-t border-slate-800 px-6 py-4 text-xs text-slate-500">API: {import.meta.env.VITE_API_BASE_URL}</div>
+        <div className="flex items-center gap-2 border-t border-slate-100 px-5 py-3.5 text-xs text-slate-400 dark:border-slate-800 dark:text-slate-500">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.15)]" />
+          <span className="truncate">API: {import.meta.env.VITE_API_BASE_URL}</span>
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
