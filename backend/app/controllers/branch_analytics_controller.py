@@ -62,10 +62,11 @@ async def restaurant_manager_channel_mix(
 async def restaurant_manager_menu_quadrants(
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
+    refresh: bool = Query(False, description='Bypass the cache and recompute now'),
     branch_id: Optional[int] = Depends(branch_scope()),
     db: AsyncSession = Depends(get_db),
 ):
-    return await branch_analytics_service.get_menu_quadrants(db, start_date, end_date, branch_id)
+    return await branch_analytics_service.get_menu_quadrants(db, start_date, end_date, branch_id, refresh)
 
 
 @router.get(
@@ -109,10 +110,11 @@ async def restaurant_manager_customer_rfm(
 async def inventory_manager_wastage(
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
+    refresh: bool = Query(False, description='Bypass the cache and recompute now'),
     branch_id: Optional[int] = Depends(branch_scope()),
     db: AsyncSession = Depends(get_db),
 ):
-    return await branch_analytics_service.get_wastage_summary(db, start_date, end_date, branch_id)
+    return await branch_analytics_service.get_wastage_summary(db, start_date, end_date, branch_id, refresh)
 
 
 @router.get(

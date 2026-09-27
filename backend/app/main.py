@@ -20,7 +20,9 @@ from app.controllers import (
     restaurant_branch_controller,
     table_controller,
 )
+
 from app.core import audit  # noqa: F401  (registers the audit flush hook)
+from app.core.cache_warmup import start_background_warmup
 from app.core.config import CORS_ORIGINS
 from app.db.init_db import init_db
 from app.db.session import engine
@@ -29,7 +31,15 @@ from app.db.session import engine
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    # Fire-and-forget: warms every heavy dashboard/analytics cache immediately, then
+    # keeps re-warming it forever, so no real request ever pays a cold-scan cost. Started
+    # as a background task rather than awaited here so it never delays the app accepting
+    # requests -- the first few seconds of traffic may still hit a cold cache, but nothing
+    # waits on this loop.
+    warmup_tasks = start_background_warmup()
     yield
+    for task in warmup_tasks:
+        task.cancel()
     await engine.dispose()
 
 
@@ -38,6 +48,7 @@ app = FastAPI(
     version="1.0.0",
     description="DineIQ backend API.",
     lifespan=lifespan,
+    debug=True,
 )
 
 app.add_middleware(audit.AuditContextMiddleware)

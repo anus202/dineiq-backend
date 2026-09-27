@@ -1,10 +1,159 @@
 import { AnimatePresence, motion } from 'framer-motion'
+import {
+  AlertTriangle,
+  Award,
+  BookOpen,
+  Building2,
+  CalendarClock,
+  CalendarRange,
+  ChefHat,
+  ChevronDown,
+  ClipboardList,
+  DollarSign,
+  Flag,
+  FolderTree,
+  Globe,
+  LayoutDashboard,
+  LayoutGrid,
+  Lightbulb,
+  Package,
+  PackagePlus,
+  PieChart,
+  PlusCircle,
+  ReceiptText,
+  Scale,
+  Search,
+  ScrollText,
+  ShieldAlert,
+  ShieldPlus,
+  ShoppingBag,
+  SlidersHorizontal,
+  Snail,
+  Star,
+  Trash2,
+  UserCircle,
+  Users,
+  UtensilsCrossed,
+  type LucideIcon,
+} from 'lucide-react'
 import type { ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { NAV, NAV_GROUPS, roleLabel } from '../../utils/roles'
+import { useGlobalRevalidating } from '../../hooks/useApi'
+import { NAV, NAV_GROUPS, roleLabel, type NavGroup } from '../../utils/roles'
 import { Badge, ShimmerSkeleton } from '../ui'
 import { BranchSelector } from './BranchSelector'
+
+// One distinct lucide icon per sidebar route, keyed by `to` — every child link must carry
+// its own icon rather than reusing a single generic marker.
+const ROUTE_ICONS: Record<string, LucideIcon> = {
+  '/admin': LayoutDashboard,
+  '/dashboard/restaurant-manager': LayoutDashboard,
+  '/dashboard/restaurant-manager/channel-mix': PieChart,
+  '/dashboard/restaurant-manager/menu-performance': UtensilsCrossed,
+  '/dashboard/restaurant-manager/recommendations': Lightbulb,
+  '/ml-insights/recommendations': Lightbulb,
+  '/ml-insights/market-basket': ShoppingBag,
+  '/ml-insights/price-sensitivity': DollarSign,
+  '/ml-insights/promotion-traps': AlertTriangle,
+  '/ml-insights/churn-risk': Users,
+  '/ml-insights/rating-anomalies': Flag,
+  '/ml-insights/slow-moving-dishes': Snail,
+  '/ml-insights/forecast-dashboard': CalendarClock,
+  '/ml-insights/what-if': SlidersHorizontal,
+  '/inventory': Package,
+  '/inventory/new-item': PackagePlus,
+  '/inventory/adjust-stock': Scale,
+  '/inventory/recipes': ChefHat,
+  '/inventory/movement-log': ClipboardList,
+  '/dashboard/inventory-manager/wastage': Trash2,
+  '/dashboard/inventory-manager/demand-forecast': CalendarRange,
+  '/admin/categories': FolderTree,
+  '/admin/menu-mapper': UtensilsCrossed,
+  '/pos': LayoutGrid,
+  '/pos/new-order': ReceiptText,
+  '/admin/customers': Search,
+  '/admin/audit': ScrollText,
+  '/admin/branches': Building2,
+  '/admin/branches/new': PlusCircle,
+  '/admin/users': UserCircle,
+  '/admin/users/new': ShieldPlus,
+  '/admin/branch-comparison': Globe,
+  '/admin/anomalies': ShieldAlert,
+  '/customer': Award,
+  '/customer/menu': BookOpen,
+  '/customer/ratings': Star,
+}
+
+function SidebarGroup({ group, isExactMatchOnly }: { group: NavGroup; isExactMatchOnly: (to: string) => boolean }) {
+  const location = useLocation()
+  const isGroupActive = group.items.some((item) =>
+    isExactMatchOnly(item.to) ? location.pathname === item.to : location.pathname.startsWith(item.to),
+  )
+  // Default-open the section that contains the current route, so the user's location is
+  // always visible; collapsed by default otherwise to keep the list scannable. Re-syncs
+  // whenever navigation moves the active route into this group (it never force-closes a
+  // group the user opened manually).
+  const [open, setOpen] = useState(isGroupActive)
+  useEffect(() => {
+    if (isGroupActive) setOpen(true)
+  }, [isGroupActive])
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between px-4 pt-4 pb-2 text-[11px] font-bold tracking-wider text-slate-400 uppercase transition-colors hover:text-slate-100"
+      >
+        <span>{group.title}</span>
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${open ? 'rotate-0' : '-rotate-90'}`} aria-hidden="true" />
+      </button>
+      <div className={`grid overflow-hidden transition-all duration-200 ease-in-out ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+        <div className="min-h-0 space-y-0.5 border-l border-slate-800 py-1 pl-6">
+          {group.items.map((item) => {
+            const Icon = ROUTE_ICONS[item.to] ?? LayoutDashboard
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={isExactMatchOnly(item.to)}
+                className={({ isActive }) =>
+                  `-ml-px flex items-center gap-3 border-l-4 py-2 pr-3 pl-3 text-sm transition-all duration-150 ${
+                    isActive
+                      ? 'border-indigo-500 bg-indigo-600/20 font-semibold text-indigo-400'
+                      : 'border-transparent text-slate-400 hover:bg-slate-800/60 hover:text-slate-100'
+                  }`
+                }
+              >
+                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="truncate">{item.label}</span>
+              </NavLink>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// A small, non-blocking presence in the header instead of a full-page loader: pulses
+// while any page's data is being silently refreshed in the background (see the
+// stale-while-revalidate behaviour in useApi), and is otherwise invisible.
+function SyncIndicator() {
+  const isRevalidating = useGlobalRevalidating()
+  if (!isRevalidating) return null
+  return (
+    <span className="flex items-center gap-1.5 text-xs text-slate-400" title="Refreshing data in the background">
+      <span className="relative flex h-2 w-2">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-75" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-500" />
+      </span>
+      Syncing
+    </span>
+  )
+}
 
 export function AppLayout() {
   const { user, restoring, logout } = useAuth()
@@ -31,39 +180,20 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-full">
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-ink text-slate-300 md:flex">
+      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r border-slate-800 bg-slate-950 md:flex">
         <div className="flex items-center gap-3 px-6 py-6">
           <img src="/favicon.svg" alt="" className="h-9 w-9" />
           <div>
             <p className="text-lg font-semibold text-white">DineIQ</p>
-            <p className="text-xs text-slate-400">Dining Intelligence</p>
+            <p className="text-xs text-slate-500">Dining Intelligence</p>
           </div>
         </div>
-        <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
+        <nav className="flex-1 space-y-1 overflow-y-auto pb-4">
           {visibleGroups.map((group) => (
-            <div key={group.title}>
-              <p className="px-3 pb-1.5 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">{group.title}</p>
-              <div className="space-y-1">
-                {group.items.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={isExactMatchOnly(item.to)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${isActive ? 'bg-white/10 text-white' : 'hover:bg-white/5 hover:text-white'}`
-                    }
-                  >
-                    <span className="w-5 text-center text-base" aria-hidden="true">
-                      {item.icon}
-                    </span>
-                    {item.label}
-                  </NavLink>
-                ))}
-              </div>
-            </div>
+            <SidebarGroup key={group.title} group={group} isExactMatchOnly={isExactMatchOnly} />
           ))}
         </nav>
-        <div className="border-t border-white/10 px-6 py-4 text-xs text-slate-500">API: {import.meta.env.VITE_API_BASE_URL}</div>
+        <div className="border-t border-slate-800 px-6 py-4 text-xs text-slate-500">API: {import.meta.env.VITE_API_BASE_URL}</div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -82,6 +212,7 @@ export function AppLayout() {
           </nav>
           <div className="hidden md:block" />
           <div className="flex items-center gap-3">
+            <SyncIndicator />
             <BranchSelector />
             <div className="text-right">
               <p className="text-sm font-medium text-ink">{user.FullName}</p>

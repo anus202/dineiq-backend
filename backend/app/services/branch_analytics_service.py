@@ -9,12 +9,12 @@ from decimal import Decimal
 from statistics import median
 from typing import Optional
 
-from sqlalchemy import Date, case, cast, func, literal_column, select
+from sqlalchemy import Date, cast, func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import TTLCache
 from app.core.config import BUSINESS_UTC_OFFSET_MINUTES
-from app.models import Customer, InventoryItem, MenuItem, Order, OrderDetail, RestaurantBranch, StockMovementLog
+from app.models import InventoryItem, MenuItem, Order, OrderDetail, RestaurantBranch, StockMovementLog
 from app.schemas.branch_analytics_schema import (
     AnomalyReportResponse,
     BranchComparisonResponse,
@@ -32,7 +32,6 @@ from app.schemas.branch_analytics_schema import (
     WastageByReason,
     WastageSummaryResponse,
 )
-from app.schemas.common import TWO_PLACES
 from app.services.analytics_service import _money, _order_filters
 from app.services.rating_service import branch_average_rating
 
@@ -42,6 +41,12 @@ ZERO = Decimal("0")
 # filter values (never the db session). 5 minutes: fresh enough for a dashboard,
 # far cheaper than re-scanning 1M+ order-line rows on every page view.
 _DASHBOARD_TTL_SECONDS = 300
+# Wastage and menu-quadrant ('good vs. bad items') analysis is materially heavier than
+# the other dashboard aggregations and doesn't need to reflect every new order within
+# minutes -- a longer TTL plus an explicit refresh=true bypass (see the controller) keeps
+# the /inventory-manager/wastage and /restaurant-manager/menu-quadrants pages instant on
+# every visit instead of re-running a heavy scan each time.
+_WASTAGE_MENU_TTL_SECONDS = 1200
 _channel_mix_cache = TTLCache()
 _menu_quadrants_cache = TTLCache()
 _wastage_summary_cache = TTLCache()
@@ -85,9 +90,14 @@ async def _get_channel_mix_uncached(
 # --- Menu performance quadrants ----------------------------------------------------------
 
 
-async def get_menu_quadrants(db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int]) -> MenuQuadrantResponse:
+async def get_menu_quadrants(
+    db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int], refresh: bool = False
+) -> MenuQuadrantResponse:
+    key = (start, end, branch_id)
+    if refresh:
+        _menu_quadrants_cache.invalidate(key)
     return await _menu_quadrants_cache.get_or_set(
-        (start, end, branch_id), _DASHBOARD_TTL_SECONDS, lambda: _get_menu_quadrants_uncached(db, start, end, branch_id)
+        key, _WASTAGE_MENU_TTL_SECONDS, lambda: _get_menu_quadrants_uncached(db, start, end, branch_id)
     )
 
 
@@ -206,9 +216,14 @@ async def get_recommendations(
 # --- Wastage -------------------------------------------------------------------------------
 
 
-async def get_wastage_summary(db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int]) -> WastageSummaryResponse:
+async def get_wastage_summary(
+    db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int], refresh: bool = False
+) -> WastageSummaryResponse:
+    key = (start, end, branch_id)
+    if refresh:
+        _wastage_summary_cache.invalidate(key)
     return await _wastage_summary_cache.get_or_set(
-        (start, end, branch_id), _DASHBOARD_TTL_SECONDS, lambda: _get_wastage_summary_uncached(db, start, end, branch_id)
+        key, _WASTAGE_MENU_TTL_SECONDS, lambda: _get_wastage_summary_uncached(db, start, end, branch_id)
     )
 
 
@@ -309,7 +324,7 @@ async def _get_demand_forecast_uncached(db: AsyncSession, branch_id: Optional[in
         StockingRecommendation(
             ItemName=name,
             PeakHour=peak_hour if peak_hour is not None else 12,
-            RecommendedPrepQuantity=round(float(avg_daily) * Decimal("1.2"), 3) if avg_daily else 0,
+            RecommendedPrepQuantity=round(float(avg_daily) * 1.2, 3) if avg_daily else 0,
             Unit=unit,
             Reasoning=f"Averages {round(float(avg_daily), 2)} {unit}/day over the last {days} days; a 20% buffer covers normal demand variation, concentrated around the {peak_hour:02d}:00 peak." if peak_hour is not None else f"Averages {round(float(avg_daily), 2)} {unit}/day over the last {days} days.",
         )
@@ -414,7 +429,6 @@ async def _detect_sales_anomalies_uncached(db: AsyncSession, lookback_days: int 
     Simple, explainable statistics — not an ML model — run against real daily branch revenue.
     """
     since = date.today() - timedelta(days=lookback_days + trailing_window)
-    offset = timedelta(minutes=BUSINESS_UTC_OFFSET_MINUTES)
     local_date = cast(func.dateadd(literal_column("minute"), literal_column(str(int(BUSINESS_UTC_OFFSET_MINUTES))), Order.OrderDate), Date)
 
     rows = (

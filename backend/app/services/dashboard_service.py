@@ -8,6 +8,7 @@ from sqlalchemy import Date, Integer, case, cast, desc, func, literal_column, se
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.cache import TTLCache
 from app.core.config import BUSINESS_UTC_OFFSET_MINUTES, LOYALTY_POINT_VALUE_PKR
 from app.models import Category, Customer, DiningTable, InventoryItem, MenuItem, Order, OrderDetail
 from app.models.base import utc_now
@@ -53,8 +54,21 @@ def _local(column):
 
 # --- Admin -----------------------------------------------------------------------------
 
+# "Today at a glance" changes with every order, so its TTL is short -- long enough to
+# absorb repeat dashboard visits/navigation without ever showing a cold multi-second load,
+# short enough that it never looks stale during a shift.
+_ADMIN_SUMMARY_TTL_SECONDS = 60
+_DASHBOARD_TTL_SECONDS = 300
+_admin_summary_cache = TTLCache()
+_revenue_chart_cache = TTLCache()
+_top_performing_cache = TTLCache()
+
 
 async def admin_summary(db: AsyncSession) -> AdminSummaryResponse:
+    return await _admin_summary_cache.get_or_set((), _ADMIN_SUMMARY_TTL_SECONDS, lambda: _admin_summary_uncached(db))
+
+
+async def _admin_summary_uncached(db: AsyncSession) -> AdminSummaryResponse:
     today = _local_today()
     start, end = _utc_start_of(today), _utc_start_of(today + timedelta(days=1))
     not_deleted = Order.IsDeleted == False  # noqa: E712
@@ -117,6 +131,12 @@ def _months_back(today: date, months: int) -> list[date]:
 
 
 async def revenue_chart(db: AsyncSession, days: int, months: int) -> RevenueChartResponse:
+    return await _revenue_chart_cache.get_or_set(
+        (days, months), _DASHBOARD_TTL_SECONDS, lambda: _revenue_chart_uncached(db, days, months)
+    )
+
+
+async def _revenue_chart_uncached(db: AsyncSession, days: int, months: int) -> RevenueChartResponse:
     today = _local_today()
     completed = [Order.IsDeleted == False, Order.Status == COMPLETED]  # noqa: E712
 
@@ -165,6 +185,12 @@ async def revenue_chart(db: AsyncSession, days: int, months: int) -> RevenueChar
 
 
 async def admin_top_performing(db: AsyncSession, days: int, segments: int) -> AdminTopPerformingResponse:
+    return await _top_performing_cache.get_or_set(
+        (days, segments), _DASHBOARD_TTL_SECONDS, lambda: _admin_top_performing_uncached(db, days, segments)
+    )
+
+
+async def _admin_top_performing_uncached(db: AsyncSession, days: int, segments: int) -> AdminTopPerformingResponse:
     start = _local_today() - timedelta(days=days - 1)
     top = await analytics_service.get_top_items(db, start, None, limit=5)
     rfm = await analytics_service.get_rfm_segmentation(db, None)

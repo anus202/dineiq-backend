@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useBranch } from '../context/BranchContext'
 import { PageHeader } from '../components/layout/AppLayout'
+import { ErrorBoundary } from '../components/common/ErrorBoundary'
 import { ExportButtons } from '../components/common/ExportButtons'
-import { Badge, DataTable, ErrorBanner, type Column, type BadgeTone } from '../components/ui'
+import { Badge, Button, DataTable, ErrorBanner, type Column, type BadgeTone } from '../components/ui'
 import { useApi } from '../hooks/useApi'
 import { branchAnalyticsApi } from '../services/endpoints'
 import type { MenuQuadrant, MenuQuadrantItem } from '../types/api'
@@ -17,12 +18,30 @@ const QUADRANT_TONE: Record<MenuQuadrant, BadgeTone> = {
 
 const QUADRANTS: (MenuQuadrant | 'All')[] = ['All', 'Profit Driver', 'Volume Driver', 'Hidden Opportunity', 'Low Performer']
 
-export function MenuPerformancePage() {
+function MenuPerformanceContent() {
   const { selectedBranchId } = useBranch()
-  const quadrants = useApi(() => branchAnalyticsApi.menuQuadrants({ branch_id: selectedBranchId }), [selectedBranchId])
+  // Set to true for exactly one in-flight call (the Refresh button), then reset -- the
+  // backend cache TTL is 20 minutes, so every other visit is served instantly from cache.
+  const forceRefreshRef = useRef(false)
+  const quadrants = useApi(
+    () => branchAnalyticsApi.menuQuadrants({ branch_id: selectedBranchId, refresh: forceRefreshRef.current }),
+    [selectedBranchId],
+  )
   const [filter, setFilter] = useState<(typeof QUADRANTS)[number]>('All')
 
-  const rows = (quadrants.data?.Items ?? []).filter((i) => filter === 'All' || i.Quadrant === filter)
+  const handleRefresh = () => {
+    forceRefreshRef.current = true
+    void quadrants.reload().finally(() => {
+      forceRefreshRef.current = false
+    })
+  }
+
+  // Recomputed only when the underlying data or the filter actually changes, not on every
+  // render (e.g. while the sync indicator is pulsing during a background revalidation).
+  const rows = useMemo(
+    () => (quadrants.data?.Items ?? []).filter((i) => filter === 'All' || i.Quadrant === filter),
+    [quadrants.data, filter],
+  )
 
   const columns: Column<MenuQuadrantItem>[] = [
     { key: 'name', header: 'Item', render: (i) => <span className="font-medium text-ink">{i.MenuItemName}</span> },
@@ -39,18 +58,23 @@ export function MenuPerformancePage() {
         title="Menu Performance"
         subtitle="Profit Driver / Volume Driver / Hidden Opportunity / Low Performer, by quantity and margin"
         actions={
-          <ExportButtons
-            filename="menu_performance"
-            data={rows}
-            columns={[
-              { header: 'Item', accessor: (i) => i.MenuItemName },
-              { header: 'Category', accessor: (i) => i.CategoryName },
-              { header: 'Qty Sold', accessor: (i) => i.QuantitySold },
-              { header: 'Revenue', accessor: (i) => i.Revenue },
-              { header: 'Margin %', accessor: (i) => i.MarginPercentage },
-              { header: 'Quadrant', accessor: (i) => i.Quadrant },
-            ]}
-          />
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={handleRefresh} disabled={quadrants.loading || quadrants.revalidating}>
+              {quadrants.revalidating ? 'Refreshing…' : 'Refresh analysis'}
+            </Button>
+            <ExportButtons
+              filename="menu_performance"
+              data={rows}
+              columns={[
+                { header: 'Item', accessor: (i) => i.MenuItemName },
+                { header: 'Category', accessor: (i) => i.CategoryName },
+                { header: 'Qty Sold', accessor: (i) => i.QuantitySold },
+                { header: 'Revenue', accessor: (i) => i.Revenue },
+                { header: 'Margin %', accessor: (i) => i.MarginPercentage },
+                { header: 'Quadrant', accessor: (i) => i.Quadrant },
+              ]}
+            />
+          </div>
         }
       />
       {quadrants.error && <ErrorBanner message={quadrants.error} onRetry={quadrants.reload} />}
@@ -66,6 +90,7 @@ export function MenuPerformancePage() {
         loading={quadrants.loading && !quadrants.data}
         searchText={(i) => `${i.MenuItemName} ${i.CategoryName}`}
         searchPlaceholder="Search menu items…"
+        pageSize={20}
         toolbar={
           <select className="field-input w-auto" value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} aria-label="Filter by quadrant">
             {QUADRANTS.map((q) => (
@@ -78,5 +103,13 @@ export function MenuPerformancePage() {
         emptyTitle="No sales data yet"
       />
     </>
+  )
+}
+
+export function MenuPerformancePage() {
+  return (
+    <ErrorBoundary title="Menu performance couldn't be displayed">
+      <MenuPerformanceContent />
+    </ErrorBoundary>
   )
 }

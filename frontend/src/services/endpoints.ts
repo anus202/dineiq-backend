@@ -96,11 +96,11 @@ export const branchAnalyticsApi = {
     get<Overview>('/dashboard/restaurant-manager/overview', params),
   channelMix: (params: { start_date?: string; end_date?: string; branch_id?: number } = {}) =>
     get<ChannelMixResponse>('/dashboard/restaurant-manager/channel-mix', params),
-  menuQuadrants: (params: { start_date?: string; end_date?: string; branch_id?: number } = {}) =>
+  menuQuadrants: (params: { start_date?: string; end_date?: string; branch_id?: number; refresh?: boolean } = {}) =>
     get<MenuQuadrantResponse>('/dashboard/restaurant-manager/menu-quadrants', params),
   recommendations: (params: { start_date?: string; end_date?: string; branch_id?: number } = {}) =>
     get<BusinessRecommendation[]>('/dashboard/restaurant-manager/recommendations', params),
-  wastage: (params: { start_date?: string; end_date?: string; branch_id?: number } = {}) =>
+  wastage: (params: { start_date?: string; end_date?: string; branch_id?: number; refresh?: boolean } = {}) =>
     get<WastageSummaryResponse>('/dashboard/inventory-manager/wastage', params),
   demandForecast: (params: { days?: number; branch_id?: number } = {}) =>
     get<DemandForecastResponse>('/dashboard/inventory-manager/demand-forecast', params),
