@@ -301,6 +301,17 @@ MIGRATIONS = [
         "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM dbo.tbl_StockMovementLog WHERE MovementType = 'MANUAL_DEDUCTION')",
         "DELETE FROM dbo.tbl_StockMovementLog WHERE MovementType = 'MANUAL_DEDUCTION'",
     ),
+    # --- Customer self-checkout: redeemable promo codes ------------------------------------
+    (
+        "tbl_Promotion.Code",
+        "SELECT 1 WHERE COL_LENGTH('dbo.Promotions', 'Code') IS NOT NULL",
+        "ALTER TABLE dbo.Promotions ADD Code NVARCHAR(40) NULL",
+    ),
+    (
+        "unique index on tbl_Promotion.Code",
+        "SELECT 1 FROM sys.indexes WHERE name = 'UX_tbl_Promotion_Code' AND object_id = OBJECT_ID('dbo.Promotions')",
+        "CREATE UNIQUE INDEX UX_tbl_Promotion_Code ON dbo.Promotions (Code) WHERE Code IS NOT NULL",
+    ),
 ]
 
 

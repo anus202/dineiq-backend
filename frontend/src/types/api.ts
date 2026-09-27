@@ -215,8 +215,32 @@ export interface OrderCreateInput {
   PaymentMethod: 'Cash' | 'Card'
   Discount: number
   CustomerId?: number
+  /** Required for a CUSTOMER placing their own order (self-checkout has no assigned
+   * branch to fall back on); optional for staff, who default to their own branch. */
+  BranchId?: number
   GuestCount: number
   items: { MenuItemId: number; Quantity: number }[]
+}
+
+// --- Favorites (Menu Browse heart toggle) ------------------------------------------------
+
+export interface FavoriteListResponse {
+  MenuItemIds: number[]
+}
+
+export interface FavoriteToggleResponse {
+  MenuItemId: number
+  IsFavorite: boolean
+}
+
+// --- Promotions / voucher codes ----------------------------------------------------------
+
+export interface PromoValidateResponse {
+  Valid: boolean
+  Code: string | null
+  PromotionName: string | null
+  DiscountPercent: number | null
+  Message: string
 }
 
 // --- Inventory --------------------------------------------------------------------------

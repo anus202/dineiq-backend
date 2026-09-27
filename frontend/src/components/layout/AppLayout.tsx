@@ -28,6 +28,7 @@ import {
   ShieldAlert,
   ShieldPlus,
   ShoppingBag,
+  ShoppingCart,
   SlidersHorizontal,
   Snail,
   Star,
@@ -85,6 +86,7 @@ const ROUTE_ICONS: Record<string, LucideIcon> = {
   '/admin/anomalies': ShieldAlert,
   '/customer': Award,
   '/customer/menu': BookOpen,
+  '/customer/order': ShoppingCart,
   '/customer/ratings': Star,
 }
 

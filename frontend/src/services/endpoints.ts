@@ -16,6 +16,8 @@ import type {
   DemandForecastResponse,
   DiningTable,
   DualPipelineComparisonResponse,
+  FavoriteListResponse,
+  FavoriteToggleResponse,
   HourlyHeatmap,
   InventoryItem,
   InventoryItemInput,
@@ -34,6 +36,7 @@ import type {
   PaymentPreview,
   PriceSensitivityItem,
   PromotionTrapItem,
+  PromoValidateResponse,
   Rating,
   RatingAnomalyItem,
   RatingCreateInput,
@@ -207,6 +210,17 @@ export const orderApi = {
   get: (id: number) => get<Order>(`/orders/${id}`),
   create: (body: OrderCreateInput) => post<Order>('/orders', body),
   cancel: (id: number) => put<Order>(`/orders/${id}/status`, { Status: 'Cancelled' }),
+}
+
+/** The heart-toggle favorite on the customer Menu Browse page. */
+export const favoriteApi = {
+  mine: () => get<FavoriteListResponse>('/favorites'),
+  toggle: (menuItemId: number) => post<FavoriteToggleResponse>(`/favorites/${menuItemId}/toggle`),
+}
+
+/** Voucher/discount code lookup for the self-checkout "Apply" box. */
+export const promotionApi = {
+  validate: (code: string, branchId?: number) => get<PromoValidateResponse>(`/promotions/validate/${encodeURIComponent(code)}`, { branch_id: branchId }),
 }
 
 export const paymentApi = {

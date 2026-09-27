@@ -11,11 +11,13 @@ from app.controllers import (
     category_controller,
     customer_controller,
     dashboard_controller,
+    favorite_controller,
     inventory_controller,
     menu_controller,
     ml_analytics_controller,
     order_controller,
     payment_controller,
+    promotion_controller,
     rating_controller,
     restaurant_branch_controller,
     table_controller,
@@ -77,6 +79,8 @@ app.include_router(restaurant_branch_controller.router)
 app.include_router(rating_controller.router)
 app.include_router(branch_analytics_controller.router)
 app.include_router(ml_analytics_controller.router)
+app.include_router(favorite_controller.router)
+app.include_router(promotion_controller.router)
 
 
 @app.get("/", tags=["Health"], summary="Health check")

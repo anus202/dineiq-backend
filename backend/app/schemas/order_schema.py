@@ -41,7 +41,21 @@ class OrderCreate(BaseModel):
     PaymentMethod: PaymentMethodEnum = Field(..., examples=[PaymentMethodEnum.CASH])
     Discount: Money = Field(Decimal("0.00"), ge=0, examples=[0])
     CustomerId: Optional[int] = Field(
-        None, gt=0, description="Registered customer (the primary one for a group). Omit for walk-ins."
+        None,
+        gt=0,
+        description=(
+            "Registered customer (the primary one for a group). Omit for walk-ins. "
+            "Ignored (and replaced with the caller's own linked customer) when the caller's role is CUSTOMER."
+        ),
+    )
+    BranchId: Optional[int] = Field(
+        None,
+        gt=0,
+        description=(
+            "Which branch this order is for. Required when the caller's role is CUSTOMER "
+            "(self-checkout has no assigned branch to fall back on); optional for staff, "
+            "who default to their own assigned branch."
+        ),
     )
     GuestCount: int = Field(1, ge=1, le=100, description="Party size", examples=[1])
     items: List[OrderDetailCreate] = Field(..., min_length=1, max_length=100)

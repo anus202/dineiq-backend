@@ -29,6 +29,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from app.db.init_db import init_db  # noqa: E402
+from app.db.sequences import ORDER_NUMBERS  # noqa: E402
+from app.db.session import engine  # noqa: E402
 
 TARGET_ORDER_DETAILS = 1_000_000
 TARGET_RATINGS = 100_000
@@ -310,22 +312,38 @@ def seed_promotions(conn) -> None:
 
     today = date.today()
     rows = []
-    for name, description, discount in PROMOTIONS:
+    for index, (name, description, discount) in enumerate(PROMOTIONS, start=1):
         start_offset = random.randint(-365, 60)
         duration = random.randint(7, 45)
         start = today + timedelta(days=start_offset)
         end = start + timedelta(days=duration)
         menu_item_id = random.choice(menu_item_ids) if random.random() < 0.4 else None
         branch_id = random.choice(branch_ids) if random.random() < 0.3 else None
-        rows.append((name, description, discount, start, end, menu_item_id, branch_id))
+        # Redeemable voucher code for the customer self-checkout "Apply" box: initials of
+        # the promotion name + its index, e.g. "Weekday Lunch Deal" -> WLD01. The index
+        # guarantees uniqueness even for two promotions whose names share initials.
+        initials = "".join(word[0] for word in name.upper().split() if word[0].isalpha())
+        code = f"{initials}{index:02d}"
+        rows.append((name, description, discount, start, end, menu_item_id, branch_id, code))
 
     cur.executemany(
-        "INSERT INTO dbo.Promotions (Name, Description, DiscountPercent, StartDate, EndDate, MenuItemId, BranchId) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO dbo.Promotions (Name, Description, DiscountPercent, StartDate, EndDate, MenuItemId, BranchId, Code) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         rows,
     )
     conn.commit()
     print(f"Promotions seeded: +{len(rows):,} campaigns.", flush=True)
+
+
+async def _resync_order_number_sequence() -> None:
+    # init_db() creates each year's SEQUENCE on the app's very first startup (typically
+    # against an empty Orders table, seeding it at 1) and never re-syncs an existing one.
+    # This script's bulk INSERT above writes OrderNumbers directly, bypassing that
+    # SEQUENCE entirely -- so without this, the sequence stays stuck near 1 and the very
+    # first order placed through the API after a scale-up collides with an already-used
+    # OrderNumber (a UNIQUE constraint violation). See db/sequences.py's resync() docstring.
+    async with engine.connect() as conn:
+        await ORDER_NUMBERS.resync(conn, date.today().year)
 
 
 def main() -> None:
@@ -340,6 +358,9 @@ def main() -> None:
         scale_wastage(conn)
     finally:
         conn.close()
+
+    print("Resyncing the order-number sequence past the scaled-up data...", flush=True)
+    asyncio.run(_resync_order_number_sequence())
     print("Phase 2 scale-up complete.", flush=True)
 
 

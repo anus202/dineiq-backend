@@ -92,6 +92,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/customer', label: 'My Rewards', icon: '★', roles: ['CUSTOMER'] },
       { to: '/customer/menu', label: 'Menu Browse', icon: '📖', roles: ['CUSTOMER'] },
+      { to: '/customer/order', label: 'Place Order', icon: '🛒', roles: ['CUSTOMER'] },
       { to: '/customer/ratings', label: 'Ratings & Feedback', icon: '⭐', roles: ['CUSTOMER'] },
     ],
   },

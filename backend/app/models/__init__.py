@@ -17,6 +17,7 @@ from app.models.wastage import Wastage
 from app.models.payment import Payment
 from app.models.rating import Rating
 from app.models.promotion import Promotion
+from app.models.customer_favorite import CustomerFavorite
 from app.models.audit_log import AuditLog
 
 __all__ = [
@@ -40,5 +41,6 @@ __all__ = [
     "Payment",
     "Rating",
     "Promotion",
+    "CustomerFavorite",
     "AuditLog",
 ]

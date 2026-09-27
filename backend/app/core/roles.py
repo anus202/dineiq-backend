@@ -38,3 +38,8 @@ BRANCH_MANAGERS = [RoleName.ADMIN, RoleName.RESTAURANT_MANAGER]
 FORECAST_VIEWERS = [RoleName.ADMIN, RoleName.RESTAURANT_MANAGER, RoleName.INVENTORY_MANAGER]
 ALL_STAFF = [RoleName.ADMIN, RoleName.RESTAURANT_MANAGER, RoleName.INVENTORY_MANAGER, RoleName.CASHIER]
 EVERYONE = [*ALL_STAFF, RoleName.CUSTOMER]
+# POST /orders only: a CASHIER places an order on a walk-in's behalf, a CUSTOMER places
+# their own through the Menu Browse -> self-checkout flow. GET/PUT on orders (listing,
+# reading any order by id, changing status) stay FRONT_OF_HOUSE-only -- a customer must
+# never be able to list or read someone else's order by guessing an id.
+ORDER_CREATORS = [RoleName.ADMIN, RoleName.CASHIER, RoleName.CUSTOMER]

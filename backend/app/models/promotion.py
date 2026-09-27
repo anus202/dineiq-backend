@@ -28,6 +28,10 @@ class Promotion(CommonFields):
     EndDate: Mapped[date] = mapped_column(Date, nullable=False)
     MenuItemId: Mapped[Optional[int]] = mapped_column(ForeignKey("Menu_Items.Id"), nullable=True, index=True)
     BranchId: Mapped[Optional[int]] = mapped_column(ForeignKey("Restaurants.Id"), nullable=True, index=True)
+    # Redeemable voucher code for the customer-facing checkout's "Apply" box (case-insensitive
+    # match, see promotion_service.validate_code). NULL for promotions that aren't
+    # customer-redeemable by code (e.g. ones applied automatically at settlement).
+    Code: Mapped[Optional[str]] = mapped_column(Unicode(40), nullable=True)
 
     MenuItem: Mapped[Optional["MenuItem"]] = relationship()
     Branch: Mapped[Optional["RestaurantBranch"]] = relationship()

@@ -57,6 +57,29 @@ class YearlyNumberSequence:
         seq = await db.scalar(text(f"SELECT NEXT VALUE FOR {self._sequence_name(year)}"))
         return f"{self._prefix(year)}{seq:06d}"
 
+    async def resync(self, db: Executor, year: int) -> None:
+        """Fast-forward this year's sequence past every existing number, in case rows were
+        added by something other than `next()` -- a raw-SQL bulk insert (e.g. the Big Data
+        scale-up seed script), a restored backup, or a manual fix. `ensure()` only seeds a
+        sequence the first time it's created; once it exists, it's never re-synced on its
+        own, so a bulk insert that runs *after* the sequence already exists (the normal
+        case -- `init_db()` creates it on the app's very first startup, typically against
+        an empty table) leaves it permanently behind, and every order placed through the
+        API afterwards collides with an already-used number until the sequence counts back
+        up to where the bulk data left off. Safe to call anytime, including when the
+        sequence doesn't exist yet (falls through to `ensure()`).
+        """
+        await self.ensure(db, year)
+        next_value = await db.scalar(
+            text(
+                f"SELECT ISNULL(MAX(TRY_CAST(SUBSTRING([{self.column}], LEN(:prefix) + 1, 20) AS INT)), 0) + 1 "
+                f"FROM dbo.[{self.table}] WHERE [{self.column}] LIKE :prefix + '%'"
+            ),
+            {"prefix": self._prefix(year)},
+        )
+        await db.execute(text(f"ALTER SEQUENCE {self._sequence_name(year)} RESTART WITH {int(next_value)}"))
+        await db.commit()
+
 
 ORDER_NUMBERS = YearlyNumberSequence("OrderNumberSeq", "ORD", "Orders", "OrderNumber")
 INVOICE_NUMBERS = YearlyNumberSequence("InvoiceNumberSeq", "INV", "tbl_Payment", "InvoiceNumber")

@@ -12,7 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.core import audit
 from app.db.sequences import ORDER_NUMBERS
 from app.db.session import is_deadlock
-from app.models import Customer, DiningTable, MenuItem, Order, OrderDetail
+from app.models import Customer, DiningTable, MenuItem, Order, OrderDetail, RestaurantBranch
 from app.models.base import utc_now
 from app.schemas.common import TWO_PLACES
 from app.schemas.inventory_schema import LowStockAlert
@@ -50,6 +50,11 @@ class InvalidStatusTransition(OrderError):
 class CustomerNotFound(OrderError):
     def __init__(self, customer_id: int):
         super().__init__(f"Customer {customer_id} does not exist")
+
+
+class BranchNotFound(OrderError):
+    def __init__(self, branch_id: int):
+        super().__init__(f"Branch {branch_id} does not exist or is inactive")
 
 
 def _with_relations():
@@ -140,6 +145,17 @@ async def create_order(db: AsyncSession, payload: OrderCreate, user_id: int, bra
         )
         if customer_exists is None:
             raise CustomerNotFound(payload.CustomerId)
+
+    if branch_id is not None:
+        branch_exists = await db.scalar(
+            select(RestaurantBranch.Id).where(
+                RestaurantBranch.Id == branch_id,
+                RestaurantBranch.IsDeleted == False,  # noqa: E712
+                RestaurantBranch.IsActive == True,  # noqa: E712
+            )
+        )
+        if branch_exists is None:
+            raise BranchNotFound(branch_id)
 
     details = []
     for item_id, quantity in quantities.items():

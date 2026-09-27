@@ -1,11 +1,24 @@
-import { useState } from 'react'
+import { ShoppingCart } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { MenuCard } from '../components/MenuCard'
 import { PageHeader } from '../components/layout/AppLayout'
-import { Badge, EmptyState, ErrorBanner, ShimmerSkeleton } from '../components/ui'
+import { Button, EmptyState, ErrorBanner, ShimmerSkeleton, useToast } from '../components/ui'
+import { useAuth } from '../context/AuthContext'
 import { useApi } from '../hooks/useApi'
-import { categoryApi, menuApi } from '../services/endpoints'
-import { money } from '../utils/format'
+import { apiErrorMessage } from '../services/api'
+import { categoryApi, favoriteApi, menuApi } from '../services/endpoints'
+import type { MenuItem } from '../types/api'
+
+/** Item id -> quantity. Carried to the checkout page via router state when "Place Your
+ * Order" is pressed; it doesn't need to survive a full page reload. */
+export type Cart = Record<number, number>
 
 export function MenuBrowsePage() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const toast = useToast()
+
   const categories = useApi(() => categoryApi.list(), [])
   const [categoryId, setCategoryId] = useState<number | 'All'>('All')
   const [search, setSearch] = useState('')
@@ -14,9 +27,67 @@ export function MenuBrowsePage() {
     [categoryId, search],
   )
 
+  const favorites = useApi(() => favoriteApi.mine(), [])
+  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set())
+  useEffect(() => {
+    if (favorites.data) setFavoriteIds(new Set(favorites.data.MenuItemIds))
+  }, [favorites.data])
+
+  const [cart, setCart] = useState<Cart>({})
+  const cartCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0)
+
+  const handleToggleFavorite = async (item: MenuItem) => {
+    const wasFavorite = favoriteIds.has(item.Id)
+    // Optimistic: the heart flips instantly, then reconciles with the server's answer.
+    setFavoriteIds((prev) => {
+      const next = new Set(prev)
+      wasFavorite ? next.delete(item.Id) : next.add(item.Id)
+      return next
+    })
+    try {
+      const result = await favoriteApi.toggle(item.Id)
+      setFavoriteIds((prev) => {
+        const next = new Set(prev)
+        result.IsFavorite ? next.add(item.Id) : next.delete(item.Id)
+        return next
+      })
+    } catch (err) {
+      setFavoriteIds((prev) => {
+        const next = new Set(prev)
+        wasFavorite ? next.add(item.Id) : next.delete(item.Id)
+        return next
+      })
+      toast.error('Could not update favorite', apiErrorMessage(err))
+    }
+  }
+
+  const addToCart = (item: MenuItem) => setCart((prev) => ({ ...prev, [item.Id]: (prev[item.Id] ?? 0) + 1 }))
+  const incrementCart = (item: MenuItem) => addToCart(item)
+  const decrementCart = (item: MenuItem) =>
+    setCart((prev) => {
+      const current = prev[item.Id] ?? 0
+      if (current <= 1) {
+        const { [item.Id]: _removed, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [item.Id]: current - 1 }
+    })
+
+  const handlePlaceOrder = () => {
+    navigate(`/customer/order?email=${encodeURIComponent(user?.Email ?? '')}`, { state: { cart, email: user?.Email ?? '' } })
+  }
+
   return (
     <>
-      <PageHeader title="Menu" subtitle="Everything available to order right now" />
+      <PageHeader
+        title="Menu"
+        subtitle="Everything available to order right now"
+        actions={
+          <Button variant="primary" icon={<ShoppingCart className="h-4 w-4" />} onClick={handlePlaceOrder} disabled={cartCount === 0}>
+            Place Your Order{cartCount > 0 ? ` (${cartCount})` : ''}
+          </Button>
+        }
+      />
       {menu.error && <ErrorBanner message={menu.error} onRetry={menu.reload} />}
 
       <div className="mb-5 flex flex-wrap gap-2">
@@ -41,7 +112,7 @@ export function MenuBrowsePage() {
       {menu.loading && !menu.data && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }, (_, i) => (
-            <ShimmerSkeleton key={i} className="h-28" rounded="rounded-2xl" />
+            <ShimmerSkeleton key={i} className="h-56" rounded="rounded-2xl" />
           ))}
         </div>
       )}
@@ -52,14 +123,16 @@ export function MenuBrowsePage() {
       )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {menu.data?.Items.map((item) => (
-          <div key={item.Id} className="card p-4">
-            <div className="flex items-start justify-between gap-2">
-              <p className="font-medium text-ink">{item.Name}</p>
-              <Badge tone="teal">{money(item.Price)}</Badge>
-            </div>
-            <p className="mt-1 text-xs text-slate-500">{item.Category.CategoryName}</p>
-            {item.Description && <p className="mt-2 line-clamp-2 text-sm text-slate-600">{item.Description}</p>}
-          </div>
+          <MenuCard
+            key={item.Id}
+            item={item}
+            isFavorite={favoriteIds.has(item.Id)}
+            onToggleFavorite={handleToggleFavorite}
+            quantityInCart={cart[item.Id] ?? 0}
+            onAdd={addToCart}
+            onIncrement={incrementCart}
+            onDecrement={decrementCart}
+          />
         ))}
       </div>
     </>

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, require_roles
-from app.core.roles import FRONT_OF_HOUSE
+from app.core.roles import FRONT_OF_HOUSE, ORDER_CREATORS, RoleName
 from app.db.session import get_db
 from app.models import Signup
 from app.schemas.order_schema import (
@@ -19,17 +19,20 @@ from app.schemas.order_schema import (
 )
 from app.services import order_service
 from app.services.order_service import (
+    BranchNotFound,
     CustomerNotFound,
     DiscountTooLarge,
     InvalidStatusTransition,
     MenuItemsUnavailable,
 )
 
-# Every route here requires a valid token and one of the FRONT_OF_HOUSE roles.
+# Every route here requires a valid token. Reading/listing/status-changes stay staff-only
+# (FRONT_OF_HOUSE, applied per-route below); only order CREATION is also open to CUSTOMER,
+# for the Menu Browse -> self-checkout flow -- a customer places their own order but must
+# never be able to list or read someone else's order by guessing an id.
 router = APIRouter(
     prefix="/api/v1/orders",
     tags=["Orders & Sales"],
-    dependencies=[Depends(require_roles(FRONT_OF_HOUSE))],
     responses={401: {"description": "Missing, invalid or expired token"}, 403: {"description": "Your role can't use this endpoint"}},
 )
 
@@ -47,24 +50,50 @@ def _not_found(order_id: int) -> HTTPException:
     summary="Create order",
     description=(
         "Prices come from the current menu, not the request. Repeated menu items are merged into one line. "
-        "New orders start as Pending. Omit CustomerId for walk-ins; for a group, pass the primary "
-        "customer and the party size as GuestCount."
+        "New orders start as Pending. Staff (ADMIN/CASHIER): omit CustomerId for walk-ins, or pass the "
+        "primary customer and party size as GuestCount; BranchId defaults to the staff member's own branch. "
+        "Customer self-checkout: CustomerId is ignored and forced to the caller's own linked profile, and "
+        "BranchId is required (there's no staff branch to default to)."
     ),
-    responses={400: {"description": "Menu item or customer not found, or discount larger than the total"}},
+    responses={
+        400: {
+            "description": "Menu item, customer or branch not found, discount larger than the total, "
+            "BranchId missing for a customer order, or the account has no linked customer profile"
+        }
+    },
 )
 async def create_order(
     payload: OrderCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: Signup = Depends(get_current_user),
+    current_user: Signup = Depends(require_roles(ORDER_CREATORS)),
 ):
+    if current_user.Role.Name == RoleName.CUSTOMER.value:
+        if current_user.CustomerId is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Your account has no linked customer profile yet, so it can't place an order.",
+            )
+        if payload.BranchId is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Please choose a branch.")
+        # Never trust a customer-supplied CustomerId -- always their own linked profile.
+        payload = payload.model_copy(update={"CustomerId": current_user.CustomerId})
+        branch_id = payload.BranchId
+    else:
+        branch_id = payload.BranchId or current_user.BranchId
+
     try:
-        order = await order_service.create_order(db, payload, current_user.Id, current_user.BranchId)
-    except (MenuItemsUnavailable, DiscountTooLarge, CustomerNotFound) as exc:
+        order = await order_service.create_order(db, payload, current_user.Id, branch_id)
+    except (MenuItemsUnavailable, DiscountTooLarge, CustomerNotFound, BranchNotFound) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     return OrderResponse.from_model(order)
 
 
-@router.get("", response_model=OrderListResponse, summary="Get orders (paginated, filterable)")
+@router.get(
+    "",
+    response_model=OrderListResponse,
+    summary="Get orders (paginated, filterable)",
+    dependencies=[Depends(require_roles(FRONT_OF_HOUSE))],
+)
 async def get_orders(
     skip: int = Query(0, ge=0, description="Number of orders to skip"),
     limit: int = Query(20, ge=1, le=100, description="Maximum orders to return (1-100)"),
@@ -83,7 +112,13 @@ async def get_orders(
     return OrderListResponse(Total=total, Skip=skip, Limit=limit, Items=[OrderResponse.from_model(o) for o in orders])
 
 
-@router.get("/{id}", response_model=OrderResponse, summary="Get order by ID", responses=NOT_FOUND)
+@router.get(
+    "/{id}",
+    response_model=OrderResponse,
+    summary="Get order by ID",
+    responses=NOT_FOUND,
+    dependencies=[Depends(require_roles(FRONT_OF_HOUSE))],
+)
 async def get_order(id: int, db: AsyncSession = Depends(get_db)):
     order = await order_service.get_order_by_id(db, id)
     if order is None:
@@ -101,6 +136,7 @@ async def get_order(id: int, db: AsyncSession = Depends(get_db)):
         "returns LowStockAlerts for any ingredient now at or below its reorder level."
     ),
     responses={**NOT_FOUND, 409: {"description": "Status change not allowed"}},
+    dependencies=[Depends(require_roles(FRONT_OF_HOUSE))],
 )
 async def update_order_status(
     id: int,

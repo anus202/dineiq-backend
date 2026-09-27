@@ -39,6 +39,7 @@ const DemandForecastPage = lazy(() => import('./pages/DemandForecastPage').then(
 const BranchComparisonPage = lazy(() => import('./pages/BranchComparisonPage').then((m) => ({ default: m.BranchComparisonPage })))
 const AnomalyDetectionPage = lazy(() => import('./pages/AnomalyDetectionPage').then((m) => ({ default: m.AnomalyDetectionPage })))
 const MenuBrowsePage = lazy(() => import('./pages/MenuBrowsePage').then((m) => ({ default: m.MenuBrowsePage })))
+const POSOrderPage = lazy(() => import('./pages/POSOrderPage').then((m) => ({ default: m.POSOrderPage })))
 const RatingsFeedbackPage = lazy(() => import('./pages/RatingsFeedbackPage').then((m) => ({ default: m.RatingsFeedbackPage })))
 const MLRecommendationsPage = lazy(() => import('./pages/MLRecommendationsPage').then((m) => ({ default: m.MLRecommendationsPage })))
 const MarketBasketPage = lazy(() => import('./pages/MarketBasketPage').then((m) => ({ default: m.MarketBasketPage })))
@@ -232,6 +233,14 @@ export default function App() {
                 element={
                   <Page roles={['CUSTOMER']}>
                     <MenuBrowsePage />
+                  </Page>
+                }
+              />
+              <Route
+                path="/customer/order"
+                element={
+                  <Page roles={['CUSTOMER']}>
+                    <POSOrderPage />
                   </Page>
                 }
               />
