@@ -112,7 +112,7 @@ export function MenuBrowsePage() {
       {menu.loading && !menu.data && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }, (_, i) => (
-            <ShimmerSkeleton key={i} className="h-56" rounded="rounded-2xl" />
+            <ShimmerSkeleton key={i} className="h-36" rounded="rounded-2xl" />
           ))}
         </div>
       )}
