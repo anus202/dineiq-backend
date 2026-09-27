@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Button, ErrorBanner } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
@@ -38,20 +38,47 @@ function EyeIcon({ open }: { open: boolean }) {
   )
 }
 
-/** Inline field used on the auth pages — icon + trailing-slot styling that the shared
- * `TextField` (label-above, no icon) doesn't support. Same input semantics/classes as
- * the app's regular `field-input`, just with room for an icon and a trailing button. */
+/** Dark-glass labeled field with an optional leading icon and trailing slot (used for
+ * the password show/hide toggle). Shares visual language with `GlassField` below but
+ * carries the icon gutter that the plain text fields (full name, phone, ...) don't need. */
 function IconField({
   icon,
   trailing,
   ...rest
-}: React.InputHTMLAttributes<HTMLInputElement> & { icon: ReactNode; trailing?: ReactNode }) {
+}: InputHTMLAttributes<HTMLInputElement> & { icon: ReactNode; trailing?: ReactNode }) {
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-slate-400">{icon}</span>
-      <input {...rest} className={`field-input pr-11 pl-10.5 ${rest.className ?? ''}`} />
+      <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-white/40">{icon}</span>
+      <input
+        {...rest}
+        className={`w-full rounded-xl border border-white/15 bg-white/5 py-2.5 pr-11 pl-10.5 text-sm text-white placeholder:text-white/30 shadow-inner shadow-black/10 outline-none backdrop-blur-sm transition focus:border-brand-400/70 focus:bg-white/10 focus:ring-4 focus:ring-brand-400/15 ${rest.className ?? ''}`}
+      />
       {trailing && <span className="absolute inset-y-0 right-3 flex items-center">{trailing}</span>}
     </div>
+  )
+}
+
+/** Dark-glass labeled field with no icon gutter, for plain text inputs (register form). */
+export function GlassField({
+  label,
+  hint,
+  error,
+  className = '',
+  ...rest
+}: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string; error?: string | null }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-[10px] font-semibold tracking-wide text-white/60 uppercase">{label}</span>
+      <input
+        {...rest}
+        className={`w-full rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 shadow-inner shadow-black/10 outline-none backdrop-blur-sm transition focus:border-brand-400/70 focus:bg-white/10 focus:ring-4 focus:ring-brand-400/15 ${className}`}
+      />
+      {error ? (
+        <span className="mt-1 block text-[11px] text-rose-300">{error}</span>
+      ) : hint ? (
+        <span className="mt-1 block text-[11px] text-white/40">{hint}</span>
+      ) : null}
+    </label>
   )
 }
 
@@ -83,7 +110,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthShell title="Welcome back" subtitle="Sign in to your DineIQ account" heroSide="left">
+    <AuthCardShell title="Welcome back" subtitle="Sign in to your DineIQ account">
       <form onSubmit={submit} className="space-y-4">
         <AnimatePresence>
           {error && (
@@ -94,7 +121,7 @@ export function LoginPage() {
         </AnimatePresence>
 
         <label className="block">
-          <span className="field-label">Email</span>
+          <span className="mb-1.5 block text-[10px] font-semibold tracking-wide text-white/60 uppercase">Email</span>
           <IconField
             icon={<MailIcon />}
             type="email"
@@ -108,7 +135,7 @@ export function LoginPage() {
         </label>
 
         <label className="block">
-          <span className="field-label">Password</span>
+          <span className="mb-1.5 block text-[10px] font-semibold tracking-wide text-white/60 uppercase">Password</span>
           <IconField
             icon={<LockIcon />}
             type={showPassword ? 'text' : 'password'}
@@ -121,7 +148,7 @@ export function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="rounded-md p-1 text-slate-400 transition hover:text-slate-600 focus-visible:ring-2 focus-visible:ring-brand-400/50 focus-visible:outline-none"
+                className="rounded-md p-1 text-white/40 transition hover:text-white/80 focus-visible:ring-2 focus-visible:ring-brand-400/50 focus-visible:outline-none"
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                 tabIndex={-1}
               >
@@ -131,73 +158,89 @@ export function LoginPage() {
           />
         </label>
 
-        <Button type="submit" size="lg" loading={busy} className="!mt-6 w-full">
+        <Button
+          type="submit"
+          size="lg"
+          loading={busy}
+          className="!mt-6 w-full !bg-gradient-to-r !from-teal-300 !to-brand-600 !text-white shadow-lg shadow-brand-500/25 transition hover:!from-teal-200 hover:!to-brand-500 hover:shadow-xl hover:shadow-brand-500/30"
+        >
           Sign in
         </Button>
 
-        <p className="text-center text-sm text-slate-500">
+        <p className="pt-1 text-center text-[10.5px] tracking-widest text-white/30 uppercase">Secure · Smart · DineIQ</p>
+
+        <p className="border-t border-white/10 pt-4 text-center text-sm text-white/50">
           New diner?{' '}
-          <Link to="/register" className="font-medium text-brand-700 hover:underline">
+          <Link to="/register" className="font-medium text-brand-300 transition hover:text-brand-200 hover:underline">
             Create a rewards account
           </Link>
         </p>
       </form>
-    </AuthShell>
+    </AuthCardShell>
   )
 }
 
-/** Split-screen hero panel shared by the login and register pages — teal gradient with
- * bold rotated accent blocks, echoing the app's brand colors in a "boutique restaurant
- * management" register. */
-function AuthHero() {
+/** Ambient premium backdrop shared by the login/register cards: a teal-to-ink gradient
+ * with two slowly drifting blurred glow blobs (teal + amber), echoing the app's brand
+ * colors. No video/photo asset exists in the project, so this is the CSS-only "living
+ * background" fallback the brief allows. */
+function AuthBackdrop() {
   return (
-    <div className="relative flex h-full flex-col justify-between overflow-hidden bg-brand-700 p-10 text-white lg:p-12">
-      <div className="pointer-events-none absolute inset-0" aria-hidden>
-        <div className="absolute -top-10 -right-16 h-52 w-52 rotate-[20deg] rounded-[28px] bg-white/[0.08]" />
-        <div className="absolute -bottom-12 -left-10 h-44 w-44 -rotate-[15deg] rounded-3xl bg-amber-400/15" />
-        <div className="absolute top-52 right-10 h-16 w-16 rotate-[35deg] rounded-2xl bg-white/10" />
-      </div>
-      <div className="relative flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
-          <img src="/favicon.svg" alt="" className="h-5 w-5" />
-        </div>
-        <span className="text-lg font-semibold">DineIQ</span>
-      </div>
-      <div className="relative">
-        <h2 className="text-3xl leading-tight font-bold lg:text-4xl">
-          Effortless dining,
-          <br />
-          powered by data.
-        </h2>
-        <p className="mt-4 max-w-sm text-sm text-teal-100/80">
-          Live revenue, demand forecasts and a fast POS — for restaurants that run on more than instinct.
-        </p>
-      </div>
-      <p className="relative text-xs text-teal-100/50">© DineIQ Analytics</p>
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(45,212,191,0.5),transparent_55%),radial-gradient(circle_at_80%_85%,rgba(217,119,6,0.26),transparent_55%),linear-gradient(160deg,#0f766e_0%,#0c4a44_65%,#082f2b_100%)]" />
+      <motion.div
+        className="absolute -top-16 -left-16 h-72 w-72 rounded-full bg-teal-300/30 blur-[90px]"
+        animate={{ x: [0, 30, 0], y: [0, 20, 0] }}
+        transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="absolute -right-10 -bottom-10 h-56 w-56 rounded-full bg-amber-400/20 blur-[90px]"
+        animate={{ x: [0, -20, 0], y: [0, -15, 0] }}
+        transition={{ duration: 24, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      {/* faint fixed grid texture, kept subtle so it never competes with the card */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:44px_44px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_40%,black,transparent)]" />
     </div>
   )
 }
 
-export function AuthShell({
-  title,
-  subtitle,
-  children,
-  heroSide = 'left',
-}: {
-  title: string
-  subtitle: string
-  children: ReactNode
-  heroSide?: 'left' | 'right'
-}) {
+/** Shared centered "glass card" shell for the login and register pages: the premium
+ * backdrop above, plus two faint offset panels behind the real card for a stacked,
+ * layered-screens depth effect. */
+export function AuthCardShell({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
-    <div className="grid min-h-full lg:grid-cols-2">
-      <div className={`relative hidden lg:block ${heroSide === 'right' ? 'lg:order-2' : ''}`}>
-        <AuthHero />
-      </div>
-      <div className="flex items-center justify-center p-6">
-        <motion.div className="w-full max-w-sm" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-2xl font-semibold text-ink">{title}</h1>
-          <p className="mt-1 mb-8 text-sm text-slate-500">{subtitle}</p>
+    <div className="relative flex min-h-full items-center justify-center overflow-hidden bg-ink px-4 py-10 sm:px-6">
+      <AuthBackdrop />
+
+      <div className="relative w-full max-w-sm">
+        <div
+          className="absolute inset-0 rotate-[-2deg] translate-x-4 translate-y-5 rounded-[28px] border border-white/5 bg-white/[0.02]"
+          aria-hidden
+        />
+        <div
+          className="absolute inset-0 rotate-[1.5deg] translate-x-[-14px] translate-y-6 rounded-[28px] border border-white/10 bg-white/[0.035]"
+          aria-hidden
+        />
+
+        <motion.div
+          initial={{ opacity: 0, y: 22, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+          className="relative rounded-[28px] border border-white/15 bg-white/[0.08] p-7 shadow-2xl shadow-black/40 backdrop-blur-2xl sm:p-8"
+        >
+          <div className="mb-6 flex flex-col items-center text-center">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-300 to-brand-600 shadow-lg shadow-brand-500/30">
+              <img src="/favicon.svg" alt="" className="h-6.5 w-6.5" />
+            </div>
+            <h2 className="text-lg font-bold tracking-tight text-white">DineIQ</h2>
+            <p className="mt-0.5 text-[10px] font-semibold tracking-[0.18em] text-teal-200/80 uppercase">Dining Intelligence</p>
+          </div>
+
+          <div className="mb-6 text-center">
+            <h1 className="text-[17px] font-bold text-white">{title}</h1>
+            <p className="mt-1 text-[11.5px] text-white/60">{subtitle}</p>
+          </div>
+
           {children}
         </motion.div>
       </div>
