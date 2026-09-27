@@ -50,17 +50,12 @@ export function RegisterPage() {
           placeholder="••••••••"
           hint="At least 8 characters"
         />
-        <Button
-          type="submit"
-          size="lg"
-          loading={busy}
-          className="!mt-6 w-full !bg-gradient-to-r !from-teal-300 !to-brand-600 !text-white shadow-lg shadow-brand-500/25 transition hover:!from-teal-200 hover:!to-brand-500 hover:shadow-xl hover:shadow-brand-500/30"
-        >
+        <Button type="submit" size="lg" loading={busy} className="!mt-6 w-full shadow-lg shadow-brand-500/20">
           Create account
         </Button>
-        <p className="border-t border-white/10 pt-4 text-center text-sm text-white/50">
+        <p className="border-t border-slate-200 pt-4 text-center text-sm text-slate-500">
           Have an account?{' '}
-          <Link to="/login" className="font-medium text-brand-300 transition hover:text-brand-200 hover:underline">
+          <Link to="/login" className="font-medium text-brand-700 transition hover:text-brand-600 hover:underline">
             Sign in
           </Link>
         </p>
