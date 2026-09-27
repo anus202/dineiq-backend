@@ -100,30 +100,54 @@ def detect_promotion_traps() -> list[PromotionTrap]:
     """Items whose sales rose under a promotion while margin collapsed — the SRS's
     "promotion trap" pattern: a promotion that looks successful on revenue/volume alone
     but is quietly destroying profitability.
+
+    Volume and revenue are compared as PER-DAY RATES, not raw window totals. A
+    promotion typically runs a few days while the non-promo baseline accumulates over
+    the entire history (often a year or more) — comparing raw totals would make every
+    promotion's volume look deeply negative purely because its window is short, making
+    a genuine trap indistinguishable from a healthy promotion. Dividing by each
+    promotion's own active-day count (and the baseline's non-promo day count) puts both
+    on a like-for-like "per day" basis before computing the lift.
     """
     fact_sales = _load_fact_sales()
     promoted = fact_sales[fact_sales["PromotionId"].notna()]
     if promoted.empty:
         return []
 
+    non_promo = fact_sales[fact_sales["PromotionId"].isna()]
+    baseline_days = max(non_promo["OrderDate"].dt.date.nunique(), 1)
     baseline = (
-        fact_sales[fact_sales["PromotionId"].isna()]
-        .groupby("MenuItemId")
+        non_promo.groupby("MenuItemId")
         .agg(BaselineRevenue=("LineTotal", "sum"), BaselineQty=("Quantity", "sum"), BaselineMargin=("LineMargin", "sum"))
     )
+    baseline["BaselineRevenuePerDay"] = baseline["BaselineRevenue"] / baseline_days
+    baseline["BaselineQtyPerDay"] = baseline["BaselineQty"] / baseline_days
+
     promo_agg = (
         promoted.groupby(["PromotionId", "PromotionName", "MenuItemId", "MenuItemName"])
-        .agg(PromoRevenue=("LineTotal", "sum"), PromoQty=("Quantity", "sum"), PromoMargin=("LineMargin", "sum"), IsTrapFlag=("IsTrapPromotion", "max"))
+        .agg(
+            PromoRevenue=("LineTotal", "sum"),
+            PromoQty=("Quantity", "sum"),
+            PromoMargin=("LineMargin", "sum"),
+            PromoDays=("OrderDate", lambda s: s.dt.date.nunique()),
+            IsTrapFlag=("IsTrapPromotion", "max"),
+        )
         .reset_index()
     )
+    promo_agg["PromoDays"] = promo_agg["PromoDays"].clip(lower=1)
+    promo_agg["PromoRevenuePerDay"] = promo_agg["PromoRevenue"] / promo_agg["PromoDays"]
+    promo_agg["PromoQtyPerDay"] = promo_agg["PromoQty"] / promo_agg["PromoDays"]
+
     merged = promo_agg.merge(baseline, on="MenuItemId", how="left").fillna(
-        {"BaselineRevenue": 0.0, "BaselineQty": 0.0, "BaselineMargin": 0.0}
+        {"BaselineRevenuePerDay": 0.0, "BaselineQtyPerDay": 0.0, "BaselineRevenue": 0.0, "BaselineQty": 0.0, "BaselineMargin": 0.0}
     )
     merged["RevenueLiftPercent"] = merged.apply(
-        lambda r: round(((r["PromoRevenue"] - r["BaselineRevenue"]) / r["BaselineRevenue"] * 100) if r["BaselineRevenue"] > 0 else 100.0, 2), axis=1
+        lambda r: round(((r["PromoRevenuePerDay"] - r["BaselineRevenuePerDay"]) / r["BaselineRevenuePerDay"] * 100) if r["BaselineRevenuePerDay"] > 0 else 100.0, 2),
+        axis=1,
     )
     merged["VolumeLiftPercent"] = merged.apply(
-        lambda r: round(((r["PromoQty"] - r["BaselineQty"]) / r["BaselineQty"] * 100) if r["BaselineQty"] > 0 else 100.0, 2), axis=1
+        lambda r: round(((r["PromoQtyPerDay"] - r["BaselineQtyPerDay"]) / r["BaselineQtyPerDay"] * 100) if r["BaselineQtyPerDay"] > 0 else 100.0, 2),
+        axis=1,
     )
     merged["PromoMarginPercent"] = round(merged["PromoMargin"] / merged["PromoRevenue"].replace(0, pd.NA) * 100, 2)
 
