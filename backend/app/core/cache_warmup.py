@@ -76,6 +76,7 @@ _SYNC_WARMERS = [
     ("price-sensitivity", ml_analytics_service.get_price_sensitivity),
     ("promotion-traps", ml_analytics_service.get_promotion_traps),
     ("ml-recommendations", ml_analytics_service.get_ml_recommendations),
+    ("dual-pipeline-comparison", ml_analytics_service.get_dual_pipeline_comparison),
 ]
 
 

@@ -102,7 +102,7 @@ def main() -> None:
         print(f"{'created' if created else 'exists '} {member['Role']:18} {member['Email']}")
 
     # 3. Customer login linked to a dataset customer (same phone + email).
-    customer = db.execute("SELECT Name, Phone, Email FROM tbl_Customer WHERE Id = ?", CUSTOMER_ID).fetchone()
+    customer = db.execute("SELECT Name, Phone, Email FROM Customers WHERE Id = ?", CUSTOMER_ID).fetchone()
     created = ok(
         client.post(
             f"{API}/auth/signup",

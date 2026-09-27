@@ -14,6 +14,7 @@ tbl_Orders.
 """
 from __future__ import annotations
 
+import json
 import pickle
 import sys
 import time
@@ -58,6 +59,7 @@ _churn_bundle_cache: Optional[dict] = None
 # scoring endpoints. Keyed on actual request filters; never on the db session.
 _ML_CACHE_TTL_SECONDS = 300
 _market_basket_cache = TTLCache()
+_dual_pipeline_cache = TTLCache()
 _price_sensitivity_cache = TTLCache()
 _promotion_traps_cache = TTLCache()
 _ml_recommendations_cache = TTLCache()
@@ -758,4 +760,38 @@ async def simulate_what_if(
         "revenue_delta_percent": pct_delta(projected_revenue, current_revenue),
         "profit_delta_percent": pct_delta(projected_profit, current_profit),
         "volume_delta_percent": pct_delta(projected_quantity, current_quantity),
+    }
+
+
+# --- Dual-pipeline comparison: Spark MLlib vs Python/XGBoost, run as separate offline
+# batch jobs (spark_jobs/spark_mllib_models.py, python_pipeline/train_python_models.py,
+# src/analytics/dual_pipeline_verifier.py) -- this endpoint only reads their JSON
+# output, it never starts a Spark JVM inside the API process.
+
+
+def get_dual_pipeline_comparison() -> dict:
+    return _dual_pipeline_cache.get_or_set_sync((), _ML_CACHE_TTL_SECONDS, _get_dual_pipeline_comparison_uncached)
+
+
+def _get_dual_pipeline_comparison_uncached() -> dict:
+    spark_path = ANALYTICS_PIPELINE_DIR / "reports" / "spark_model_metrics.json"
+    python_path = ANALYTICS_PIPELINE_DIR / "reports" / "python_model_metrics.json"
+    comparison_path = ANALYTICS_PIPELINE_DIR / "reports" / "dual_pipeline_report.json"
+    missing = [p.name for p in (spark_path, python_path, comparison_path) if not p.exists()]
+    if missing:
+        names = ", ".join(missing)
+        raise RuntimeError(
+            f"Dual-pipeline reports not found: {names}. Run spark_jobs/spark_mllib_models.py, "
+            "python_pipeline/train_python_models.py, then src/analytics/dual_pipeline_verifier.py first."
+        )
+    with open(spark_path, encoding="utf-8") as f:
+        spark_metrics = json.load(f)
+    with open(python_path, encoding="utf-8") as f:
+        python_metrics = json.load(f)
+    with open(comparison_path, encoding="utf-8") as f:
+        comparison = json.load(f)
+    return {
+        "spark_pipeline": spark_metrics,
+        "python_pipeline": python_metrics,
+        "comparison": comparison,
     }

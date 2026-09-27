@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class Order(CommonFields):
-    __tablename__ = "tbl_Orders"
+    __tablename__ = "Orders"
     # Constraint and index names match app/db/migrations.py, which adds them to existing databases.
     __table_args__ = (
         CheckConstraint("GuestCount > 0", name="CK_tbl_Orders_GuestCount"),
@@ -32,7 +32,7 @@ class Order(CommonFields):
     Id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     # NULL for walk-in customers. For a group, the primary (paying) customer.
     CustomerId: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("tbl_Customer.Id", name="FK_tbl_Orders_CustomerId"), nullable=True, index=True
+        ForeignKey("Customers.Id", name="FK_tbl_Orders_CustomerId"), nullable=True, index=True
     )
     # Dine-in orders seated at a table (set by POST /api/v1/tables/assign).
     TableId: Mapped[Optional[int]] = mapped_column(
@@ -40,7 +40,7 @@ class Order(CommonFields):
     )
     # Which branch this order belongs to. NULL for orders placed before branch tracking existed.
     BranchId: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("tbl_RestaurantBranch.Id", name="FK_tbl_Orders_BranchId"), nullable=True, index=True
+        ForeignKey("Restaurants.Id", name="FK_tbl_Orders_BranchId"), nullable=True, index=True
     )
     # Party size, for Average Spend Per Guest.
     GuestCount: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default=text("1"))

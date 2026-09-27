@@ -79,6 +79,18 @@ async def ml_recommendations():
 
 
 @router.get(
+    "/dual-pipeline-comparison",
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    summary="Spark MLlib vs Python/XGBoost: model-selection metrics for each pipeline and their agreement on unseen records",
+)
+async def dual_pipeline_comparison():
+    try:
+        return ml_analytics_service.get_dual_pipeline_comparison()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get(
     "/churn-risk",
     response_model=ChurnRiskResponse,
     dependencies=[Depends(require_roles(BRANCH_MANAGERS))],

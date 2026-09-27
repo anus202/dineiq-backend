@@ -98,9 +98,9 @@ def load_dimensions_via_jdbc(spark: SparkSession) -> dict[str, DataFrame]:
     props = {"user": settings.DB_USER, "password": settings.DB_PASSWORD, "driver": "com.microsoft.sqlserver.jdbc.SQLServerDriver"}
     url = settings.jdbc_url()
     try:
-        customers = spark.read.jdbc(url, "(SELECT Id, Name, Phone, Email, Address, LoyaltyPoints, CreatedAt FROM tbl_Customer WHERE IsDeleted = 0) t", properties=props)
-        menu_items = spark.read.jdbc(url, "(SELECT Id, CategoryId, Name, Description, Price, Cost, IsAvailable FROM tbl_MenuItem WHERE IsDeleted = 0) t", properties=props)
-        categories = spark.read.jdbc(url, "(SELECT Id, Name FROM tbl_Category WHERE IsDeleted = 0) t", properties=props)
+        customers = spark.read.jdbc(url, "(SELECT Id, Name, Phone, Email, Address, LoyaltyPoints, CreatedAt FROM Customers WHERE IsDeleted = 0) t", properties=props)
+        menu_items = spark.read.jdbc(url, "(SELECT Id, CategoryId, Name, Description, Price, Cost, IsAvailable FROM Menu_Items WHERE IsDeleted = 0) t", properties=props)
+        categories = spark.read.jdbc(url, "(SELECT Id, Name FROM Menu_Categories WHERE IsDeleted = 0) t", properties=props)
     except Exception as exc:  # pragma: no cover - environment-dependent
         raise RuntimeError(
             "Spark JDBC read failed. SQL Server's TCP/IP protocol is very likely disabled "
@@ -130,9 +130,9 @@ def load_dimensions_via_pyodbc(spark: SparkSession) -> dict[str, DataFrame]:
 
     conn = pyodbc.connect(settings.odbc_connection_string(), autocommit=True)
     try:
-        customers_pd = pd.read_sql("SELECT Id, Name, Phone, Email, Address, LoyaltyPoints, CreatedAt FROM tbl_Customer WHERE IsDeleted = 0", conn)
-        menu_items_pd = pd.read_sql("SELECT Id, CategoryId, Name, Description, Price, Cost, IsAvailable FROM tbl_MenuItem WHERE IsDeleted = 0", conn)
-        categories_pd = pd.read_sql("SELECT Id, Name FROM tbl_Category WHERE IsDeleted = 0", conn)
+        customers_pd = pd.read_sql("SELECT Id, Name, Phone, Email, Address, LoyaltyPoints, CreatedAt FROM Customers WHERE IsDeleted = 0", conn)
+        menu_items_pd = pd.read_sql("SELECT Id, CategoryId, Name, Description, Price, Cost, IsAvailable FROM Menu_Items WHERE IsDeleted = 0", conn)
+        categories_pd = pd.read_sql("SELECT Id, Name FROM Menu_Categories WHERE IsDeleted = 0", conn)
     finally:
         conn.close()
 

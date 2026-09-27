@@ -58,5 +58,5 @@ class YearlyNumberSequence:
         return f"{self._prefix(year)}{seq:06d}"
 
 
-ORDER_NUMBERS = YearlyNumberSequence("OrderNumberSeq", "ORD", "tbl_Orders", "OrderNumber")
+ORDER_NUMBERS = YearlyNumberSequence("OrderNumberSeq", "ORD", "Orders", "OrderNumber")
 INVOICE_NUMBERS = YearlyNumberSequence("InvoiceNumberSeq", "INV", "tbl_Payment", "InvoiceNumber")

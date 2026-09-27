@@ -20,8 +20,8 @@ class Payment(CommonFields):
     Id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     InvoiceNumber: Mapped[str] = mapped_column(Unicode(50), unique=True, nullable=False)
     # Unique: an order is settled once.
-    OrderId: Mapped[int] = mapped_column(ForeignKey("tbl_Orders.Id"), unique=True, nullable=False)
-    CustomerId: Mapped[Optional[int]] = mapped_column(ForeignKey("tbl_Customer.Id"), nullable=True, index=True)
+    OrderId: Mapped[int] = mapped_column(ForeignKey("Orders.Id"), unique=True, nullable=False)
+    CustomerId: Mapped[Optional[int]] = mapped_column(ForeignKey("Customers.Id"), nullable=True, index=True)
     # Cash, Card or Loyalty Points (the method covering what points didn't).
     PaymentMethod: Mapped[str] = mapped_column(Unicode(30), nullable=False)
     SubTotal: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)

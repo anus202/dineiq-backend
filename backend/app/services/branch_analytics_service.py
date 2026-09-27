@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import TTLCache
 from app.core.config import BUSINESS_UTC_OFFSET_MINUTES
-from app.models import InventoryItem, MenuItem, Order, OrderDetail, RestaurantBranch, StockMovementLog
+from app.models import InventoryItem, MenuItem, Order, OrderDetail, RestaurantBranch, StockMovementLog, Wastage
 from app.schemas.branch_analytics_schema import (
     AnomalyReportResponse,
     BranchComparisonResponse,
@@ -230,28 +230,27 @@ async def get_wastage_summary(
 async def _get_wastage_summary_uncached(
     db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int]
 ) -> WastageSummaryResponse:
-    """MANUAL_DEDUCTION movements are the closest tracked concept to wastage/spoilage/
-    overproduction. Reported at the ingredient level (what's actually recorded) — this
-    schema has no dish-level wastage attribution, and recipes are many-to-many, so
-    inferring "which dish wasted this ingredient" would be a guess dressed up as data.
+    """Reported at the ingredient level (what's actually recorded) — this schema has no
+    dish-level wastage attribution, and recipes are many-to-many, so inferring "which dish
+    wasted this ingredient" would be a guess dressed up as data.
     """
     offset = timedelta(minutes=BUSINESS_UTC_OFFSET_MINUTES)
-    filters = [StockMovementLog.MovementType == "MANUAL_DEDUCTION", StockMovementLog.IsDeleted == False]  # noqa: E712
+    filters = [Wastage.IsDeleted == False]  # noqa: E712
     if branch_id is not None:
-        filters.append(StockMovementLog.BranchId == branch_id)
+        filters.append(Wastage.BranchId == branch_id)
     if start is not None:
-        filters.append(StockMovementLog.CreatedAt >= datetime.combine(start, time.min) - offset)
+        filters.append(Wastage.CreatedAt >= datetime.combine(start, time.min) - offset)
     if end is not None:
-        filters.append(StockMovementLog.CreatedAt < datetime.combine(end + timedelta(days=1), time.min) - offset)
+        filters.append(Wastage.CreatedAt < datetime.combine(end + timedelta(days=1), time.min) - offset)
 
-    wasted = (-StockMovementLog.QuantityChange)
+    wasted = Wastage.Quantity
     cost = wasted * InventoryItem.UnitCost
 
     by_item_rows = (
         await db.execute(
             select(InventoryItem.Id, InventoryItem.ItemName, InventoryItem.Unit, func.sum(wasted), func.sum(cost), func.count())
-            .select_from(StockMovementLog)
-            .join(InventoryItem, InventoryItem.Id == StockMovementLog.InventoryItemId)
+            .select_from(Wastage)
+            .join(InventoryItem, InventoryItem.Id == Wastage.InventoryItemId)
             .where(*filters)
             .group_by(InventoryItem.Id, InventoryItem.ItemName, InventoryItem.Unit)
             .order_by(func.sum(cost).desc())
@@ -259,11 +258,11 @@ async def _get_wastage_summary_uncached(
     ).all()
     by_reason_rows = (
         await db.execute(
-            select(StockMovementLog.Reason, func.sum(wasted), func.sum(cost), func.count())
-            .select_from(StockMovementLog)
-            .join(InventoryItem, InventoryItem.Id == StockMovementLog.InventoryItemId)
+            select(Wastage.Reason, func.sum(wasted), func.sum(cost), func.count())
+            .select_from(Wastage)
+            .join(InventoryItem, InventoryItem.Id == Wastage.InventoryItemId)
             .where(*filters)
-            .group_by(StockMovementLog.Reason)
+            .group_by(Wastage.Reason)
             .order_by(func.sum(cost).desc())
         )
     ).all()
@@ -371,11 +370,11 @@ async def _get_branch_comparison_uncached(db: AsyncSession, start: Optional[date
         (r[0], _money(r[1]))
         for r in (
             await db.execute(
-                select(StockMovementLog.BranchId, func.sum((-StockMovementLog.QuantityChange) * InventoryItem.UnitCost))
-                .select_from(StockMovementLog)
-                .join(InventoryItem, InventoryItem.Id == StockMovementLog.InventoryItemId)
-                .where(StockMovementLog.MovementType == "MANUAL_DEDUCTION", StockMovementLog.IsDeleted == False)  # noqa: E712
-                .group_by(StockMovementLog.BranchId)
+                select(Wastage.BranchId, func.sum(Wastage.Quantity * InventoryItem.UnitCost))
+                .select_from(Wastage)
+                .join(InventoryItem, InventoryItem.Id == Wastage.InventoryItemId)
+                .where(Wastage.IsDeleted == False)  # noqa: E712
+                .group_by(Wastage.BranchId)
             )
         ).all()
     )

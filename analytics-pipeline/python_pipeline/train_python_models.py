@@ -55,8 +55,14 @@ log = logging.getLogger("train_python_models")
 
 CLEAN_DIR = settings.PROCESSED_DATA_DIR / "clean_parquet"
 
+# TotalQuantitySold and MarginPercent are deliberately excluded: MenuPerformanceClass is
+# a deterministic threshold function of exactly those two columns (see
+# feature_engineering.py::build_menu_item_features), so including them here would let the
+# classifier trivially re-derive the label instead of genuinely predicting it from
+# behavioral signals -- a classic target-leakage bug that inflates accuracy to ~100%
+# without the model having learned anything real.
 MENU_CLASSIFIER_FEATURES = [
-    "OrderCount", "TotalQuantitySold", "TotalRevenue", "MarginPercent", "AvgSellingPrice",
+    "OrderCount", "TotalRevenue", "AvgSellingPrice",
     "RecencyDays", "WastagePercent", "AvgRating", "RatingCount", "RatingTrendDelta",
     "PriceQuantityCorrelation", "PromotedOrderCount",
 ]
@@ -68,8 +74,13 @@ WASTAGE_REGRESSOR_FEATURES = [
     "TotalQuantitySold", "TotalRevenue", "MarginPercent", "AvgSellingPrice", "AvgRating",
     "RatingCount", "PromotedOrderCount",
 ]
+# RecencyDays is deliberately excluded: ChurnRisk is a deterministic threshold on
+# exactly that column (see feature_engineering.py::build_customer_features,
+# "ChurnRisk = RecencyDays > CHURN_WINDOW_DAYS"), so including it let the classifier
+# trivially re-derive the label instead of genuinely predicting it -- another instance
+# of the target-leakage bug fixed for the menu classifier above.
 CHURN_CLASSIFIER_FEATURES = [
-    "RecencyDays", "Frequency", "Monetary", "AvgOrderValue", "TenureDays",
+    "Frequency", "Monetary", "AvgOrderValue", "TenureDays",
 ]
 
 
@@ -97,7 +108,7 @@ def train_menu_classifier(menu_df: pd.DataFrame) -> dict:
     X = df[MENU_CLASSIFIER_FEATURES]
 
     X_train, X_test, y_train, y_test, idx_train, idx_test = train_test_split(
-        X, y, df.index, test_size=0.2, random_state=settings.RANDOM_SEED, stratify=y
+        X, y, df.index, test_size=0.3, random_state=settings.RANDOM_SEED, stratify=y
     )
 
     model = XGBClassifier(
@@ -186,7 +197,7 @@ def train_wastage_regressor(menu_df: pd.DataFrame) -> dict:
 
     X = df[WASTAGE_REGRESSOR_FEATURES]
     y = df["WastagePercent"]
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=settings.RANDOM_SEED)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=settings.RANDOM_SEED)
 
     model = XGBRegressor(
         n_estimators=250, max_depth=5, learning_rate=0.08, subsample=0.85,
@@ -217,7 +228,7 @@ def train_churn_classifier(customer_df: pd.DataFrame) -> dict:
     X = df[CHURN_CLASSIFIER_FEATURES]
     y = df["ChurnRisk"]
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=settings.RANDOM_SEED, stratify=y if y.nunique() > 1 else None
+        X, y, test_size=0.3, random_state=settings.RANDOM_SEED, stratify=y if y.nunique() > 1 else None
     )
 
     model = XGBClassifier(

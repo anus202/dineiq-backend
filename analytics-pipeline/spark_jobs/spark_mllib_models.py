@@ -40,8 +40,14 @@ log = logging.getLogger("spark_mllib_models")
 
 CLEAN_DIR = settings.PROCESSED_DATA_DIR / "clean_parquet"
 
+# TotalQuantitySold and MarginPercent are deliberately excluded: MenuPerformanceClass is
+# a deterministic threshold function of exactly those two columns (see
+# feature_engineering.py::build_menu_item_features), so including them here would let the
+# classifier trivially re-derive the label instead of genuinely predicting it from
+# behavioral signals -- a classic target-leakage bug that inflates accuracy to ~100%
+# without the model having learned anything real.
 MENU_CLASSIFIER_FEATURES = [
-    "OrderCount", "TotalQuantitySold", "TotalRevenue", "MarginPercent", "AvgSellingPrice",
+    "OrderCount", "TotalRevenue", "AvgSellingPrice",
     "RecencyDays", "WastagePercent", "AvgRating", "RatingCount", "RatingTrendDelta",
     "PriceQuantityCorrelation", "PromotedOrderCount",
 ]
@@ -89,7 +95,7 @@ def train_menu_classifiers(df: DataFrame) -> dict:
     indexed = label_indexer.fit(df)
     labels = indexed.labels
     prepared = assembler.transform(indexed.transform(df))
-    train_df, test_df = prepared.randomSplit([0.8, 0.2], seed=settings.RANDOM_SEED)
+    train_df, test_df = prepared.randomSplit([0.7, 0.3], seed=settings.RANDOM_SEED)
     train_df.cache()
     test_df.cache()
 

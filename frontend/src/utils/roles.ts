@@ -40,6 +40,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/ml-insights/slow-moving-dishes', label: 'Slow-Moving Dishes', icon: '🐌', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
       { to: '/ml-insights/forecast-dashboard', label: 'Forecast & Wastage-Risk', icon: '📅', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER', 'INVENTORY_MANAGER'] },
       { to: '/ml-insights/what-if', label: 'What-If Scenario Simulator', icon: '🎛', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
+      { to: '/ml-insights/dual-pipeline-comparison', label: 'Dual-Pipeline Comparison', icon: '⚖', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
     ],
   },
   {

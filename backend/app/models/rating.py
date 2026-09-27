@@ -17,7 +17,7 @@ class Rating(CommonFields):
     order it came from and the branch it was ordered at (for branch-level rating rollups).
     """
 
-    __tablename__ = "tbl_Rating"
+    __tablename__ = "Ratings"
     __table_args__ = (
         CheckConstraint("Score >= 1 AND Score <= 5", name="CK_tbl_Rating_Score"),
         Index("ix_tbl_Rating_MenuItemId", "MenuItemId"),
@@ -25,10 +25,10 @@ class Rating(CommonFields):
     )
 
     Id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    MenuItemId: Mapped[int] = mapped_column(ForeignKey("tbl_MenuItem.Id", name="FK_tbl_Rating_MenuItemId"), nullable=False)
-    CustomerId: Mapped[int] = mapped_column(ForeignKey("tbl_Customer.Id", name="FK_tbl_Rating_CustomerId"), nullable=False)
-    OrderId: Mapped[Optional[int]] = mapped_column(ForeignKey("tbl_Orders.Id", name="FK_tbl_Rating_OrderId"), nullable=True)
-    BranchId: Mapped[Optional[int]] = mapped_column(ForeignKey("tbl_RestaurantBranch.Id", name="FK_tbl_Rating_BranchId"), nullable=True)
+    MenuItemId: Mapped[int] = mapped_column(ForeignKey("Menu_Items.Id", name="FK_tbl_Rating_MenuItemId"), nullable=False)
+    CustomerId: Mapped[int] = mapped_column(ForeignKey("Customers.Id", name="FK_tbl_Rating_CustomerId"), nullable=False)
+    OrderId: Mapped[Optional[int]] = mapped_column(ForeignKey("Orders.Id", name="FK_tbl_Rating_OrderId"), nullable=True)
+    BranchId: Mapped[Optional[int]] = mapped_column(ForeignKey("Restaurants.Id", name="FK_tbl_Rating_BranchId"), nullable=True)
     Score: Mapped[int] = mapped_column(Integer, nullable=False)
     Comment: Mapped[Optional[str]] = mapped_column(Unicode(500), nullable=True)
 

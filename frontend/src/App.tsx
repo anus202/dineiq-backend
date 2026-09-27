@@ -49,6 +49,7 @@ const WhatIfSimulatorPage = lazy(() => import('./pages/WhatIfSimulatorPage').the
 const RatingAnomaliesPage = lazy(() => import('./pages/RatingAnomaliesPage').then((m) => ({ default: m.RatingAnomaliesPage })))
 const SlowMovingDishesPage = lazy(() => import('./pages/SlowMovingDishesPage').then((m) => ({ default: m.SlowMovingDishesPage })))
 const ForecastDashboardPage = lazy(() => import('./pages/ForecastDashboardPage').then((m) => ({ default: m.ForecastDashboardPage })))
+const DualPipelineComparisonPage = lazy(() => import('./pages/DualPipelineComparisonPage').then((m) => ({ default: m.DualPipelineComparisonPage })))
 
 function Page({ roles, children }: { roles: RoleName[]; children: ReactNode }) {
   return (
@@ -375,6 +376,14 @@ export default function App() {
                 element={
                   <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER', 'INVENTORY_MANAGER']}>
                     <ForecastDashboardPage />
+                  </Page>
+                }
+              />
+              <Route
+                path="/ml-insights/dual-pipeline-comparison"
+                element={
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                    <DualPipelineComparisonPage />
                   </Page>
                 }
               />

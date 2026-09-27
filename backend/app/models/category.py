@@ -5,7 +5,7 @@ from app.models.base import CommonFields
 
 
 class Category(CommonFields):
-    __tablename__ = "tbl_Category"
+    __tablename__ = "Menu_Categories"
 
     Id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     Name: Mapped[str] = mapped_column(Unicode(100), nullable=False)

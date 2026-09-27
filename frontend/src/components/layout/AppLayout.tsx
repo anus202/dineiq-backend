@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertTriangle,
+  GitCompare,
   Award,
   BookOpen,
   Building2,
@@ -62,6 +63,7 @@ const ROUTE_ICONS: Record<string, LucideIcon> = {
   '/ml-insights/slow-moving-dishes': Snail,
   '/ml-insights/forecast-dashboard': CalendarClock,
   '/ml-insights/what-if': SlidersHorizontal,
+  '/ml-insights/dual-pipeline-comparison': GitCompare,
   '/inventory': Package,
   '/inventory/new-item': PackagePlus,
   '/inventory/adjust-stock': Scale,

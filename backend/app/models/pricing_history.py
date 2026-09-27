@@ -14,10 +14,10 @@ if TYPE_CHECKING:
 class PricingHistory(CommonFields):
     """One row per price a menu item has had. OldPrice is NULL for the initial price."""
 
-    __tablename__ = "tbl_PricingHistory"
+    __tablename__ = "Pricing_History"
 
     Id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    MenuItemId: Mapped[int] = mapped_column(ForeignKey("tbl_MenuItem.Id"), nullable=False, index=True)
+    MenuItemId: Mapped[int] = mapped_column(ForeignKey("Menu_Items.Id"), nullable=False, index=True)
     OldPrice: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), nullable=True)
     NewPrice: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     ChangedAt: Mapped[datetime] = mapped_column(

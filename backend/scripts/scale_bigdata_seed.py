@@ -1,14 +1,14 @@
 """Scale the operational database to SRS Big-Data volumes.
 
 Targets (SRS Phase 2):
-  - tbl_OrderDetails  >= 1,000,000 rows (order lines)
-  - tbl_Rating        >=   100,000 rows
-  - tbl_StockMovementLog (MANUAL_DEDUCTION / wastage) >= 50,000 rows
-  - tbl_Promotion     seeded with a realistic set of campaigns
+  - Order_Items  >= 1,000,000 rows (order lines)
+  - Ratings        >=   100,000 rows
+  - Wastage >= 50,000 rows
+  - Promotions     seeded with a realistic set of campaigns
 
 Safe to run repeatedly: every section checks its current count against its target
 first and only inserts the shortfall. Ensures the schema (including the new
-tbl_Promotion table) exists by running the app's own init_db() before touching data,
+Promotions table) exists by running the app's own init_db() before touching data,
 exactly like a normal app startup would.
 
     cd backend
@@ -95,22 +95,22 @@ def scale_orders_and_lines(conn) -> None:
     cur = conn.cursor()
     cur.fast_executemany = True
 
-    cur.execute("SELECT COUNT(*) FROM tbl_OrderDetails")
+    cur.execute("SELECT COUNT(*) FROM Order_Items")
     current = cur.fetchone()[0]
     if current >= TARGET_ORDER_DETAILS:
-        print(f"tbl_OrderDetails already at {current:,} (target {TARGET_ORDER_DETAILS:,}) - skipping", flush=True)
+        print(f"Order_Items already at {current:,} (target {TARGET_ORDER_DETAILS:,}) - skipping", flush=True)
         return
 
     shortfall = TARGET_ORDER_DETAILS - current
-    print(f"tbl_OrderDetails at {current:,}, need {shortfall:,} more", flush=True)
+    print(f"Order_Items at {current:,}, need {shortfall:,} more", flush=True)
 
-    cur.execute("SELECT Id FROM tbl_Customer WHERE IsDeleted = 0")
+    cur.execute("SELECT Id FROM Customers WHERE IsDeleted = 0")
     customer_ids = [r[0] for r in cur.fetchall()]
-    cur.execute("SELECT Id FROM tbl_RestaurantBranch WHERE IsDeleted = 0")
+    cur.execute("SELECT Id FROM Restaurants WHERE IsDeleted = 0")
     branch_ids = [r[0] for r in cur.fetchall()]
-    cur.execute("SELECT Id, Price, Cost FROM tbl_MenuItem WHERE IsDeleted = 0")
+    cur.execute("SELECT Id, Price, Cost FROM Menu_Items WHERE IsDeleted = 0")
     menu_items = cur.fetchall()
-    cur.execute("SELECT COUNT(*) FROM tbl_Orders")
+    cur.execute("SELECT COUNT(*) FROM Orders")
     order_count = cur.fetchone()[0]
 
     now = datetime.utcnow()
@@ -150,11 +150,11 @@ def scale_orders_and_lines(conn) -> None:
             ))
             lines_by_order_index.append(lines)
 
-        cur.execute("SELECT IDENT_CURRENT('dbo.tbl_Orders')")
+        cur.execute("SELECT IDENT_CURRENT('dbo.Orders')")
         start_id = int(cur.fetchone()[0])
 
         cur.executemany(
-            "INSERT INTO dbo.tbl_Orders "
+            "INSERT INTO dbo.Orders "
             "(CustomerId, BranchId, GuestCount, OrderNumber, OrderDate, OrderType, PaymentMethod, Status, "
             "TotalAmount, Discount, NetAmount, CreatedAt, UpdatedAt) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -169,7 +169,7 @@ def scale_orders_and_lines(conn) -> None:
                 detail_rows.append((order_id, mi_id, qty, unit_price, line_total, unit_cost))
 
         cur.executemany(
-            "INSERT INTO dbo.tbl_OrderDetails (OrderId, MenuItemId, Quantity, UnitPrice, TotalPrice, UnitCost, CreatedAt, UpdatedAt) "
+            "INSERT INTO dbo.Order_Items (OrderId, MenuItemId, Quantity, UnitPrice, TotalPrice, UnitCost, CreatedAt, UpdatedAt) "
             "VALUES (?, ?, ?, ?, ?, ?, GETUTCDATE(), GETUTCDATE())",
             detail_rows,
         )
@@ -178,27 +178,27 @@ def scale_orders_and_lines(conn) -> None:
         lines_inserted += len(detail_rows)
         print(f"  +{len(orders_batch):,} orders / +{len(detail_rows):,} lines (total new lines: {lines_inserted:,} / {shortfall:,})", flush=True)
 
-    print("tbl_Orders / tbl_OrderDetails scale-up complete.", flush=True)
+    print("Orders / Order_Items scale-up complete.", flush=True)
 
 
 def scale_ratings(conn) -> None:
     cur = conn.cursor()
     cur.fast_executemany = True
 
-    cur.execute("SELECT COUNT(*) FROM tbl_Rating")
+    cur.execute("SELECT COUNT(*) FROM Ratings")
     current = cur.fetchone()[0]
     if current >= TARGET_RATINGS:
-        print(f"tbl_Rating already at {current:,} (target {TARGET_RATINGS:,}) - skipping", flush=True)
+        print(f"Ratings already at {current:,} (target {TARGET_RATINGS:,}) - skipping", flush=True)
         return
 
     shortfall = TARGET_RATINGS - current
-    print(f"tbl_Rating at {current:,}, need {shortfall:,} more", flush=True)
+    print(f"Ratings at {current:,}, need {shortfall:,} more", flush=True)
 
     modulo = max(1, int(1000000 / (shortfall * 1.2)))
     cur.execute(
         "SELECT od.OrderId, od.MenuItemId, o.CustomerId, o.BranchId, o.OrderDate "
-        "FROM dbo.tbl_OrderDetails od "
-        "JOIN dbo.tbl_Orders o ON o.Id = od.OrderId "
+        "FROM dbo.Order_Items od "
+        "JOIN dbo.Orders o ON o.Id = od.OrderId "
         "WHERE o.CustomerId IS NOT NULL AND od.Id % " + str(modulo) + " = 0"
     )
     candidates = cur.fetchall()
@@ -217,7 +217,7 @@ def scale_ratings(conn) -> None:
         batch.append((menu_item_id, customer_id, order_id, branch_id, score, comment, rating_date, rating_date))
         if len(batch) >= 5000:
             cur.executemany(
-                "INSERT INTO dbo.tbl_Rating (MenuItemId, CustomerId, OrderId, BranchId, Score, Comment, CreatedAt, UpdatedAt) "
+                "INSERT INTO dbo.Ratings (MenuItemId, CustomerId, OrderId, BranchId, Score, Comment, CreatedAt, UpdatedAt) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 batch,
             )
@@ -227,32 +227,32 @@ def scale_ratings(conn) -> None:
             batch = []
     if batch:
         cur.executemany(
-            "INSERT INTO dbo.tbl_Rating (MenuItemId, CustomerId, OrderId, BranchId, Score, Comment, CreatedAt, UpdatedAt) "
+            "INSERT INTO dbo.Ratings (MenuItemId, CustomerId, OrderId, BranchId, Score, Comment, CreatedAt, UpdatedAt) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             batch,
         )
         conn.commit()
         inserted += len(batch)
 
-    print(f"tbl_Rating scale-up complete: +{inserted:,} rows.", flush=True)
+    print(f"Ratings scale-up complete: +{inserted:,} rows.", flush=True)
 
 
 def scale_wastage(conn) -> None:
     cur = conn.cursor()
     cur.fast_executemany = True
 
-    cur.execute("SELECT COUNT(*) FROM tbl_StockMovementLog WHERE MovementType = 'MANUAL_DEDUCTION'")
+    cur.execute("SELECT COUNT(*) FROM Wastage")
     current = cur.fetchone()[0]
     if current >= TARGET_WASTAGE:
-        print(f"tbl_StockMovementLog wastage already at {current:,} (target {TARGET_WASTAGE:,}) - skipping", flush=True)
+        print(f"Wastage already at {current:,} (target {TARGET_WASTAGE:,}) - skipping", flush=True)
         return
 
     shortfall = TARGET_WASTAGE - current
-    print(f"tbl_StockMovementLog wastage at {current:,}, need {shortfall:,} more", flush=True)
+    print(f"Wastage at {current:,}, need {shortfall:,} more", flush=True)
 
-    cur.execute("SELECT Id, CurrentStock FROM tbl_InventoryItem WHERE IsDeleted = 0")
-    items = cur.fetchall()
-    cur.execute("SELECT Id FROM tbl_RestaurantBranch WHERE IsDeleted = 0")
+    cur.execute("SELECT Id FROM Inventory WHERE IsDeleted = 0")
+    item_ids = [r[0] for r in cur.fetchall()]
+    cur.execute("SELECT Id FROM Restaurants WHERE IsDeleted = 0")
     branch_ids = [r[0] for r in cur.fetchall()]
 
     now = datetime.utcnow()
@@ -261,19 +261,16 @@ def scale_wastage(conn) -> None:
     batch = []
     inserted = 0
     for _ in range(shortfall):
-        item_id, current_stock = random.choice(items)
-        qty_change = -round(random.uniform(0.5, 15), 3)
-        stock_after = round(max(0.0, float(current_stock) + random.uniform(-20, 60)), 3)
+        item_id = random.choice(item_ids)
+        quantity = round(random.uniform(0.5, 15), 3)
         event_date = random_datetime(history_start, now)
         batch.append((
-            item_id, "MANUAL_DEDUCTION", qty_change, stock_after,
-            random.choice(WASTAGE_REASONS), random.choice(branch_ids), event_date, event_date,
+            item_id, quantity, random.choice(WASTAGE_REASONS), random.choice(branch_ids), event_date, event_date,
         ))
         if len(batch) >= 5000:
             cur.executemany(
-                "INSERT INTO dbo.tbl_StockMovementLog "
-                "(InventoryItemId, MovementType, QuantityChange, StockAfter, Reason, BranchId, CreatedAt, UpdatedAt) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO dbo.Wastage (InventoryItemId, Quantity, Reason, BranchId, CreatedAt, UpdatedAt) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
                 batch,
             )
             conn.commit()
@@ -282,30 +279,29 @@ def scale_wastage(conn) -> None:
             batch = []
     if batch:
         cur.executemany(
-            "INSERT INTO dbo.tbl_StockMovementLog "
-            "(InventoryItemId, MovementType, QuantityChange, StockAfter, Reason, BranchId, CreatedAt, UpdatedAt) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO dbo.Wastage (InventoryItemId, Quantity, Reason, BranchId, CreatedAt, UpdatedAt) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
             batch,
         )
         conn.commit()
         inserted += len(batch)
 
-    print(f"tbl_StockMovementLog wastage scale-up complete: +{inserted:,} rows.", flush=True)
+    print(f"Wastage scale-up complete: +{inserted:,} rows.", flush=True)
 
 
 def seed_promotions(conn) -> None:
     cur = conn.cursor()
     cur.fast_executemany = True
 
-    cur.execute("SELECT COUNT(*) FROM tbl_Promotion")
+    cur.execute("SELECT COUNT(*) FROM Promotions")
     current = cur.fetchone()[0]
     if current > 0:
-        print(f"tbl_Promotion already has {current:,} rows - skipping", flush=True)
+        print(f"Promotions already has {current:,} rows - skipping", flush=True)
         return
 
-    cur.execute("SELECT Id FROM tbl_MenuItem WHERE IsDeleted = 0")
+    cur.execute("SELECT Id FROM Menu_Items WHERE IsDeleted = 0")
     menu_item_ids = [r[0] for r in cur.fetchall()]
-    cur.execute("SELECT Id FROM tbl_RestaurantBranch WHERE IsDeleted = 0")
+    cur.execute("SELECT Id FROM Restaurants WHERE IsDeleted = 0")
     branch_ids = [r[0] for r in cur.fetchall()]
 
     today = date.today()
@@ -320,16 +316,16 @@ def seed_promotions(conn) -> None:
         rows.append((name, description, discount, start, end, menu_item_id, branch_id))
 
     cur.executemany(
-        "INSERT INTO dbo.tbl_Promotion (Name, Description, DiscountPercent, StartDate, EndDate, MenuItemId, BranchId) "
+        "INSERT INTO dbo.Promotions (Name, Description, DiscountPercent, StartDate, EndDate, MenuItemId, BranchId) "
         "VALUES (?, ?, ?, ?, ?, ?, ?)",
         rows,
     )
     conn.commit()
-    print(f"tbl_Promotion seeded: +{len(rows):,} campaigns.", flush=True)
+    print(f"Promotions seeded: +{len(rows):,} campaigns.", flush=True)
 
 
 def main() -> None:
-    print("Ensuring schema is up to date (creates tbl_Promotion if missing)...", flush=True)
+    print("Ensuring schema is up to date (creates Promotions if missing)...", flush=True)
     asyncio.run(init_db())
 
     conn = sql()

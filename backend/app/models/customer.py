@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class Customer(CommonFields):
-    __tablename__ = "tbl_Customer"
+    __tablename__ = "Customers"
     # Newest-first customer list (name matches app/db/migrations.py).
     __table_args__ = (Index("ix_tbl_Customer_CreatedAt", "CreatedAt"),)
 

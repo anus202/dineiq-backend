@@ -13,6 +13,7 @@ from app.models.order_detail import OrderDetail
 from app.models.inventory_item import InventoryItem
 from app.models.recipe import Recipe
 from app.models.stock_movement_log import StockMovementLog
+from app.models.wastage import Wastage
 from app.models.payment import Payment
 from app.models.rating import Rating
 from app.models.promotion import Promotion
@@ -35,6 +36,7 @@ __all__ = [
     "InventoryItem",
     "Recipe",
     "StockMovementLog",
+    "Wastage",
     "Payment",
     "Rating",
     "Promotion",

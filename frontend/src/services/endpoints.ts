@@ -15,6 +15,7 @@ import type {
   CustomerRFM,
   DemandForecastResponse,
   DiningTable,
+  DualPipelineComparisonResponse,
   HourlyHeatmap,
   InventoryItem,
   InventoryItemInput,
@@ -120,6 +121,7 @@ export const mlAnalyticsApi = {
   slowMovingDishes: () => get<SlowMovingDish[]>('/ml-analytics/slow-moving-dishes'),
   wastageRisk: (limit = 50) => get<WastageRiskItem[]>('/ml-analytics/wastage-risk', { limit }),
   demandForecastMl: (limit = 50) => get<DemandForecastItem[]>('/ml-analytics/demand-forecast', { limit }),
+  dualPipelineComparison: () => get<DualPipelineComparisonResponse>('/ml-analytics/dual-pipeline-comparison'),
 }
 
 export const ratingApi = {

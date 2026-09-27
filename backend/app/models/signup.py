@@ -35,11 +35,11 @@ class Signup(CommonFields):
     RoleId: Mapped[int] = mapped_column(ForeignKey("tbl_Role.Id", name="FK_tbl_Signup_RoleId"), nullable=False)
     # Set for CUSTOMER accounts: the tbl_Customer profile this login belongs to.
     CustomerId: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("tbl_Customer.Id", name="FK_tbl_Signup_CustomerId"), nullable=True
+        ForeignKey("Customers.Id", name="FK_tbl_Signup_CustomerId"), nullable=True
     )
     # Which branch this staff account is scoped to; NULL means all branches (e.g. an admin).
     BranchId: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("tbl_RestaurantBranch.Id", name="FK_tbl_Signup_BranchId"), nullable=True
+        ForeignKey("Restaurants.Id", name="FK_tbl_Signup_BranchId"), nullable=True
     )
     # Granular permission flags (FR 1.6-iii). These are stored and returned by the API but
     # are not yet enforced by require_roles()/other endpoint dependencies — enforcing them

@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core import audit
 from app.core.config import BUSINESS_UTC_OFFSET_MINUTES
-from app.models import InventoryItem, MenuItem, Order, OrderDetail, Recipe, Signup, StockMovementLog
+from app.models import InventoryItem, MenuItem, Order, OrderDetail, Recipe, Signup, StockMovementLog, Wastage
 from app.models.base import utc_now
 from app.schemas.inventory_schema import (
     InventoryItemCreate,
@@ -185,17 +185,32 @@ async def adjust_stock(
             return None
         raise InsufficientStock(item, change)
 
-    log = StockMovementLog(
-        InventoryItemId=payload.InventoryItemId,
-        MovementType=(MovementTypeEnum.MANUAL_ADDITION if change > 0 else MovementTypeEnum.MANUAL_DEDUCTION).value,
-        QuantityChange=change,
-        StockAfter=new_stock,
-        Reason=payload.Reason,
-        BranchId=branch_id,
-        CreatedBy=user_id,
-        UpdatedBy=user_id,
-    )
-    db.add(log)
+    # Additions are genuine stock movements; removals are always spoilage, overproduction,
+    # or a correction -- i.e. wastage -- so they go into the dedicated Wastage table
+    # instead of the general movement log (see app/models/wastage.py).
+    log = wastage = None
+    if change > 0:
+        log = StockMovementLog(
+            InventoryItemId=payload.InventoryItemId,
+            MovementType=MovementTypeEnum.MANUAL_ADDITION.value,
+            QuantityChange=change,
+            StockAfter=new_stock,
+            Reason=payload.Reason,
+            BranchId=branch_id,
+            CreatedBy=user_id,
+            UpdatedBy=user_id,
+        )
+        db.add(log)
+    else:
+        wastage = Wastage(
+            InventoryItemId=payload.InventoryItemId,
+            BranchId=branch_id,
+            Quantity=-change,
+            Reason=payload.Reason,
+            CreatedBy=user_id,
+            UpdatedBy=user_id,
+        )
+        db.add(wastage)
     await audit.record(
         db, "STOCK_ADJUSTMENT", "InventoryItem", payload.InventoryItemId,
         {"CurrentStock": new_stock - change}, {"CurrentStock": new_stock, "Reason": payload.Reason}, user_id,
@@ -203,7 +218,23 @@ async def adjust_stock(
     await db.commit()
 
     item = await get_item(db, payload.InventoryItemId)
-    movement = (await get_movement_logs(db, 0, 1, movement_id=log.Id))[1][0]
+    if log is not None:
+        movement = (await get_movement_logs(db, 0, 1, movement_id=log.Id))[1][0]
+    else:
+        changed_by_name = await db.scalar(select(Signup.FullName).where(Signup.Id == user_id))
+        movement = StockMovementResponse(
+            Id=wastage.Id,
+            InventoryItemId=payload.InventoryItemId,
+            ItemName=item.ItemName,
+            Unit=item.Unit,
+            MovementType=MovementTypeEnum.MANUAL_DEDUCTION.value,
+            QuantityChange=-wastage.Quantity,
+            StockAfter=new_stock,
+            Reason=payload.Reason,
+            ChangedBy=user_id,
+            ChangedByName=changed_by_name,
+            ChangedAt=wastage.CreatedAt,
+        )
     return StockAdjustmentResponse(
         Item=InventoryItemResponse.model_validate(item),
         Movement=movement,

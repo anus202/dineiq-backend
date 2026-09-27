@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.core.config import DB_NAME
 from app.core.roles import ROLE_DESCRIPTIONS, RoleName
-from app.db.migrations import run_migrations
+from app.db.migrations import rename_legacy_tables, run_migrations
 from app.db.sequences import INVOICE_NUMBERS, ORDER_NUMBERS
 from app.db.session import build_engine, engine
 from app.models import Base, Role, Signup  # importing app.models registers every table on Base.metadata
@@ -92,6 +92,9 @@ async def seed_default_admin(conn: AsyncConnection) -> bool:
 async def init_db() -> None:
     await create_database_if_missing()
     async with engine.begin() as conn:
+        renamed = await rename_legacy_tables(conn)
+        if renamed:
+            print(f"Renamed tables to match the SRS: {', '.join(renamed)}")
         await conn.run_sync(Base.metadata.create_all)
         tables = await conn.run_sync(lambda sync_conn: inspect(sync_conn).get_table_names())
     print(f"Tables in {DB_NAME}: {', '.join(tables)}")

@@ -24,18 +24,19 @@ class StockMovementLog(CommonFields):
     )
 
     Id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    InventoryItemId: Mapped[int] = mapped_column(ForeignKey("tbl_InventoryItem.Id"), nullable=False)
-    # INITIAL_STOCK, MANUAL_ADDITION, MANUAL_DEDUCTION or ORDER_CONSUMPTION
+    InventoryItemId: Mapped[int] = mapped_column(ForeignKey("Inventory.Id"), nullable=False)
+    # INITIAL_STOCK, MANUAL_ADDITION or ORDER_CONSUMPTION. Manual removals (spoilage,
+    # overproduction, corrections) are recorded in the dedicated Wastage table instead --
+    # see app/models/wastage.py -- so this log only ever holds genuine stock movements.
     MovementType: Mapped[str] = mapped_column(Unicode(30), nullable=False)
-    # Positive for additions, negative for deductions, in the item's unit.
+    # Positive for additions, negative for consumption, in the item's unit.
     QuantityChange: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
     StockAfter: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
     # Set for ORDER_CONSUMPTION.
-    OrderId: Mapped[Optional[int]] = mapped_column(ForeignKey("tbl_Orders.Id"), nullable=True, index=True)
+    OrderId: Mapped[Optional[int]] = mapped_column(ForeignKey("Orders.Id"), nullable=True, index=True)
     Reason: Mapped[Optional[str]] = mapped_column(Unicode(250), nullable=True)
-    # Which branch recorded this movement (for per-branch wastage analytics). MANUAL_DEDUCTION
-    # movements are treated as "wastage" — the closest existing concept to spoilage/overproduction.
-    BranchId: Mapped[Optional[int]] = mapped_column(ForeignKey("tbl_RestaurantBranch.Id"), nullable=True, index=True)
+    # Which branch recorded this movement.
+    BranchId: Mapped[Optional[int]] = mapped_column(ForeignKey("Restaurants.Id"), nullable=True, index=True)
 
     InventoryItem: Mapped["InventoryItem"] = relationship()
     Branch: Mapped[Optional["RestaurantBranch"]] = relationship()

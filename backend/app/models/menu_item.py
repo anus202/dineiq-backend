@@ -12,10 +12,10 @@ if TYPE_CHECKING:
 
 
 class MenuItem(CommonFields):
-    __tablename__ = "tbl_MenuItem"
+    __tablename__ = "Menu_Items"
 
     Id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    CategoryId: Mapped[int] = mapped_column(ForeignKey("tbl_Category.Id"), nullable=False, index=True)
+    CategoryId: Mapped[int] = mapped_column(ForeignKey("Menu_Categories.Id"), nullable=False, index=True)
     Name: Mapped[str] = mapped_column(Unicode(150), nullable=False, index=True)
     Description: Mapped[Optional[str]] = mapped_column(Unicode(500), nullable=True)
     Price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)

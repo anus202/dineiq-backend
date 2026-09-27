@@ -48,7 +48,6 @@ app = FastAPI(
     version="1.0.0",
     description="DineIQ backend API.",
     lifespan=lifespan,
-    debug=True,
 )
 
 app.add_middleware(audit.AuditContextMiddleware)

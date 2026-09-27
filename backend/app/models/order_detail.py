@@ -12,12 +12,12 @@ if TYPE_CHECKING:
 
 
 class OrderDetail(CommonFields):
-    __tablename__ = "tbl_OrderDetails"
+    __tablename__ = "Order_Items"
     __table_args__ = (CheckConstraint("Quantity > 0", name="CK_tbl_OrderDetails_Quantity"),)
 
     Id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    OrderId: Mapped[int] = mapped_column(ForeignKey("tbl_Orders.Id"), nullable=False, index=True)
-    MenuItemId: Mapped[int] = mapped_column(ForeignKey("tbl_MenuItem.Id"), nullable=False, index=True)
+    OrderId: Mapped[int] = mapped_column(ForeignKey("Orders.Id"), nullable=False, index=True)
+    MenuItemId: Mapped[int] = mapped_column(ForeignKey("Menu_Items.Id"), nullable=False, index=True)
     Quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     # Price at the time of the order, so later menu price changes don't rewrite old sales.
     UnitPrice: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)

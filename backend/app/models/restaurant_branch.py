@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class RestaurantBranch(CommonFields):
     """A physical restaurant location (FR 1.6-ii: branch/location management)."""
 
-    __tablename__ = "tbl_RestaurantBranch"
+    __tablename__ = "Restaurants"
 
     Id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     BranchName: Mapped[str] = mapped_column(Unicode(150), nullable=False)

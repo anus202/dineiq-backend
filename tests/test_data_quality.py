@@ -92,16 +92,16 @@ def test_clean_ratings_are_within_one_to_five():
 # --- Live SQL Server dataset: SRS minimums and value ranges --------------------------
 
 SRS_MINIMUMS = [
-    ("order-line records", "SELECT COUNT(*) FROM tbl_OrderDetails", 1_000_000),
-    ("unique orders", "SELECT COUNT(*) FROM tbl_Orders", 100_000),
-    ("customers", "SELECT COUNT(*) FROM tbl_Customer", 50_000),
-    ("menu items", "SELECT COUNT(*) FROM tbl_MenuItem", 150),
-    ("menu categories", "SELECT COUNT(*) FROM tbl_Category", 10),
-    ("restaurant locations", "SELECT COUNT(*) FROM tbl_RestaurantBranch", 20),
-    ("rating records", "SELECT COUNT(*) FROM tbl_Rating", 100_000),
-    ("wastage records", "SELECT COUNT(*) FROM tbl_StockMovementLog WHERE MovementType = 'MANUAL_DEDUCTION'", 50_000),
-    ("historical pricing records", "SELECT COUNT(*) FROM tbl_PricingHistory", 2),
-    ("promotion campaigns", "SELECT COUNT(*) FROM tbl_Promotion", 2),
+    ("order-line records", "SELECT COUNT(*) FROM Order_Items", 1_000_000),
+    ("unique orders", "SELECT COUNT(*) FROM Orders", 100_000),
+    ("customers", "SELECT COUNT(*) FROM Customers", 50_000),
+    ("menu items", "SELECT COUNT(*) FROM Menu_Items", 150),
+    ("menu categories", "SELECT COUNT(*) FROM Menu_Categories", 10),
+    ("restaurant locations", "SELECT COUNT(*) FROM Restaurants", 20),
+    ("rating records", "SELECT COUNT(*) FROM Ratings", 100_000),
+    ("wastage records", "SELECT COUNT(*) FROM Wastage", 50_000),
+    ("historical pricing records", "SELECT COUNT(*) FROM Pricing_History", 2),
+    ("promotion campaigns", "SELECT COUNT(*) FROM Promotions", 2),
 ]
 
 
@@ -112,23 +112,23 @@ def test_dataset_meets_srs_minimum(db, label, sql, minimum):
 
 
 def test_dataset_spans_at_least_twelve_months(db):
-    months = scalar(db, "SELECT DATEDIFF(month, MIN(OrderDate), MAX(OrderDate)) FROM tbl_Orders")
+    months = scalar(db, "SELECT DATEDIFF(month, MIN(OrderDate), MAX(OrderDate)) FROM Orders")
     assert months >= 12
 
 
 def test_ratings_are_within_one_to_five(db):
-    assert scalar(db, "SELECT COUNT(*) FROM tbl_Rating WHERE Score < 1 OR Score > 5") == 0
+    assert scalar(db, "SELECT COUNT(*) FROM Ratings WHERE Score < 1 OR Score > 5") == 0
 
 
 def test_order_quantities_are_positive(db):
-    assert scalar(db, "SELECT COUNT(*) FROM tbl_OrderDetails WHERE Quantity <= 0") == 0
+    assert scalar(db, "SELECT COUNT(*) FROM Order_Items WHERE Quantity <= 0") == 0
 
 
 def test_order_lines_reference_existing_orders_and_items(db):
     orphans = scalar(
         db,
-        "SELECT COUNT(*) FROM tbl_OrderDetails d "
-        "LEFT JOIN tbl_Orders o ON o.Id = d.OrderId LEFT JOIN tbl_MenuItem m ON m.Id = d.MenuItemId "
+        "SELECT COUNT(*) FROM Order_Items d "
+        "LEFT JOIN Orders o ON o.Id = d.OrderId LEFT JOIN Menu_Items m ON m.Id = d.MenuItemId "
         "WHERE o.Id IS NULL OR m.Id IS NULL",
     )
     assert orphans == 0
@@ -140,8 +140,8 @@ def test_pricing_history_chains_old_to_new_price(db):
         db,
         ";WITH latest AS ("
         "  SELECT MenuItemId, NewPrice, ROW_NUMBER() OVER (PARTITION BY MenuItemId ORDER BY ChangedAt DESC) AS rn"
-        "  FROM tbl_PricingHistory)"
-        " SELECT COUNT(*) FROM latest l JOIN tbl_MenuItem m ON m.Id = l.MenuItemId"
+        "  FROM Pricing_History)"
+        " SELECT COUNT(*) FROM latest l JOIN Menu_Items m ON m.Id = l.MenuItemId"
         " WHERE l.rn = 1 AND l.NewPrice <> m.Price",
     )
     assert mismatches == 0
@@ -150,6 +150,6 @@ def test_pricing_history_chains_old_to_new_price(db):
 def test_promotion_discounts_and_dates_are_valid(db):
     invalid = scalar(
         db,
-        "SELECT COUNT(*) FROM tbl_Promotion WHERE DiscountPercent <= 0 OR DiscountPercent > 100 OR EndDate < StartDate",
+        "SELECT COUNT(*) FROM Promotions WHERE DiscountPercent <= 0 OR DiscountPercent > 100 OR EndDate < StartDate",
     )
     assert invalid == 0

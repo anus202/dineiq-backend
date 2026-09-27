@@ -1,12 +1,12 @@
-"""Seed tbl_PricingHistory with realistic historical price-change records.
+"""Seed Pricing_History with realistic historical price-change records.
 
 SRS dataset requirement: "Multiple historical pricing records" per menu item.
-tbl_PricingHistory exists but was never populated. This backfills 2-4 price changes
+Pricing_History exists but was never populated. This backfills 2-4 price changes
 per menu item over the last ~20 months, walking backward from each item's CURRENT
-real price (tbl_MenuItem.Price) so the history is consistent with what customers
+real price (Menu_Items.Price) so the history is consistent with what customers
 see today -- the last historical NewPrice always equals the current catalog price.
 
-Safe to run repeatedly: skipped entirely if tbl_PricingHistory already has rows.
+Safe to run repeatedly: skipped entirely if Pricing_History already has rows.
 
     cd backend
     .venv\\Scripts\\python scripts\\seed_pricing_history.py
@@ -45,12 +45,12 @@ def main() -> None:
     cur = conn.cursor()
     cur.fast_executemany = True
 
-    cur.execute("SELECT COUNT(*) FROM tbl_PricingHistory")
+    cur.execute("SELECT COUNT(*) FROM Pricing_History")
     if cur.fetchone()[0] > 0:
-        print("tbl_PricingHistory already has rows - skipping", flush=True)
+        print("Pricing_History already has rows - skipping", flush=True)
         return
 
-    cur.execute("SELECT Id, Price FROM tbl_MenuItem WHERE IsDeleted = 0")
+    cur.execute("SELECT Id, Price FROM Menu_Items WHERE IsDeleted = 0")
     menu_items = cur.fetchall()
 
     now = datetime.utcnow()
@@ -79,12 +79,12 @@ def main() -> None:
             old_price = new_price
 
     cur.executemany(
-        "INSERT INTO dbo.tbl_PricingHistory (MenuItemId, OldPrice, NewPrice, ChangedAt, CreatedAt, UpdatedAt) "
+        "INSERT INTO dbo.Pricing_History (MenuItemId, OldPrice, NewPrice, ChangedAt, CreatedAt, UpdatedAt) "
         "VALUES (?, ?, ?, ?, ?, ?)",
         rows,
     )
     conn.commit()
-    print(f"tbl_PricingHistory seeded: +{len(rows):,} price-change records across {len(menu_items)} menu items.", flush=True)
+    print(f"Pricing_History seeded: +{len(rows):,} price-change records across {len(menu_items)} menu items.", flush=True)
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class InventoryItem(CommonFields):
     """A raw material, e.g. rice (kg), cooking oil (liters), eggs (pcs)."""
 
-    __tablename__ = "tbl_InventoryItem"
+    __tablename__ = "Inventory"
 
     Id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     ItemName: Mapped[str] = mapped_column(Unicode(150), nullable=False, index=True)
@@ -28,7 +28,7 @@ class InventoryItem(CommonFields):
     # NULL = shared across every branch (true today for all existing items — this system
     # has one central inventory list, not per-branch stock rooms). Set to scope an item
     # to a single branch going forward.
-    BranchId: Mapped[Optional[int]] = mapped_column(ForeignKey("tbl_RestaurantBranch.Id"), nullable=True, index=True)
+    BranchId: Mapped[Optional[int]] = mapped_column(ForeignKey("Restaurants.Id"), nullable=True, index=True)
 
     Recipes: Mapped[List["Recipe"]] = relationship(back_populates="InventoryItem")
     Branch: Mapped[Optional["RestaurantBranch"]] = relationship()

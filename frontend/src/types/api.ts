@@ -699,6 +699,100 @@ export interface MLRecommendation {
   action: string
 }
 
+export interface ClassifierMetrics {
+  display_name?: string
+  accuracy: number
+  weighted_precision: number
+  weighted_recall: number
+  macro_f1: number
+  train_rows: number
+  test_rows: number
+  feature_columns?: string[]
+  label_classes?: string[]
+}
+
+export interface RegressorMetrics {
+  mae: number
+  rmse: number
+  mape_percent: number
+  baseline_mae?: number
+  improvement_over_baseline_percent?: number
+  train_rows: number
+  test_rows: number
+  feature_columns?: string[]
+  saved_path?: string
+}
+
+export interface SparkPipelineMetrics {
+  pipeline: string
+  menu_performance_classification: {
+    best_model: string
+    best_model_display_name: string
+    best_macro_f1: number
+    candidates: Record<string, ClassifierMetrics>
+    feature_columns: string[]
+    label_classes: string[]
+    saved_path: string
+  }
+  demand_forecasting: RegressorMetrics
+}
+
+export interface PythonPipelineMetrics {
+  pipeline: string
+  menu_performance_classification: ClassifierMetrics
+  demand_forecasting: RegressorMetrics
+  wastage_prediction: RegressorMetrics
+  churn_risk_classification: ClassifierMetrics
+}
+
+export interface MenuClassComparisonRecord {
+  menu_item_id: number
+  menu_item_name: string
+  actual_class: string
+  spark_prediction: string
+  xgboost_prediction: string
+  match: boolean
+  disagreement_reason: string | null
+}
+
+export interface DemandForecastComparisonRecord {
+  menu_item_id: number
+  menu_item_name: string
+  year_month: string
+  actual_next_month_quantity: number
+  spark_prediction: number
+  python_prediction: number
+  numerical_difference: number
+  match: boolean
+}
+
+export interface DualPipelineComparison {
+  menu_performance_classification: {
+    total_records: number
+    matched_count: number
+    mismatched_count: number
+    agreement_percent: number
+    spark_accuracy_vs_actual: number
+    xgboost_accuracy_vs_actual: number
+    comparisons: MenuClassComparisonRecord[]
+  }
+  demand_forecast_regression: {
+    task: string
+    total_records: number
+    matched_count: number
+    mismatched_count: number
+    agreement_percent: number
+    mean_absolute_difference: number
+    records: DemandForecastComparisonRecord[]
+  }
+}
+
+export interface DualPipelineComparisonResponse {
+  spark_pipeline: SparkPipelineMetrics
+  python_pipeline: PythonPipelineMetrics
+  comparison: DualPipelineComparison
+}
+
 export interface ChurnRiskCustomer {
   CustomerId: number
   Name: string
