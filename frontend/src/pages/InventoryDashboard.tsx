@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { InventoryItemFormModal } from '../components/inventory/InventoryItemFormModal'
 import { StockStatusMatrix } from '../components/inventory/StockStatusMatrix'
 import { PageHeader } from '../components/layout/AppLayout'
-import { ConfirmDialog, ErrorBanner, StatsCard, useToast } from '../components/ui'
+import { Button, ConfirmDialog, ErrorBanner, StatsCard, useToast } from '../components/ui'
 import { useApi } from '../hooks/useApi'
 import { apiErrorMessage } from '../services/api'
 import { inventoryApi } from '../services/endpoints'
@@ -14,6 +15,7 @@ export function InventoryDashboard() {
   const navigate = useNavigate()
   const items = useApi(() => inventoryApi.items({ skip: 0, limit: 200 }), [], 30_000)
   const status = useApi(() => inventoryApi.stockStatus(), [], 30_000)
+  const [editing, setEditing] = useState<InventoryItem | 'new' | null>(null)
   const [deleting, setDeleting] = useState<InventoryItem | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -42,7 +44,11 @@ export function InventoryDashboard() {
 
   return (
     <>
-      <PageHeader title="Inventory Dashboard" subtitle="Stock health at a glance. Use the sidebar to add items, adjust stock or build recipes." />
+      <PageHeader
+        title="Inventory Dashboard"
+        subtitle="Stock health at a glance."
+        actions={<Button onClick={() => setEditing('new')}>+ Add Item</Button>}
+      />
       {(items.error || status.error) && <ErrorBanner message={(items.error || status.error) as string} onRetry={refresh} />}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -61,9 +67,19 @@ export function InventoryDashboard() {
       <StockStatusMatrix
         items={list}
         loading={items.loading}
-        onEdit={(item) => navigate(`/inventory/items/${item.Id}/edit`)}
+        onEdit={(item) => setEditing(item)}
         onAdjust={(item) => navigate(`/inventory/adjust-stock?itemId=${item.Id}`)}
         onDelete={setDeleting}
+      />
+
+      <InventoryItemFormModal
+        open={editing !== null}
+        item={editing === 'new' ? null : editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          setEditing(null)
+          refresh()
+        }}
       />
 
       <ConfirmDialog

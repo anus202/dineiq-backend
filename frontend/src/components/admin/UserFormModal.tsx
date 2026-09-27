@@ -1,14 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useApi } from '../../hooks/useApi'
 import { apiErrorMessage } from '../../services/api'
 import { branchApi, usersApi } from '../../services/endpoints'
 import type { RoleName, StaffCreateInput } from '../../types/api'
 import { roleLabel } from '../../utils/roles'
-import { Button, SelectField, TextField, Toggle, useToast } from '../ui'
+import { Button, Modal, SelectField, TextField, Toggle, useToast } from '../ui'
 
 interface Props {
+  open: boolean
+  onClose: () => void
   onSaved: () => void
-  onCancel: () => void
 }
 
 const ASSIGNABLE_ROLES: RoleName[] = ['ADMIN', 'INVENTORY_MANAGER', 'CASHIER']
@@ -26,22 +27,37 @@ const EMPTY: StaffCreateInput = {
   CanAccessBranchAnalytics: false,
 }
 
-/** Full-page create-user + role-assignment form (FR 1.6-iii) — no modal.
+/** Create-user + role-assignment modal.
  *
  * Note: the requested role list (Admin/Restaurant Manager/Inventory Manager/Data
  * Engineer/Analyst) doesn't match this system's actual RBAC roles (SUPER_ADMIN, ADMIN,
  * INVENTORY_MANAGER, CASHIER, CUSTOMER — see app/core/roles.py). Using the real roles
  * here so accounts created actually work; only a SUPER_ADMIN can grant ADMIN.
  */
-export function AddUserForm({ onSaved, onCancel }: Props) {
+export function UserFormModal({ open, onClose, onSaved }: Props) {
   const toast = useToast()
   const branches = useApi(() => branchApi.list({ is_active: true }), [])
   const [form, setForm] = useState<StaffCreateInput>(EMPTY)
   const [saving, setSaving] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
 
-  const invalid = !form.FullName.trim() || !form.Email.trim() || form.Password.length < 8
+  useEffect(() => {
+    if (!open) return
+    setForm(EMPTY)
+    setSubmitted(false)
+  }, [open])
+
+  const nameError = !form.FullName.trim() ? 'Full name is required' : null
+  const emailError = !form.Email.trim() ? 'Email is required' : null
+  const passwordError = form.Password.length < 8 ? 'Password must be at least 8 characters' : null
+  const valid = !nameError && !emailError && !passwordError
 
   const save = async () => {
+    setSubmitted(true)
+    if (!valid) {
+      toast.error('Missing required fields', 'Please fix the highlighted fields below.')
+      return
+    }
     setSaving(true)
     try {
       const body: StaffCreateInput = {
@@ -61,11 +77,48 @@ export function AddUserForm({ onSaved, onCancel }: Props) {
   }
 
   return (
-    <div className="card max-w-2xl p-6">
+    <Modal
+      open={open}
+      title="New user"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={save} loading={saving}>
+            Create user
+          </Button>
+        </>
+      }
+    >
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField label="Full name" value={form.FullName} maxLength={100} onChange={(e) => setForm({ ...form, FullName: e.target.value })} placeholder="e.g. Sara Ali" />
-        <TextField label="Email" type="email" value={form.Email} maxLength={150} onChange={(e) => setForm({ ...form, Email: e.target.value })} placeholder="e.g. sara@dineiq.pk" />
-        <TextField label="Password" type="password" value={form.Password} onChange={(e) => setForm({ ...form, Password: e.target.value })} hint="At least 8 characters" />
+        <TextField
+          label="Full name"
+          autoFocus
+          value={form.FullName}
+          maxLength={100}
+          error={submitted ? nameError : null}
+          onChange={(e) => setForm({ ...form, FullName: e.target.value })}
+          placeholder="e.g. Sara Ali"
+        />
+        <TextField
+          label="Email"
+          type="email"
+          value={form.Email}
+          maxLength={150}
+          error={submitted ? emailError : null}
+          onChange={(e) => setForm({ ...form, Email: e.target.value })}
+          placeholder="e.g. sara@dineiq.pk"
+        />
+        <TextField
+          label="Password"
+          type="password"
+          value={form.Password}
+          error={submitted ? passwordError : null}
+          onChange={(e) => setForm({ ...form, Password: e.target.value })}
+          hint="At least 8 characters"
+        />
         <TextField label="Phone number" value={form.PhoneNumber ?? ''} maxLength={20} onChange={(e) => setForm({ ...form, PhoneNumber: e.target.value })} placeholder="Optional" />
         <SelectField label="Role" value={form.Role} onChange={(e) => setForm({ ...form, Role: e.target.value as RoleName })}>
           {ASSIGNABLE_ROLES.map((r) => (
@@ -97,15 +150,6 @@ export function AddUserForm({ onSaved, onCancel }: Props) {
           <Toggle label="Branch Analytics Access" checked={form.CanAccessBranchAnalytics ?? false} onChange={(v) => setForm({ ...form, CanAccessBranchAnalytics: v })} />
         </div>
       </div>
-
-      <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
-        <Button variant="secondary" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button onClick={save} loading={saving} disabled={invalid}>
-          Create user
-        </Button>
-      </div>
-    </div>
+    </Modal>
   )
 }

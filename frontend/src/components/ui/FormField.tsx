@@ -32,7 +32,7 @@ type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & { label: string; er
 export function SelectField({ label, error, hint, children, className = '', ...rest }: SelectProps) {
   return (
     <FieldWrapper label={label} error={error} hint={hint}>
-      <select className={`field-input ${className}`} {...rest}>
+      <select className={`field-input ${error ? 'border-rose-400' : ''} ${className}`} {...rest}>
         {children}
       </select>
     </FieldWrapper>

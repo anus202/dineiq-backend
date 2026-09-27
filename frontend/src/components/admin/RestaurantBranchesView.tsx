@@ -1,17 +1,17 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useApi } from '../../hooks/useApi'
 import { apiErrorMessage } from '../../services/api'
 import { branchApi } from '../../services/endpoints'
 import type { RestaurantBranch } from '../../types/api'
 import { dateOnly, money } from '../../utils/format'
 import { Badge, Button, ConfirmDialog, DataTable, useToast, type Column } from '../ui'
+import { BranchFormModal } from './BranchFormModal'
 
 export function RestaurantBranchesView() {
   const toast = useToast()
-  const navigate = useNavigate()
   const { data, loading, error, reload } = useApi(() => branchApi.list(), [])
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Inactive'>('All')
+  const [editing, setEditing] = useState<RestaurantBranch | 'new' | null>(null)
   const [deactivating, setDeactivating] = useState<RestaurantBranch | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -50,7 +50,7 @@ export function RestaurantBranchesView() {
       align: 'right',
       render: (b) => (
         <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-          <Button size="sm" variant="ghost" onClick={() => navigate(`/admin/branches/${b.Id}/edit`)}>
+          <Button size="sm" variant="ghost" onClick={() => setEditing(b)}>
             Edit
           </Button>
           {b.IsActive && (
@@ -75,18 +75,30 @@ export function RestaurantBranchesView() {
         searchText={(b) => `${b.BranchName} ${b.City} ${b.Address}`}
         searchPlaceholder="Search branches…"
         toolbar={
-          <select
-            className="field-input w-auto"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            aria-label="Filter by status"
-          >
-            <option value="All">All statuses</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
+          <div className="ml-auto flex items-center gap-2">
+            <select
+              className="field-input w-auto"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+              aria-label="Filter by status"
+            >
+              <option value="All">All statuses</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+            <Button onClick={() => setEditing('new')}>+ Add Branch</Button>
+          </div>
         }
         emptyTitle="No branches yet"
+      />
+      <BranchFormModal
+        open={editing !== null}
+        branch={editing === 'new' ? null : editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          setEditing(null)
+          void reload()
+        }}
       />
       <ConfirmDialog
         open={deactivating !== null}

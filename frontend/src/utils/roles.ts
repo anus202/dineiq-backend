@@ -47,7 +47,6 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Inventory & Stock Management',
     items: [
       { to: '/inventory', label: 'Inventory Dashboard', icon: '▤', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'] },
-      { to: '/inventory/new-item', label: 'Add New Stock Item', icon: '➕', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'] },
       { to: '/inventory/adjust-stock', label: 'Stock Adjustment', icon: '±', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'] },
       { to: '/inventory/recipes', label: 'Recipe Builder', icon: '🍳', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'] },
       { to: '/inventory/movement-log', label: 'Stock Movement Log', icon: '📋', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'] },
@@ -80,9 +79,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Administrative & Setup',
     items: [
       { to: '/admin/branches', label: 'Restaurant Branches (List & Status)', icon: '🏢', roles: ['SUPER_ADMIN', 'ADMIN'] },
-      { to: '/admin/branches/new', label: 'Add Branch', icon: '➕', roles: ['SUPER_ADMIN', 'ADMIN'] },
       { to: '/admin/users', label: 'User Accounts List', icon: '👤', roles: ['SUPER_ADMIN', 'ADMIN'] },
-      { to: '/admin/users/new', label: 'Create User & Assign Role', icon: '🛡', roles: ['SUPER_ADMIN', 'ADMIN'] },
       { to: '/admin/branch-comparison', label: 'Multi-Branch Comparison', icon: '🌐', roles: ['SUPER_ADMIN', 'ADMIN'] },
       { to: '/admin/anomalies', label: 'Anomaly & Fraud Detection', icon: '🚨', roles: ['SUPER_ADMIN', 'ADMIN'] },
     ],

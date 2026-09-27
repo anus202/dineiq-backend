@@ -12,14 +12,23 @@ export function CategoryManager() {
   const [editing, setEditing] = useState<Category | 'new' | null>(null)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
   const [deleting, setDeleting] = useState<Category | null>(null)
 
   const open = (target: Category | 'new') => {
     setEditing(target)
     setName(target === 'new' ? '' : target.Name)
+    setSubmitted(false)
   }
 
+  const nameError = !name.trim() ? 'Name is required' : null
+
   const save = async () => {
+    setSubmitted(true)
+    if (nameError) {
+      toast.error('Missing required field', 'Please fix the highlighted field.')
+      return
+    }
     setSaving(true)
     try {
       if (editing === 'new') await categoryApi.create(name.trim())
@@ -94,13 +103,20 @@ export function CategoryManager() {
             <Button variant="secondary" onClick={() => setEditing(null)}>
               Cancel
             </Button>
-            <Button onClick={save} loading={saving} disabled={!name.trim()}>
+            <Button onClick={save} loading={saving}>
               Save
             </Button>
           </>
         }
       >
-        <TextField label="Name" autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={100} />
+        <TextField
+          label="Name"
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={100}
+          error={submitted ? nameError : null}
+        />
       </Modal>
       <ConfirmDialog
         open={deleting !== null}

@@ -6,6 +6,7 @@ import type { RoleName, User } from '../../types/api'
 import { roleLabel } from '../../utils/roles'
 import { dateOnly } from '../../utils/format'
 import { Badge, Button, ConfirmDialog, DataTable, useToast, type Column } from '../ui'
+import { UserFormModal } from './UserFormModal'
 
 const ROLES: RoleName[] = ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER', 'CASHIER', 'CUSTOMER']
 const PAGE_SIZE = 15
@@ -24,6 +25,7 @@ export function UserManagementView() {
   const [editingRoleFor, setEditingRoleFor] = useState<User | null>(null)
   const [pendingRole, setPendingRole] = useState<RoleName>('CASHIER')
   const [deactivating, setDeactivating] = useState<User | null>(null)
+  const [creating, setCreating] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const startEditRole = (user: User) => {
@@ -135,7 +137,7 @@ export function UserManagementView() {
         }}
         searchPlaceholder="Search by name or email…"
         toolbar={
-          <>
+          <div className="ml-auto flex flex-wrap items-center gap-2">
             <select
               className="field-input w-auto"
               value={roleFilter}
@@ -168,9 +170,18 @@ export function UserManagementView() {
                 </option>
               ))}
             </select>
-          </>
+            <Button onClick={() => setCreating(true)}>+ Add User</Button>
+          </div>
         }
         emptyTitle="No accounts found"
+      />
+      <UserFormModal
+        open={creating}
+        onClose={() => setCreating(false)}
+        onSaved={() => {
+          setCreating(false)
+          void users.reload()
+        }}
       />
       <ConfirmDialog
         open={deactivating !== null}

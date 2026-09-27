@@ -18,13 +18,8 @@ const MenuItemMapperPage = lazy(() => import('./pages/MenuItemMapperPage').then(
 const CustomerSearchPage = lazy(() => import('./pages/CustomerSearchPage').then((m) => ({ default: m.CustomerSearchPage })))
 const AuditLogsPage = lazy(() => import('./pages/AuditLogsPage').then((m) => ({ default: m.AuditLogsPage })))
 const RestaurantBranchesPage = lazy(() => import('./pages/RestaurantBranchesPage').then((m) => ({ default: m.RestaurantBranchesPage })))
-const AddBranchPage = lazy(() => import('./pages/AddBranchPage').then((m) => ({ default: m.AddBranchPage })))
-const EditBranchPage = lazy(() => import('./pages/EditBranchPage').then((m) => ({ default: m.EditBranchPage })))
 const UserAccountsPage = lazy(() => import('./pages/UserAccountsPage').then((m) => ({ default: m.UserAccountsPage })))
-const CreateUserPage = lazy(() => import('./pages/CreateUserPage').then((m) => ({ default: m.CreateUserPage })))
 const InventoryDashboard = lazy(() => import('./pages/InventoryDashboard').then((m) => ({ default: m.InventoryDashboard })))
-const AddInventoryItemPage = lazy(() => import('./pages/AddInventoryItemPage').then((m) => ({ default: m.AddInventoryItemPage })))
-const EditInventoryItemPage = lazy(() => import('./pages/EditInventoryItemPage').then((m) => ({ default: m.EditInventoryItemPage })))
 const StockAdjustmentPage = lazy(() => import('./pages/StockAdjustmentPage').then((m) => ({ default: m.StockAdjustmentPage })))
 const RecipeBuilderPage = lazy(() => import('./pages/RecipeBuilderPage').then((m) => ({ default: m.RecipeBuilderPage })))
 const StockMovementLogPage = lazy(() => import('./pages/StockMovementLogPage').then((m) => ({ default: m.StockMovementLogPage })))
@@ -127,22 +122,6 @@ export default function App() {
                 }
               />
               <Route
-                path="/admin/branches/new"
-                element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN']}>
-                    <AddBranchPage />
-                  </Page>
-                }
-              />
-              <Route
-                path="/admin/branches/:id/edit"
-                element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN']}>
-                    <EditBranchPage />
-                  </Page>
-                }
-              />
-              <Route
                 path="/admin/users"
                 element={
                   <Page roles={['SUPER_ADMIN', 'ADMIN']}>
@@ -151,34 +130,10 @@ export default function App() {
                 }
               />
               <Route
-                path="/admin/users/new"
-                element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN']}>
-                    <CreateUserPage />
-                  </Page>
-                }
-              />
-              <Route
                 path="/inventory"
                 element={
                   <Page roles={['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER']}>
                     <InventoryDashboard />
-                  </Page>
-                }
-              />
-              <Route
-                path="/inventory/new-item"
-                element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER']}>
-                    <AddInventoryItemPage />
-                  </Page>
-                }
-              />
-              <Route
-                path="/inventory/items/:id/edit"
-                element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER']}>
-                    <EditInventoryItemPage />
                   </Page>
                 }
               />
