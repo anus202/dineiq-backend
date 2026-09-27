@@ -1,0 +1,8 @@
+pytest>=8
+httpx
+pandas
+pyarrow
+pyodbc
+python-dotenv
+xgboost
+scikit-learn

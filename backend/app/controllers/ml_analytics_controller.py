@@ -100,7 +100,13 @@ async def churn_risk(limit: int = Query(50, ge=1, le=1000), db: AsyncSession = D
 async def what_if(payload: WhatIfRequest, db: AsyncSession = Depends(get_db)):
     try:
         return await ml_analytics_service.simulate_what_if(
-            db, payload.menu_item_id, payload.price_change_percent, payload.discount_percent
+            db,
+            payload.menu_item_id,
+            price_change_percent=payload.price_change_percent,
+            discount_percent=payload.discount_percent,
+            remove_item=payload.remove_item,
+            prep_quantity_change_percent=payload.prep_quantity_change_percent,
+            wastage_assumption_change_percent=payload.wastage_assumption_change_percent,
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

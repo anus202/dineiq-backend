@@ -16,7 +16,7 @@ metrics, and UI components).
 - Supplied the SRS defining every required section, module, model type, metric, and
   endpoint.
 - Supplied the existing production MSSQL database (`DineIQ`) as the real data source
-  (500,000+ customers, 200+ menu items, 15 categories) that all synthetic data generation
+  (500,000+ customers, 200 menu items, 20 categories) that all synthetic data generation
   and feature engineering builds on top of.
 - Directed the build order (Sections 1 → 6, deferring dashboard/recommendation code until
   the underlying trained models existed, rather than shipping code that referenced
