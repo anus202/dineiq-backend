@@ -28,7 +28,6 @@ const PosDashboard = lazy(() => import('./pages/PosDashboard').then((m) => ({ de
 const NewTakeawayOrderPage = lazy(() => import('./pages/NewTakeawayOrderPage').then((m) => ({ default: m.NewTakeawayOrderPage })))
 const CustomerPortal = lazy(() => import('./pages/CustomerPortal').then((m) => ({ default: m.CustomerPortal })))
 const BranchOverviewPage = lazy(() => import('./pages/BranchOverviewPage').then((m) => ({ default: m.BranchOverviewPage })))
-const ChannelMixPage = lazy(() => import('./pages/ChannelMixPage').then((m) => ({ default: m.ChannelMixPage })))
 const MenuPerformancePage = lazy(() => import('./pages/MenuPerformancePage').then((m) => ({ default: m.MenuPerformancePage })))
 const BranchRecommendationsPage = lazy(() => import('./pages/BranchRecommendationsPage').then((m) => ({ default: m.BranchRecommendationsPage })))
 const WastageAnalyticsPage = lazy(() => import('./pages/WastageAnalyticsPage').then((m) => ({ default: m.WastageAnalyticsPage })))
@@ -215,14 +214,6 @@ export default function App() {
                 element={
                   <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
                     <BranchOverviewPage />
-                  </Page>
-                }
-              />
-              <Route
-                path="/dashboard/restaurant-manager/channel-mix"
-                element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
-                    <ChannelMixPage />
                   </Page>
                 }
               />

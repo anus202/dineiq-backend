@@ -23,7 +23,6 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Branch Performance',
     items: [
       { to: '/dashboard/restaurant-manager', label: 'Branch Overview', icon: '📈', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
-      { to: '/dashboard/restaurant-manager/channel-mix', label: 'Channel Mix', icon: '🧭', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
       { to: '/dashboard/restaurant-manager/menu-performance', label: 'Menu Performance', icon: '🍽', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
       { to: '/dashboard/restaurant-manager/recommendations', label: 'Business Recommendations', icon: '💡', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
     ],

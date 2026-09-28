@@ -22,7 +22,6 @@ import {
   LogOut,
   Moon,
   Package,
-  PieChart,
   ReceiptText,
   Scale,
   Search,
@@ -55,7 +54,6 @@ import { BranchSelector } from './BranchSelector'
 const ROUTE_ICONS: Record<string, LucideIcon> = {
   '/admin': LayoutDashboard,
   '/dashboard/restaurant-manager': LayoutDashboard,
-  '/dashboard/restaurant-manager/channel-mix': PieChart,
   '/dashboard/restaurant-manager/menu-performance': UtensilsCrossed,
   '/dashboard/restaurant-manager/recommendations': Lightbulb,
   '/ml-insights/recommendations': Lightbulb,

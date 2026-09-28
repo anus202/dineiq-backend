@@ -36,10 +36,15 @@ PAGE_CONTEXT: List[Tuple[str, str, str]] = [
     ("/dashboard/inventory-manager/demand-forecast", "Demand Forecast", "A model's prediction of near-future ingredient demand, to plan purchasing and avoid stockouts."),
     ("/pos/new-order", "New Takeaway / Delivery Order", "Building an off-premise order for a walk-in or delivery customer at the till."),
     ("/pos", "POS & Tables", "The point-of-sale screen: table status, opening a check, adding items and taking payment."),
-    ("/dashboard/restaurant-manager/channel-mix", "Channel Mix", "The revenue split between dine-in, takeaway and delivery channels."),
     ("/dashboard/restaurant-manager/menu-performance", "Menu Performance", "Which menu items sell best and which underperform, by revenue and quantity."),
     ("/dashboard/restaurant-manager/recommendations", "Recommendations", "System-generated suggestions (pricing, promotions, menu changes) based on recent data."),
-    ("/dashboard/restaurant-manager", "Executive Overview", "The main KPI dashboard: today's revenue, orders, active tables, low-stock alerts, revenue trend and demand heatmap."),
+    (
+        "/dashboard/restaurant-manager",
+        "Branch Overview",
+        "Sales & profitability for the selected branch (or all branches): total orders, revenue, net profit, "
+        "average order value, gross sales, guests and average spend per guest -- plus, further down the same "
+        "page, the channel mix (orders/revenue split by Dine-in, Takeaway and Delivery).",
+    ),
     ("/ml-insights/market-basket", "Market Basket Analysis", "Which menu items are frequently bought together, useful for combo/upsell ideas."),
     ("/ml-insights/price-sensitivity", "Price Sensitivity", "How demand for an item responds to price changes."),
     ("/ml-insights/promotion-traps", "Promotion Traps", "Promotions that quietly lose money per-day versus the non-promo baseline, once normalized for time."),
