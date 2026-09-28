@@ -1,0 +1,20 @@
+{
+  "name": "dineiq-vercel-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "tsc",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.4.1",
+    "hono": "^4.6.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vercel": "^40.0.0"
+  }
+}
