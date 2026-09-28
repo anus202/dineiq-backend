@@ -5,11 +5,15 @@ type Variant = 'primary' | 'secondary' | 'danger' | 'ghost'
 type Size = 'sm' | 'md' | 'lg'
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-700 shadow-sm',
+  primary: 'bg-brand-600 text-white hover:bg-brand-700 shadow-sm hover:shadow-lg hover:shadow-brand-500/30',
   secondary: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700',
-  danger: 'bg-rose-600 text-white hover:bg-rose-700 shadow-sm',
+  danger: 'bg-rose-600 text-white hover:bg-rose-700 shadow-sm hover:shadow-lg hover:shadow-rose-500/30',
   ghost: 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800',
 }
+
+// A soft light sweep across primary/danger buttons on hover -- only on solid-colored
+// variants, where it reads clearly instead of looking like a rendering glitch.
+const shineVariants: Partial<Record<Variant, boolean>> = { primary: true, danger: true }
 
 const sizes: Record<Size, string> = {
   sm: 'px-2.5 py-1.5 text-xs',
@@ -28,13 +32,16 @@ export interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'>
 export function Button({ variant = 'primary', size = 'md', loading = false, icon, children, disabled, className = '', ...rest }: ButtonProps) {
   return (
     <motion.button
-      whileHover={disabled || loading ? undefined : { scale: 1.025 }}
-      whileTap={disabled || loading ? undefined : { scale: 0.97 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+      whileHover={disabled || loading ? undefined : { scale: 1.05 }}
+      whileTap={disabled || loading ? undefined : { scale: 0.95 }}
+      transition={{ type: 'spring', stiffness: 500, damping: 28 }}
       disabled={disabled || loading}
-      className={`inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-lg font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${sizes[size]} ${className}`}
       {...rest}
     >
+      {shineVariants[variant] && !disabled && !loading && (
+        <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/35 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-full" />
+      )}
       {loading ? (
         <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
       ) : (

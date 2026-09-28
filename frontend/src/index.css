@@ -30,7 +30,7 @@
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:shadow-none dark:hover:shadow-lg dark:hover:shadow-black/20;
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:shadow-none dark:hover:shadow-xl dark:hover:shadow-black/30;
   }
   .field-label {
     @apply mb-1 block text-xs font-medium tracking-wide text-slate-500 uppercase dark:text-slate-400;
@@ -63,6 +63,20 @@
   }
   .dark .sidebar-scroll:hover::-webkit-scrollbar-thumb {
     background: #475569;
+  }
+}
+
+@keyframes badge-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
   }
 }
 

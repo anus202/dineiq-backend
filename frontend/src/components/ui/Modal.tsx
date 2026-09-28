@@ -35,10 +35,10 @@ export function Modal({ open, title, onClose, children, footer, size = 'md' }: M
             aria-modal="true"
             aria-label={title}
             className={`card flex max-h-[90vh] w-full flex-col ${widths[size]}`}
-            initial={{ opacity: 0, y: 24, scale: 0.98 }}
+            initial={{ opacity: 0, y: 40, scale: 0.92 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95, transition: { duration: 0.15 } }}
+            transition={{ type: 'spring', stiffness: 340, damping: 26 }}
           >
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
               <h2 className="text-lg font-semibold text-ink dark:text-white">{title}</h2>

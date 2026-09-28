@@ -157,12 +157,15 @@ export function DataTable<T>({
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 dark:text-slate-200">
             {!loading &&
-              visible.map((row) => {
+              visible.map((row, rowIndex) => {
                 const key = rowKey(row)
                 const isOpen = expanded === key
                 return (
                   <Fragment key={key}>
-                    <tr
+                    <motion.tr
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(rowIndex, 12) * 0.025, duration: 0.25 }}
                       onClick={() => {
                         if (expandRow) setExpanded(isOpen ? null : key)
                         onRowClick?.(row)
@@ -174,7 +177,7 @@ export function DataTable<T>({
                           {column.render(row)}
                         </td>
                       ))}
-                    </tr>
+                    </motion.tr>
                     <AnimatePresence>
                       {expandRow && isOpen && (
                         <tr>

@@ -24,37 +24,45 @@ const toneClasses = {
 export function StatsCard({ label, value, hint, icon, tone = 'teal', loading = false, index = 0 }: StatsCardProps) {
   return (
     <motion.div
-      className="card p-5"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
-      whileHover={{ y: -3 }}
+      className="card group relative overflow-hidden p-5"
+      initial={{ opacity: 0, y: 26, scale: 0.94 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: index * 0.07, type: 'spring', stiffness: 260, damping: 20 }}
+      whileHover={{ y: -6, scale: 1.015, transition: { type: 'spring', stiffness: 400, damping: 18 } }}
     >
-      <div className="flex items-start justify-between gap-3">
+      {/* one-shot light sweep across the card on first mount -- a small, tasteful nod to
+          the "attractive" ask without becoming a permanent distraction. */}
+      <motion.div
+        className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent dark:via-white/10"
+        animate={{ x: ['-100%', '160%'] }}
+        transition={{ duration: 1.1, delay: 0.15 + index * 0.07, ease: 'easeInOut' }}
+      />
+      <div className="relative flex items-start justify-between gap-3">
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</p>
         {icon && (
           <motion.span
-            whileHover={{ scale: 1.12, rotate: -4 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-            className={`flex h-9 w-9 items-center justify-center rounded-xl text-base ${toneClasses[tone]}`}
+            whileHover={{ scale: 1.18, rotate: -8 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 12 }}
+            className={`flex h-9 w-9 items-center justify-center rounded-xl text-base shadow-sm transition-shadow group-hover:shadow-md ${toneClasses[tone]}`}
           >
             {icon}
           </motion.span>
         )}
       </div>
       {loading ? (
-        <ShimmerSkeleton className="mt-3 h-8 w-32" />
+        <ShimmerSkeleton className="relative mt-3 h-8 w-32" />
       ) : (
         <motion.p
           key={String(value)}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-2 text-2xl font-semibold tracking-tight text-ink dark:text-white"
+          initial={{ opacity: 0, y: 10, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          className="relative mt-2 text-2xl font-semibold tracking-tight text-ink dark:text-white"
         >
           {value}
         </motion.p>
       )}
-      {hint && !loading && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{hint}</p>}
+      {hint && !loading && <p className="relative mt-1 text-xs text-slate-500 dark:text-slate-400">{hint}</p>}
     </motion.div>
   )
 }

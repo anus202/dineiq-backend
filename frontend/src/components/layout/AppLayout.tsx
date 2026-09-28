@@ -154,23 +154,31 @@ function SidebarGroup({ group, isExactMatchOnly }: { group: NavGroup; isExactMat
         className="flex w-full items-center gap-2.5 rounded-r-lg border-l-[2.5px] border-teal-200 py-2.5 pr-2.5 pl-3 text-left transition-colors hover:bg-slate-50 dark:border-teal-900 dark:hover:bg-slate-800/60"
       >
         <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-slate-700 dark:text-slate-300">{group.title}</span>
-        <ChevronDown
-          className={`h-4 w-4 shrink-0 text-slate-300 transition-transform duration-200 dark:text-slate-600 ${open ? 'rotate-180' : ''}`}
-          aria-hidden="true"
-        />
+        <motion.span
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+          className="shrink-0"
+        >
+          <ChevronDown className="h-4 w-4 text-slate-300 dark:text-slate-600" aria-hidden="true" />
+        </motion.span>
       </button>
-      <div className={`grid overflow-hidden transition-all duration-200 ease-in-out ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+      <div className={`grid overflow-hidden transition-all duration-300 ease-out ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
         <div className="min-h-0">
           <div className="mt-0.5 space-y-0.5 rounded-xl bg-slate-50 p-1.5 dark:bg-slate-900/60">
-            {group.items.map((item) => {
+            {group.items.map((item, i) => {
               const Icon = ROUTE_ICONS[item.to] ?? LayoutDashboard
               return (
-                <NavLink
+                <motion.div
                   key={item.to}
+                  initial={false}
+                  animate={open ? { opacity: 1, x: 0 } : { opacity: 0, x: -6 }}
+                  transition={{ delay: open ? i * 0.03 : 0, duration: 0.2 }}
+                >
+                <NavLink
                   to={item.to}
                   end={isExactMatchOnly(item.to)}
                   className={({ isActive }) =>
-                    `flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-all duration-150 ${
+                    `flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-all duration-150 hover:translate-x-0.5 ${
                       isActive
                         ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-800 dark:text-brand-300 dark:ring-slate-700'
                         : 'text-slate-500 hover:bg-white/70 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-200'
@@ -190,6 +198,7 @@ function SidebarGroup({ group, isExactMatchOnly }: { group: NavGroup; isExactMat
                     </>
                   )}
                 </NavLink>
+                </motion.div>
               )
             })}
           </div>
@@ -243,15 +252,28 @@ function ThemeToggle() {
   const { theme, toggleTheme } = useTheme()
   const isDark = theme === 'dark'
   return (
-    <button
+    <motion.button
       type="button"
       onClick={toggleTheme}
+      whileHover={{ scale: 1.1 }}
+      whileTap={{ scale: 0.9, rotate: 15 }}
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+      className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
     >
-      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-    </button>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={isDark ? 'sun' : 'moon'}
+          initial={{ rotate: -90, opacity: 0, scale: 0.4 }}
+          animate={{ rotate: 0, opacity: 1, scale: 1 }}
+          exit={{ rotate: 90, opacity: 0, scale: 0.4 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+          className="flex"
+        >
+          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </motion.span>
+      </AnimatePresence>
+    </motion.button>
   )
 }
 
@@ -332,30 +354,36 @@ function UserMenu() {
         <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
-      {open && (
-        <div
-          role="menu"
-          className="absolute top-full right-0 z-40 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-900"
-        >
-          <div className="px-4 py-2.5">
-            <p className="truncate text-sm font-medium text-ink dark:text-slate-100">{user.FullName}</p>
-            <p className="truncate text-xs text-slate-500 dark:text-slate-400">{user.Email}</p>
-            <span className="mt-1.5 inline-block">
-              <Badge tone="teal">{roleLabel[user.Role]}</Badge>
-            </span>
-          </div>
-          <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
-          <button
-            type="button"
-            role="menuitem"
-            onClick={handleSignOut}
-            className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50 dark:hover:bg-rose-950/40"
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            role="menu"
+            initial={{ opacity: 0, y: -8, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.95, transition: { duration: 0.12 } }}
+            transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+            className="absolute top-full right-0 z-40 mt-2 w-64 origin-top-right overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-900"
           >
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </button>
-        </div>
-      )}
+            <div className="px-4 py-2.5">
+              <p className="truncate text-sm font-medium text-ink dark:text-slate-100">{user.FullName}</p>
+              <p className="truncate text-xs text-slate-500 dark:text-slate-400">{user.Email}</p>
+              <span className="mt-1.5 inline-block">
+                <Badge tone="teal">{roleLabel[user.Role]}</Badge>
+              </span>
+            </div>
+            <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+            <button
+              type="button"
+              role="menuitem"
+              onClick={handleSignOut}
+              className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50 dark:hover:bg-rose-950/40"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -455,7 +483,13 @@ export function AppLayout() {
 
         <main className="flex-1 px-4 py-6 md:px-8">
           <AnimatePresence mode="wait">
-            <motion.div key={location.pathname} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 24, scale: 0.985 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -12, scale: 0.99 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            >
               <Outlet />
             </motion.div>
           </AnimatePresence>

@@ -59,9 +59,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <motion.div
               key={t.id}
               layout
-              initial={{ opacity: 0, x: 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 40 }}
+              initial={{ opacity: 0, x: 60, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 60, scale: 0.9, transition: { duration: 0.15 } }}
+              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
               className="card pointer-events-auto flex overflow-hidden"
               role={t.kind === 'error' ? 'alert' : 'status'}
             >
