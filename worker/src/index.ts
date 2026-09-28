@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { jwt } from 'hono/jwt';
+import { sign as jwtSign, verify as jwtVerify } from 'hono/jwt';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 
@@ -32,15 +32,26 @@ app.use('*', cors({
   credentials: true,
 }));
 
-// JWT Middleware
+// Health check (public - no auth required)
+app.get('/api/health', (c) => {
+  return c.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Public routes that must NOT require a token.
+const PUBLIC_PATHS = new Set(['/api/health', '/api/auth/login', '/api/auth/signup']);
+
+// JWT Middleware (protects all other /api/* routes)
 app.use('/api/*', async (c, next) => {
+  if (PUBLIC_PATHS.has(c.req.path)) {
+    return next();
+  }
   const authHeader = c.req.header('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   const token = authHeader.substring(7);
   try {
-    const payload = await jwt.verify(token, c.env.JWT_SECRET);
+    const payload = await jwtVerify(token, c.env.JWT_SECRET, 'HS256');
     c.set('jwtPayload', payload);
   } catch {
     return c.json({ error: 'Invalid token' }, 401);
@@ -48,112 +59,126 @@ app.use('/api/*', async (c, next) => {
   await next();
 });
 
-// Health check
-app.get('/api/health', (c) => {
-  return c.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
 // ============================================
 // AUTH ROUTES
 // ============================================
 
+/**
+ * Loads a full user record (joined with Role + Branch) and maps it to the
+ * exact `User` shape the frontend expects (capitalized Pydantic-style fields).
+ */
+async function loadUser(db: D1Database, userId: number) {
+  const row = await db.prepare(
+    `SELECT s.Id, s.FullName, s.Email, s.PhoneNumber, s.CustomerId, s.BranchId,
+            s.CanAccessInventory, s.CanTriggerPipeline, s.CanAccessMenuManagement,
+            s.CanAccessBranchAnalytics, s.IsActive, s.CreatedAt,
+            r.Name AS RoleName, b.BranchName AS BranchName
+     FROM tbl_Signup s
+     LEFT JOIN tbl_Role r ON s.RoleId = r.Id
+     LEFT JOIN Restaurants b ON s.BranchId = b.Id
+     WHERE s.Id = ?`
+  ).bind(userId).first();
+
+  if (!row) return null;
+
+  return {
+    Id: row.Id,
+    FullName: row.FullName,
+    Email: row.Email,
+    PhoneNumber: row.PhoneNumber ?? null,
+    Role: row.RoleName ?? 'CUSTOMER',
+    CustomerId: row.CustomerId ?? null,
+    BranchId: row.BranchId ?? null,
+    BranchName: row.BranchName ?? null,
+    CanAccessInventory: !!row.CanAccessInventory,
+    CanTriggerPipeline: !!row.CanTriggerPipeline,
+    CanAccessMenuManagement: !!row.CanAccessMenuManagement,
+    CanAccessBranchAnalytics: !!row.CanAccessBranchAnalytics,
+    IsActive: !!row.IsActive,
+    CreatedAt: row.CreatedAt,
+  };
+}
+
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
+  Email: z.string().email(),
+  Password: z.string().min(1),
 });
 
 app.post('/api/auth/login', zValidator('json', loginSchema), async (c) => {
-  const { email, password } = c.req.valid('json');
-  
+  const { Email, Password } = c.req.valid('json');
+
   const user = await c.env.DB.prepare(
     'SELECT * FROM tbl_Signup WHERE Email = ? AND IsActive = 1 AND IsDeleted = 0'
-  ).bind(email).first();
-  
-  if (!user) {
-    return c.json({ error: 'Invalid credentials' }, 401);
+  ).bind(Email).first();
+
+  if (!user || Password !== user.PasswordHash) {
+    return c.json({ Success: false, Message: 'Invalid credentials', Token: null, TokenType: null, Data: null }, 401);
   }
-  
-  // In production, use proper password hashing (bcrypt)
-  // For now, simple comparison
-  const isValid = password === user.PasswordHash; // TODO: Use bcrypt
-  
-  if (!isValid) {
-    return c.json({ error: 'Invalid credentials' }, 401);
-  }
-  
-  const token = await jwt.sign({
+
+  const token = await jwtSign({
     userId: user.Id,
     email: user.Email,
     roleId: user.RoleId,
     customerId: user.CustomerId,
     branchId: user.BranchId,
+    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24,
   }, c.env.JWT_SECRET);
-  
-  return c.json({
-    token,
-    user: {
-      id: user.Id,
-      fullName: user.FullName,
-      email: user.Email,
-      roleId: user.RoleId,
-      customerId: user.CustomerId,
-      branchId: user.BranchId,
-    },
-  });
+
+  const Data = await loadUser(c.env.DB, user.Id as number);
+
+  return c.json({ Success: true, Message: 'Login successful', Token: token, TokenType: 'Bearer', Data });
 });
 
 const signupSchema = z.object({
-  fullName: z.string().min(1),
-  email: z.string().email(),
-  phoneNumber: z.string().optional(),
-  password: z.string().min(6),
-  roleId: z.number().int().default(5),
+  FullName: z.string().min(1),
+  Email: z.string().email(),
+  PhoneNumber: z.string().optional(),
+  Password: z.string().min(6),
 });
 
 app.post('/api/auth/signup', zValidator('json', signupSchema), async (c) => {
   const data = c.req.valid('json');
-  
+
   const existing = await c.env.DB.prepare(
     'SELECT Id FROM tbl_Signup WHERE Email = ?'
-  ).bind(data.email).first();
-  
+  ).bind(data.Email).first();
+
   if (existing) {
-    return c.json({ error: 'Email already exists' }, 400);
+    return c.json({ Success: false, Message: 'Email already exists', Token: null, TokenType: null, Data: null }, 400);
   }
-  
+
+  const role = await c.env.DB.prepare(
+    "SELECT Id FROM tbl_Role WHERE Name = 'CUSTOMER'"
+  ).first();
+
   const result = await c.env.DB.prepare(
     `INSERT INTO tbl_Signup (FullName, Email, PhoneNumber, PasswordHash, RoleId, CanAccessInventory, CanTriggerPipeline, CanAccessMenuManagement, CanAccessBranchAnalytics)
      VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0)`
-  ).bind(data.fullName, data.email, data.phoneNumber || null, data.password, data.roleId).run();
-  
-  const token = await jwt.sign({
-    userId: result.meta.last_row_id,
-    email: data.email,
-    roleId: data.roleId,
+  ).bind(data.FullName, data.Email, data.PhoneNumber ?? null, data.Password, role?.Id ?? 5).run();
+
+  const userId = result.meta.last_row_id;
+
+  const token = await jwtSign({
+    userId,
+    email: data.Email,
+    roleId: role?.Id ?? 5,
+    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24,
   }, c.env.JWT_SECRET);
-  
-  return c.json({
-    token,
-    user: {
-      id: result.meta.last_row_id,
-      fullName: data.fullName,
-      email: data.email,
-      roleId: data.roleId,
-    },
-  });
+
+  const Data = await loadUser(c.env.DB, userId);
+
+  return c.json({ Success: true, Message: 'Signup successful', Token: token, TokenType: 'Bearer', Data });
 });
 
 app.get('/api/auth/me', async (c) => {
   const payload = c.get('jwtPayload');
-  const user = await c.env.DB.prepare(
-    'SELECT Id, FullName, Email, RoleId, CustomerId, BranchId FROM tbl_Signup WHERE Id = ?'
-  ).bind(payload.userId).first();
-  
-  if (!user) {
+  const Data = await loadUser(c.env.DB, payload.userId as number);
+
+  if (!Data) {
     return c.json({ error: 'User not found' }, 404);
   }
-  
-  return c.json({ user });
+
+  return c.json(Data);
 });
 
 // ============================================
