@@ -29,7 +29,7 @@ function WastageAnalyticsContent() {
   }
 
   const itemColumns: Column<WastageByItem>[] = [
-    { key: 'item', header: 'Ingredient', render: (i) => <span className="font-medium text-ink">{i.ItemName}</span> },
+    { key: 'item', header: 'Ingredient', render: (i) => <span className="font-medium text-ink dark:text-white">{i.ItemName}</span> },
     { key: 'wasted', header: 'Wasted', align: 'right', render: (i) => quantity(i.TotalWasted, i.Unit) },
     { key: 'cost', header: 'Cost', align: 'right', render: (i) => money(i.WastageCost), sortValue: (i) => i.WastageCost },
     { key: 'incidents', header: 'Incidents', align: 'right', render: (i) => i.IncidentCount },
@@ -71,7 +71,7 @@ function WastageAnalyticsContent() {
         <StatsCard index={1} label="Ingredients affected" icon="🗑" loading={!w} value={w && w.ByItem.length} />
         <StatsCard index={2} label="Distinct reasons logged" icon="📋" tone="amber" loading={!w} value={w && w.ByReason.length} />
       </div>
-      <h2 className="mb-3 text-lg font-semibold text-ink">By ingredient</h2>
+      <h2 className="mb-3 text-lg font-semibold text-ink dark:text-white">By ingredient</h2>
       <div className="mb-8">
         <DataTable
           columns={itemColumns}
@@ -82,7 +82,7 @@ function WastageAnalyticsContent() {
           emptyTitle="No wastage recorded for this branch"
         />
       </div>
-      <h2 className="mb-3 text-lg font-semibold text-ink">By reason</h2>
+      <h2 className="mb-3 text-lg font-semibold text-ink dark:text-white">By reason</h2>
       <DataTable
         columns={reasonColumns}
         rows={w?.ByReason ?? []}

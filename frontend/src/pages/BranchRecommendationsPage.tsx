@@ -34,10 +34,10 @@ export function BranchRecommendationsPage() {
         {recs.data?.map((r, idx) => (
           <div key={idx} className="card p-5">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <p className="font-semibold text-ink">{r.Title}</p>
+              <p className="font-semibold text-ink dark:text-white">{r.Title}</p>
               <Badge tone={r.Priority === 'CRITICAL' || r.Priority === 'HIGH' ? 'red' : r.Priority === 'MEDIUM' ? 'yellow' : 'blue'}>{r.Priority}</Badge>
             </div>
-            <p className="text-sm text-slate-600">{r.Evidence}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300">{r.Evidence}</p>
             <p className="mt-2 text-sm font-medium text-brand-700">→ {r.SuggestedAction}</p>
           </div>
         ))}

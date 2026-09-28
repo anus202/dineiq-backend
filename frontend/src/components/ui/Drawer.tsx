@@ -32,9 +32,9 @@ export function Drawer({ open, title, subtitle, onClose, children, footer }: Dra
             exit={{ x: '100%' }}
             transition={{ type: 'spring', stiffness: 320, damping: 34 }}
           >
-            <div className="flex items-start justify-between border-b border-slate-100 px-6 py-4">
+            <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 px-6 py-4">
               <div>
-                <h2 className="text-lg font-semibold text-ink">{title}</h2>
+                <h2 className="text-lg font-semibold text-ink dark:text-white">{title}</h2>
                 {subtitle && <p className="text-sm text-slate-500">{subtitle}</p>}
               </div>
               <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100" aria-label="Close">
@@ -42,7 +42,7 @@ export function Drawer({ open, title, subtitle, onClose, children, footer }: Dra
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
-            {footer && <div className="border-t border-slate-100 px-6 py-4">{footer}</div>}
+            {footer && <div className="border-t border-slate-100 dark:border-slate-800 px-6 py-4">{footer}</div>}
           </motion.aside>
         </>
       )}

@@ -6,7 +6,7 @@ import { mlAnalyticsApi } from '../services/endpoints'
 import type { ChurnRiskCustomer } from '../types/api'
 
 const columns: Column<ChurnRiskCustomer>[] = [
-  { key: 'name', header: 'Customer', render: (c) => <span className="font-medium text-ink">{c.Name}</span>, sortValue: (c) => c.Name },
+  { key: 'name', header: 'Customer', render: (c) => <span className="font-medium text-ink dark:text-white">{c.Name}</span>, sortValue: (c) => c.Name },
   { key: 'risk', header: 'Risk', render: (c) => <Badge tone={c.RiskLabel === 'At Risk' ? 'red' : 'green'}>{c.RiskLabel}</Badge>, sortValue: (c) => c.RiskLabel },
   { key: 'prob', header: 'Probability', align: 'right', render: (c) => `${(c.ChurnProbability * 100).toFixed(1)}%`, sortValue: (c) => c.ChurnProbability },
   { key: 'recency', header: 'Recency', align: 'right', render: (c) => `${c.RecencyDays}d`, sortValue: (c) => c.RecencyDays },

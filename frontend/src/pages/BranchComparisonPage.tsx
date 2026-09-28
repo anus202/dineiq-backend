@@ -10,7 +10,7 @@ export function BranchComparisonPage() {
   const comparison = useApi(() => branchAnalyticsApi.branchComparison(), [])
 
   const columns: Column<BranchComparisonRow>[] = [
-    { key: 'name', header: 'Branch', render: (b) => <span className="font-medium text-ink">{b.BranchName}</span>, sortValue: (b) => b.BranchName },
+    { key: 'name', header: 'Branch', render: (b) => <span className="font-medium text-ink dark:text-white">{b.BranchName}</span>, sortValue: (b) => b.BranchName },
     { key: 'city', header: 'City', render: (b) => b.City },
     { key: 'status', header: 'Status', render: (b) => <Badge tone={b.IsActive ? 'green' : 'red'}>{b.IsActive ? 'Active' : 'Inactive'}</Badge> },
     { key: 'orders', header: 'Orders', align: 'right', render: (b) => count(b.OrderCount), sortValue: (b) => b.OrderCount },

@@ -141,8 +141,8 @@ export function UserFormModal({ open, onClose, onSaved }: Props) {
         </SelectField>
       </div>
 
-      <div className="mt-6 border-t border-slate-100 pt-4">
-        <p className="mb-3 text-sm font-medium text-ink">System permissions</p>
+      <div className="mt-6 border-t border-slate-100 dark:border-slate-800 pt-4">
+        <p className="mb-3 text-sm font-medium text-ink dark:text-white">System permissions</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <Toggle label="Inventory Access" checked={form.CanAccessInventory ?? false} onChange={(v) => setForm({ ...form, CanAccessInventory: v })} />
           <Toggle label="Pipeline Trigger Access" checked={form.CanTriggerPipeline ?? false} onChange={(v) => setForm({ ...form, CanTriggerPipeline: v })} />

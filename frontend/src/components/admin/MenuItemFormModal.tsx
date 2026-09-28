@@ -120,8 +120,8 @@ export function MenuItemFormModal({ open, item, categories, onClose, onSaved }: 
         <div className="sm:col-span-2">
           <TextAreaField label="Description" value={form.Description ?? ''} maxLength={500} onChange={(e) => setForm({ ...form, Description: e.target.value })} />
         </div>
-        <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm sm:col-span-2">
-          Contribution margin <b className="text-ink">{money(margin)}</b>
+        <div className="rounded-xl bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm sm:col-span-2">
+          Contribution margin <b className="text-ink dark:text-white">{money(margin)}</b>
           {form.Price > 0 && <span className="text-slate-500"> · {percent((margin / form.Price) * 100)} of price</span>}
           {item && form.Price !== item.Price && <span className="ml-2 text-amber-700">Price change will be recorded in pricing history.</span>}
         </div>

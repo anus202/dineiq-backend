@@ -59,7 +59,7 @@ export function PosDashboard() {
       <div className="grid gap-6 xl:grid-cols-4">
         <section className="xl:col-span-3">
           <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
-            <h2 className="font-semibold text-ink">Floor plan</h2>
+            <h2 className="font-semibold text-ink dark:text-white">Floor plan</h2>
             {t && (
               <>
                 <Badge tone="green" dot>
@@ -79,7 +79,7 @@ export function PosDashboard() {
         </section>
 
         <aside>
-          <h2 className="mb-3 font-semibold text-ink">Open takeaway & delivery</h2>
+          <h2 className="mb-3 font-semibold text-ink dark:text-white">Open takeaway & delivery</h2>
           <div className="card divide-y divide-slate-100">
             {openOrders.loading && !openOrders.data ? (
               <div className="space-y-2 p-4">
@@ -90,15 +90,15 @@ export function PosDashboard() {
               <EmptyState title="No open orders" message="Takeaway and delivery orders waiting for payment show here." icon="🧾" />
             ) : (
               unseated.map((o) => (
-                <button key={o.Id} onClick={() => setSettleId(o.Id)} className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50">
+                <button key={o.Id} onClick={() => setSettleId(o.Id)} className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50 dark:bg-slate-800">
                   <div>
-                    <p className="font-mono text-xs font-medium text-ink">{o.OrderNumber}</p>
+                    <p className="font-mono text-xs font-medium text-ink dark:text-white">{o.OrderNumber}</p>
                     <p className="text-xs text-slate-500">
                       {o.OrderType} · {timeAgo(o.OrderDate)}
                       {o.Customer && ` · ${o.Customer.CustomerName}`}
                     </p>
                   </div>
-                  <span className="text-sm font-semibold text-ink">{money(o.NetAmount)}</span>
+                  <span className="text-sm font-semibold text-ink dark:text-white">{money(o.NetAmount)}</span>
                 </button>
               ))
             )}
@@ -109,7 +109,7 @@ export function PosDashboard() {
       <Modal open={actionTable !== null} title={actionTable ? `Table ${actionTable.TableNumber}` : ''} onClose={() => setActionTable(null)} size="sm">
         {actionTable && (
           <div className="space-y-3">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               {actionTable.Status === 'RESERVED' ? 'Reserved' : 'Available'} · seats {actionTable.Capacity}
             </p>
             <Button

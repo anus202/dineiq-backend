@@ -19,14 +19,14 @@ export function AuditLogTable() {
   )
 
   const columns: Column<AuditLog>[] = [
-    { key: 'time', header: 'When', render: (l) => <span className="whitespace-nowrap text-slate-600">{dateTime(l.Timestamp)}</span> },
+    { key: 'time', header: 'When', render: (l) => <span className="whitespace-nowrap text-slate-600 dark:text-slate-300">{dateTime(l.Timestamp)}</span> },
     {
       key: 'user',
       header: 'User',
       render: (l) =>
         l.UserId ? (
           <div>
-            <p className="font-medium text-ink">{l.UserName}</p>
+            <p className="font-medium text-ink dark:text-white">{l.UserName}</p>
             <p className="text-xs text-slate-400">{l.UserEmail}</p>
           </div>
         ) : (

@@ -65,8 +65,8 @@ export function UserManagementView() {
 
   const columns: Column<User>[] = [
     { key: 'id', header: 'User ID', render: (u) => <span className="text-slate-400">#{u.Id}</span> },
-    { key: 'name', header: 'Full Name', render: (u) => <span className="font-medium text-ink">{u.FullName}</span> },
-    { key: 'email', header: 'Email', render: (u) => <span className="text-slate-600">{u.Email}</span> },
+    { key: 'name', header: 'Full Name', render: (u) => <span className="font-medium text-ink dark:text-white">{u.FullName}</span> },
+    { key: 'email', header: 'Email', render: (u) => <span className="text-slate-600 dark:text-slate-300">{u.Email}</span> },
     {
       key: 'role',
       header: 'Assigned Role',

@@ -21,7 +21,7 @@ export function OrderTracker() {
     <div className="card p-5">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 className="font-semibold text-ink">My orders</h3>
+          <h3 className="font-semibold text-ink dark:text-white">My orders</h3>
           <p className="text-xs text-slate-500">Live status · updates every 10 seconds</p>
         </div>
         {orders.data && <span className="text-xs text-slate-500">{orders.data.Total} total</span>}
@@ -41,11 +41,11 @@ export function OrderTracker() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="font-mono text-xs text-slate-500">{o.OrderNumber}</p>
-                  <p className="text-sm font-medium text-ink">{o.TrackingStatus}</p>
+                  <p className="text-sm font-medium text-ink dark:text-white">{o.TrackingStatus}</p>
                 </div>
                 <div className="text-right">
                   <Badge tone={statusTone(o.Status)}>{o.Status}</Badge>
-                  <p className="mt-1 text-sm font-semibold text-ink">{money(o.NetAmount)}</p>
+                  <p className="mt-1 text-sm font-semibold text-ink dark:text-white">{money(o.NetAmount)}</p>
                 </div>
               </div>
               {o.Status !== 'Cancelled' && <Stepper step={stepOf(o)} live={o.IsOpen} />}

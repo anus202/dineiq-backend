@@ -10,7 +10,7 @@ export function AnomalyDetectionPage() {
   const anomalies = useApi(() => branchAnalyticsApi.anomalies(), [])
 
   const columns: Column<SalesAnomaly>[] = [
-    { key: 'branch', header: 'Branch', render: (a) => <span className="font-medium text-ink">{a.BranchName}</span> },
+    { key: 'branch', header: 'Branch', render: (a) => <span className="font-medium text-ink dark:text-white">{a.BranchName}</span> },
     { key: 'date', header: 'Date', render: (a) => dateOnly(a.Date), sortValue: (a) => a.Date },
     { key: 'type', header: 'Type', render: (a) => <Badge tone={a.Type === 'SPIKE' ? 'blue' : 'red'}>{a.Type}</Badge> },
     { key: 'severity', header: 'Severity', render: (a) => <Badge tone={a.Severity === 'CRITICAL' ? 'red' : a.Severity === 'HIGH' ? 'yellow' : 'gray'}>{a.Severity}</Badge> },

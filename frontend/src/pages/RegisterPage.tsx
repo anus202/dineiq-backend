@@ -53,7 +53,7 @@ export function RegisterPage() {
         <Button type="submit" size="lg" loading={busy} className="!mt-6 w-full shadow-lg shadow-brand-500/20">
           Create account
         </Button>
-        <p className="border-t border-slate-200 pt-4 text-center text-sm text-slate-500">
+        <p className="border-t border-slate-200 dark:border-slate-700 pt-4 text-center text-sm text-slate-500">
           Have an account?{' '}
           <Link to="/login" className="font-medium text-brand-700 transition hover:text-brand-600 hover:underline">
             Sign in

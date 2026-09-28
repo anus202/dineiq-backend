@@ -126,7 +126,7 @@ export function OrderBuilderBody({ table, onCreated }: Props) {
                         {inCart}
                       </span>
                     )}
-                    <p className="pr-6 text-sm leading-snug font-medium text-ink">{m.Name}</p>
+                    <p className="pr-6 text-sm leading-snug font-medium text-ink dark:text-white">{m.Name}</p>
                     <p className="mt-1 text-xs text-slate-500">{money(m.Price)}</p>
                   </button>
                 )
@@ -135,7 +135,7 @@ export function OrderBuilderBody({ table, onCreated }: Props) {
       </div>
 
       {/* Cart */}
-      <div className="flex flex-col rounded-2xl bg-slate-50 p-4 lg:col-span-2">
+      <div className="flex flex-col rounded-2xl bg-slate-50 dark:bg-slate-800 p-4 lg:col-span-2">
         <div className="grid grid-cols-2 gap-3">
           <SelectField label="Order type" value={orderType} disabled={table !== null} onChange={(e) => setOrderType(e.target.value as OrderType)}>
             <option>Dine-in</option>
@@ -157,7 +157,7 @@ export function OrderBuilderBody({ table, onCreated }: Props) {
           {customer ? (
             <div className="flex items-center justify-between rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm">
               <div>
-                <p className="font-medium text-ink">{customer.Name}</p>
+                <p className="font-medium text-ink dark:text-white">{customer.Name}</p>
                 <p className="text-xs text-slate-500">
                   {customer.Phone} · {customer.LoyaltyPoints} pts
                 </p>
@@ -170,7 +170,7 @@ export function OrderBuilderBody({ table, onCreated }: Props) {
             <div className="relative">
               <TextField label="Customer phone (optional)" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Walk-in if empty" />
               {matches.data && matches.data.Items.length > 0 && (
-                <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white shadow-lg">
                   {matches.data.Items.map((c) => (
                     <li key={c.Id}>
                       <button onClick={() => setCustomer(c)} className="flex w-full justify-between px-3 py-2 text-left text-sm hover:bg-brand-50">
@@ -190,12 +190,12 @@ export function OrderBuilderBody({ table, onCreated }: Props) {
           {lines.map(({ item, qty }) => (
             <div key={item.Id} className="flex items-center gap-2 text-sm">
               <span className="flex-1 truncate">{item.Name}</span>
-              <div className="flex items-center rounded-lg border border-slate-200 bg-white">
-                <button onClick={() => change(item, -1)} className="px-2 py-0.5 text-slate-500 hover:text-ink" aria-label={`Remove one ${item.Name}`}>
+              <div className="flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white">
+                <button onClick={() => change(item, -1)} className="px-2 py-0.5 text-slate-500 hover:text-ink dark:text-white" aria-label={`Remove one ${item.Name}`}>
                   −
                 </button>
                 <span className="w-6 text-center font-medium">{qty}</span>
-                <button onClick={() => change(item, 1)} className="px-2 py-0.5 text-slate-500 hover:text-ink" aria-label={`Add one ${item.Name}`}>
+                <button onClick={() => change(item, 1)} className="px-2 py-0.5 text-slate-500 hover:text-ink dark:text-white" aria-label={`Add one ${item.Name}`}>
                   +
                 </button>
               </div>
@@ -204,7 +204,7 @@ export function OrderBuilderBody({ table, onCreated }: Props) {
           ))}
         </div>
 
-        <div className="mt-4 space-y-2 border-t border-slate-200 pt-3 text-sm">
+        <div className="mt-4 space-y-2 border-t border-slate-200 dark:border-slate-700 pt-3 text-sm">
           <div className="flex items-center justify-between gap-3">
             <span className="text-slate-500">Discount (PKR)</span>
             <input
@@ -217,7 +217,7 @@ export function OrderBuilderBody({ table, onCreated }: Props) {
               aria-label="Discount"
             />
           </div>
-          <div className="flex justify-between text-base font-semibold text-ink">
+          <div className="flex justify-between text-base font-semibold text-ink dark:text-white">
             <span>Total</span>
             <span>{money(Math.max(subtotal - discount, 0))}</span>
           </div>

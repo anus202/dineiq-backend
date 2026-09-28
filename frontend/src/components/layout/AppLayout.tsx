@@ -151,7 +151,7 @@ function SidebarGroup({ group, isExactMatchOnly }: { group: NavGroup; isExactMat
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2.5 rounded-r-lg border-l-[2.5px] border-teal-200 py-2.5 pr-2.5 pl-3 text-left transition-colors hover:bg-slate-50 dark:border-teal-900 dark:hover:bg-slate-800/60"
+        className="flex w-full items-center gap-2.5 rounded-r-lg border-l-[2.5px] border-teal-200 py-2.5 pr-2.5 pl-3 text-left transition-colors hover:bg-slate-50 dark:bg-slate-800 dark:border-teal-900 dark:hover:bg-slate-800/60"
       >
         <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-slate-700 dark:text-slate-300">{group.title}</span>
         <motion.span
@@ -339,7 +339,7 @@ function UserMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`${user.FullName}, ${roleLabel[user.Role]}. Open account menu`}
-        className="flex items-center gap-2.5 rounded-lg border border-transparent py-1.5 pr-2 pl-1.5 transition hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-700 dark:hover:bg-slate-800"
+        className="flex items-center gap-2.5 rounded-lg border border-transparent py-1.5 pr-2 pl-1.5 transition hover:border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:bg-slate-800 dark:hover:border-slate-700 dark:hover:bg-slate-800"
       >
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700 dark:bg-brand-900 dark:text-brand-100">
           {user.FullName.charAt(0).toUpperCase()}

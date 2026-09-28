@@ -84,13 +84,13 @@ export function StockAdjustmentFormBody({ items, initialItemId, onDone, onCancel
           placeholder="e.g. Weekly purchase from Metro, spoiled batch, stock count correction"
         />
         {item && qty > 0 && (
-          <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <p className="rounded-xl bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
             {quantity(item.CurrentStock, item.Unit)} → <b className={after <= item.ReorderLevel ? 'text-amber-700' : 'text-ink'}>{quantity(after, item.Unit)}</b>
             {after <= item.ReorderLevel && after >= 0 && ' (at or below reorder level)'}
           </p>
         )}
       </div>
-      <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+      <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>

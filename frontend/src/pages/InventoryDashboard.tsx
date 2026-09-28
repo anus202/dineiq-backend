@@ -58,8 +58,8 @@ export function InventoryDashboard() {
         <StatsCard index={3} label="Out of stock" icon="⛔" tone="rose" loading={!s} value={s && count(s.OutOfStockCount)} />
       </div>
 
-      <div className="mb-3 flex items-center gap-4 text-xs text-slate-500">
-        <span className="font-semibold text-slate-700">Stock status matrix</span>
+      <div className="mb-3 flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+        <span className="font-semibold text-slate-700 dark:text-slate-300">Stock status matrix</span>
         <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Healthy</span>
         <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" /> Low (≤ reorder level)</span>
         <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-rose-500" /> Out of stock</span>

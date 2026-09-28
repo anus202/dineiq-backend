@@ -6,7 +6,7 @@ import { mlAnalyticsApi } from '../services/endpoints'
 import type { SlowMovingDish } from '../types/api'
 
 const columns: Column<SlowMovingDish>[] = [
-  { key: 'item', header: 'Menu Item', render: (d) => <span className="font-medium text-ink">{d.menu_item_name}</span>, sortValue: (d) => d.menu_item_name },
+  { key: 'item', header: 'Menu Item', render: (d) => <span className="font-medium text-ink dark:text-white">{d.menu_item_name}</span>, sortValue: (d) => d.menu_item_name },
   {
     key: 'signals',
     header: 'Signals',

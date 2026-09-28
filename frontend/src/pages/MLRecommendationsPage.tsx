@@ -41,11 +41,11 @@ export function MLRecommendationsPage() {
         {recs.data?.map((r, idx) => (
           <div key={idx} className="card p-5">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <p className="font-semibold text-ink">{r.title}</p>
+              <p className="font-semibold text-ink dark:text-white">{r.title}</p>
               <Badge tone={priorityTone(r.priority)}>{r.priority}</Badge>
             </div>
             <p className="text-xs font-medium tracking-wide text-slate-400 uppercase">{r.category}</p>
-            <p className="mt-2 text-sm text-slate-600">{r.justification}</p>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{r.justification}</p>
             <p className="mt-2 text-sm font-medium text-brand-700">→ {r.action}</p>
           </div>
         ))}

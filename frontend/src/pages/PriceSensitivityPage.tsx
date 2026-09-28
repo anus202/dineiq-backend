@@ -32,7 +32,7 @@ export function PriceSensitivityPage() {
         {items.data?.map((r) => (
           <div key={r.menu_item_id} className="card p-4">
             <div className="flex items-center justify-between gap-3">
-              <p className="font-medium text-ink">{r.menu_item_name}</p>
+              <p className="font-medium text-ink dark:text-white">{r.menu_item_name}</p>
               <Badge tone={r.elasticity_label.includes('Elastic') ? 'yellow' : r.elasticity_label.includes('Inelastic') ? 'green' : 'gray'}>
                 {r.elasticity_label}
               </Badge>

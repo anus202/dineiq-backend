@@ -21,7 +21,7 @@ export function CustomerSearch() {
       header: 'Customer',
       render: (c) => (
         <div>
-          <p className="font-medium text-ink">{c.Name}</p>
+          <p className="font-medium text-ink dark:text-white">{c.Name}</p>
           <p className="text-xs text-slate-400">#{c.Id}</p>
         </div>
       ),
@@ -77,15 +77,15 @@ function CustomerProfileModal({ customer, onClose }: { customer: Customer | null
           ['Avg order', detail.data && money(detail.data.Stats.AverageOrderValue)],
           ['Points', customer && count(customer.LoyaltyPoints)],
         ].map(([label, value]) => (
-          <div key={label as string} className="rounded-xl bg-slate-50 p-3">
+          <div key={label as string} className="rounded-xl bg-slate-50 dark:bg-slate-800 p-3">
             <p className="text-xs text-slate-500">{label}</p>
-            {value ? <p className="mt-1 font-semibold text-ink">{value}</p> : <ShimmerSkeleton className="mt-2 h-5 w-20" />}
+            {value ? <p className="mt-1 font-semibold text-ink dark:text-white">{value}</p> : <ShimmerSkeleton className="mt-2 h-5 w-20" />}
           </div>
         ))}
       </div>
 
-      <div className="mt-4 rounded-xl border border-slate-100 p-4">
-        <h4 className="mb-2 text-sm font-semibold text-ink">RFM analysis</h4>
+      <div className="mt-4 rounded-xl border border-slate-100 dark:border-slate-800 p-4">
+        <h4 className="mb-2 text-sm font-semibold text-ink dark:text-white">RFM analysis</h4>
         {rfm.loading ? (
           <ShimmerSkeleton className="h-10" />
         ) : rfm.error ? (
@@ -93,7 +93,7 @@ function CustomerProfileModal({ customer, onClose }: { customer: Customer | null
         ) : rfm.data ? (
           <div className="flex flex-wrap items-center gap-4 text-sm">
             <Badge tone="teal">{rfm.data.Segment}</Badge>
-            {rfm.data.RFMScore && <span className="font-mono text-ink">RFM {rfm.data.RFMScore}</span>}
+            {rfm.data.RFMScore && <span className="font-mono text-ink dark:text-white">RFM {rfm.data.RFMScore}</span>}
             <span className="text-slate-500">Recency: {rfm.data.RecencyDays ?? '—'} days</span>
             <span className="text-slate-500">Frequency: {rfm.data.Frequency}</span>
             <span className="text-slate-500">Monetary: {money(rfm.data.MonetaryValue)}</span>
@@ -101,18 +101,18 @@ function CustomerProfileModal({ customer, onClose }: { customer: Customer | null
         ) : null}
       </div>
 
-      <h4 className="mt-5 mb-2 text-sm font-semibold text-ink">Recent orders</h4>
+      <h4 className="mt-5 mb-2 text-sm font-semibold text-ink dark:text-white">Recent orders</h4>
       {detail.loading ? (
         <ShimmerSkeleton className="h-24" />
       ) : detail.data?.RecentOrders.length ? (
-        <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100">
+        <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100 dark:border-slate-800">
           {detail.data.RecentOrders.map((o) => (
             <li key={o.Id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-              <span className="font-mono text-xs text-slate-600">{o.OrderNumber}</span>
+              <span className="font-mono text-xs text-slate-600 dark:text-slate-300">{o.OrderNumber}</span>
               <span className="text-slate-500">{dateTime(o.OrderDate)}</span>
               <span className="text-slate-500">{o.OrderType}</span>
               <Badge tone={statusTone(o.Status)}>{o.Status}</Badge>
-              <span className="font-medium text-ink">{money(o.NetAmount)}</span>
+              <span className="font-medium text-ink dark:text-white">{money(o.NetAmount)}</span>
             </li>
           ))}
         </ul>

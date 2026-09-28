@@ -19,9 +19,9 @@ export function InvoiceReceipt({ invoice, onClose }: { invoice: Invoice | null; 
       }
     >
       {invoice && (
-        <div className="print-area font-mono text-xs text-slate-700">
+        <div className="print-area font-mono text-xs text-slate-700 dark:text-slate-300">
           <div className="text-center">
-            <p className="text-base font-bold text-ink">{invoice.RestaurantName}</p>
+            <p className="text-base font-bold text-ink dark:text-white">{invoice.RestaurantName}</p>
             <p>{invoice.InvoiceNumber}</p>
             <p>{dateTime(invoice.PaidAt)}</p>
           </div>

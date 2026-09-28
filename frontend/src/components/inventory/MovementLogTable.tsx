@@ -18,8 +18,8 @@ export function MovementLogTable({ refreshKey }: { refreshKey: number }) {
   )
 
   const columns: Column<StockMovement>[] = [
-    { key: 'when', header: 'When', render: (m) => <span className="whitespace-nowrap text-slate-600">{dateTime(m.ChangedAt)}</span> },
-    { key: 'item', header: 'Item', render: (m) => <span className="font-medium text-ink">{m.ItemName}</span> },
+    { key: 'when', header: 'When', render: (m) => <span className="whitespace-nowrap text-slate-600 dark:text-slate-300">{dateTime(m.ChangedAt)}</span> },
+    { key: 'item', header: 'Item', render: (m) => <span className="font-medium text-ink dark:text-white">{m.ItemName}</span> },
     { key: 'type', header: 'Movement', render: (m) => <Badge tone={statusTone(m.MovementType)}>{m.MovementType.replace('_', ' ')}</Badge> },
     {
       key: 'change',
@@ -32,7 +32,7 @@ export function MovementLogTable({ refreshKey }: { refreshKey: number }) {
       key: 'reason',
       header: 'Reason',
       render: (m) => (
-        <span className="text-slate-600">
+        <span className="text-slate-600 dark:text-slate-300">
           {m.Reason}
           {m.OrderNumber && <span className="ml-1 font-mono text-xs text-slate-400">{m.OrderNumber}</span>}
         </span>

@@ -75,7 +75,7 @@ export function RecipeBuilderBody({ inventory, onSaved }: Props) {
       <div className="grid gap-5 md:grid-cols-5">
         <div className="md:col-span-2">
           <input className="field-input mb-2" placeholder="Filter menu items…" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filter menu items" />
-          <div className="max-h-96 overflow-y-auto rounded-xl border border-slate-200">
+          <div className="max-h-96 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700">
             {menu.loading ? (
               <div className="space-y-2 p-3">
                 {Array.from({ length: 8 }, (_, i) => (
@@ -100,7 +100,7 @@ export function RecipeBuilderBody({ inventory, onSaved }: Props) {
         <div className="md:col-span-3">
           {menuItem && (
             <div className="mb-3">
-              <p className="font-semibold text-ink">{menuItem.Name}</p>
+              <p className="font-semibold text-ink dark:text-white">{menuItem.Name}</p>
               <p className="text-xs text-slate-500">
                 Sells at {money(menuItem.Price)} · menu cost {money(menuItem.Cost)} · ingredient cost from this recipe <b>{money(ingredientCost)}</b>
               </p>
@@ -111,7 +111,7 @@ export function RecipeBuilderBody({ inventory, onSaved }: Props) {
             <ShimmerSkeleton className="h-40" rounded="rounded-xl" />
           ) : (
             <div className="space-y-2">
-              {lines.length === 0 && <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No recipe yet: completing an order of this dish uses no stock.</p>}
+              {lines.length === 0 && <p className="rounded-xl bg-slate-50 dark:bg-slate-800 px-4 py-6 text-center text-sm text-slate-500">No recipe yet: completing an order of this dish uses no stock.</p>}
               {lines.map((line, index) => {
                 const unit = byId.get(line.InventoryItemId)?.Unit
                 return (
@@ -155,7 +155,7 @@ export function RecipeBuilderBody({ inventory, onSaved }: Props) {
           )}
         </div>
       </div>
-      <div className="mt-6 flex justify-end border-t border-slate-100 pt-4">
+      <div className="mt-6 flex justify-end border-t border-slate-100 dark:border-slate-800 pt-4">
         <Button onClick={save} loading={saving} disabled={!menuItemId || invalid || loadingRecipe}>
           Save recipe
         </Button>

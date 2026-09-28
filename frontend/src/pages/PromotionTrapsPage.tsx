@@ -41,7 +41,7 @@ export function PromotionTrapsPage() {
         {traps.data?.map((t, idx) => (
           <div key={idx} className="card p-4">
             <div className="mb-1 flex items-center justify-between gap-3">
-              <p className="font-medium text-ink">
+              <p className="font-medium text-ink dark:text-white">
                 {t.promotion_name} — {t.menu_item_name}
               </p>
               <Badge tone={priorityTone(t.severity)}>{t.severity}</Badge>

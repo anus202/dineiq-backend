@@ -29,7 +29,7 @@ export function BranchOverviewPage() {
       </div>
 
       <div className="mt-8">
-        <h2 className="mb-1 text-lg font-semibold text-ink">Channel mix</h2>
+        <h2 className="mb-1 text-lg font-semibold text-ink dark:text-white">Channel mix</h2>
         <p className="mb-4 text-sm text-slate-500">Orders and revenue split by Dine-in / Takeaway / Delivery</p>
         {mix.error && <ErrorBanner message={mix.error} onRetry={mix.reload} />}
         {mix.loading && !mix.data && <ShimmerSkeleton className="h-64" rounded="rounded-2xl" />}
@@ -43,8 +43,8 @@ export function BranchOverviewPage() {
             {mix.data.Channels.map((c) => (
               <div key={c.Channel} className="card p-5">
                 <p className="text-sm font-medium text-slate-500">{c.Channel}</p>
-                <p className="mt-2 text-2xl font-semibold text-ink">{count(c.OrderCount)} orders</p>
-                <p className="mt-1 text-sm text-slate-600">{money(c.Revenue)} revenue</p>
+                <p className="mt-2 text-2xl font-semibold text-ink dark:text-white">{count(c.OrderCount)} orders</p>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{money(c.Revenue)} revenue</p>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
                   <div className="h-full rounded-full bg-brand-500" style={{ width: `${c.SharePercentage}%` }} />
                 </div>

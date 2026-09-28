@@ -24,18 +24,18 @@ function ClassifierCard({ title, metrics, isBest }: { title: string; metrics: Cl
   return (
     <div className={`rounded-xl border p-4 ${isBest ? 'border-brand-400 bg-brand-50/50' : 'border-slate-200 bg-white'}`}>
       <div className="mb-2 flex items-center justify-between">
-        <p className="font-medium text-ink">{title}</p>
+        <p className="font-medium text-ink dark:text-white">{title}</p>
         {isBest && <Badge tone="green">Selected</Badge>}
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
         <span className="text-slate-500">Accuracy</span>
-        <span className="text-right font-medium text-ink">{pct(metrics.accuracy)}</span>
+        <span className="text-right font-medium text-ink dark:text-white">{pct(metrics.accuracy)}</span>
         <span className="text-slate-500">Macro F1</span>
-        <span className="text-right font-medium text-ink">{metrics.macro_f1.toFixed(3)}</span>
+        <span className="text-right font-medium text-ink dark:text-white">{metrics.macro_f1.toFixed(3)}</span>
         <span className="text-slate-500">Weighted Precision</span>
-        <span className="text-right text-ink">{pct(metrics.weighted_precision)}</span>
+        <span className="text-right text-ink dark:text-white">{pct(metrics.weighted_precision)}</span>
         <span className="text-slate-500">Weighted Recall</span>
-        <span className="text-right text-ink">{pct(metrics.weighted_recall)}</span>
+        <span className="text-right text-ink dark:text-white">{pct(metrics.weighted_recall)}</span>
       </div>
       <p className="mt-2 text-xs text-slate-400">{splitLabel(metrics.train_rows, metrics.test_rows)}</p>
     </div>
@@ -44,15 +44,15 @@ function ClassifierCard({ title, metrics, isBest }: { title: string; metrics: Cl
 
 function RegressorCard({ title, metrics, extra }: { title: string; metrics: RegressorMetrics; extra?: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <p className="mb-2 font-medium text-ink">{title}</p>
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white p-4">
+      <p className="mb-2 font-medium text-ink dark:text-white">{title}</p>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
         <span className="text-slate-500">MAE</span>
-        <span className="text-right font-medium text-ink">{metrics.mae.toFixed(2)}</span>
+        <span className="text-right font-medium text-ink dark:text-white">{metrics.mae.toFixed(2)}</span>
         <span className="text-slate-500">RMSE</span>
-        <span className="text-right text-ink">{metrics.rmse.toFixed(2)}</span>
+        <span className="text-right text-ink dark:text-white">{metrics.rmse.toFixed(2)}</span>
         <span className="text-slate-500">MAPE</span>
-        <span className="text-right text-ink">{metrics.mape_percent.toFixed(1)}%</span>
+        <span className="text-right text-ink dark:text-white">{metrics.mape_percent.toFixed(1)}%</span>
         {metrics.improvement_over_baseline_percent !== undefined && (
           <>
             <span className="text-slate-500">vs. naive baseline</span>
@@ -74,7 +74,7 @@ export function DualPipelineComparisonPage() {
   const data = result.data
 
   const menuComparisonColumns: Column<MenuClassComparisonRecord>[] = [
-    { key: 'item', header: 'Menu Item', render: (r) => <span className="font-medium text-ink">{r.menu_item_name}</span> },
+    { key: 'item', header: 'Menu Item', render: (r) => <span className="font-medium text-ink dark:text-white">{r.menu_item_name}</span> },
     { key: 'actual', header: 'Actual', render: (r) => r.actual_class },
     { key: 'spark', header: 'Spark Prediction', render: (r) => r.spark_prediction },
     { key: 'python', header: 'Python Prediction', render: (r) => r.xgboost_prediction },
@@ -88,7 +88,7 @@ export function DualPipelineComparisonPage() {
   ]
 
   const demandComparisonColumns: Column<DemandForecastComparisonRecord>[] = [
-    { key: 'item', header: 'Menu Item', render: (r) => <span className="font-medium text-ink">{r.menu_item_name}</span> },
+    { key: 'item', header: 'Menu Item', render: (r) => <span className="font-medium text-ink dark:text-white">{r.menu_item_name}</span> },
     { key: 'month', header: 'Month', render: (r) => r.year_month },
     { key: 'actual', header: 'Actual Qty', align: 'right', render: (r) => r.actual_next_month_quantity.toFixed(0), sortValue: (r) => r.actual_next_month_quantity },
     { key: 'spark', header: 'Spark Prediction', align: 'right', render: (r) => r.spark_prediction.toFixed(1), sortValue: (r) => r.spark_prediction },
@@ -135,7 +135,7 @@ export function DualPipelineComparisonPage() {
 
           <div className="grid gap-6 lg:grid-cols-2">
             <section>
-              <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-ink">
+              <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-ink dark:text-white">
                 <span aria-hidden="true">⚡</span> PySpark + MLlib Pipeline
               </h2>
               <p className="mb-3 text-xs text-slate-500">
@@ -157,7 +157,7 @@ export function DualPipelineComparisonPage() {
             </section>
 
             <section>
-              <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-ink">
+              <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-ink dark:text-white">
                 <span aria-hidden="true">🐍</span> Python + Scikit-learn / XGBoost Pipeline
               </h2>
               <p className="mb-3 text-xs text-slate-500">Independent pandas/scikit-learn preprocessing and split, XGBoost estimators.</p>
@@ -170,7 +170,7 @@ export function DualPipelineComparisonPage() {
             </section>
           </div>
 
-          <h2 className="mt-8 mb-3 text-lg font-semibold text-ink">Menu performance: record-by-record agreement</h2>
+          <h2 className="mt-8 mb-3 text-lg font-semibold text-ink dark:text-white">Menu performance: record-by-record agreement</h2>
           <p className="mb-3 text-sm text-slate-500">
             Spark accuracy vs. actual: <b>{data.comparison.menu_performance_classification.spark_accuracy_vs_actual.toFixed(1)}%</b> · Python accuracy
             vs. actual: <b>{data.comparison.menu_performance_classification.xgboost_accuracy_vs_actual.toFixed(1)}%</b> ·{' '}
@@ -189,7 +189,7 @@ export function DualPipelineComparisonPage() {
             />
           </div>
 
-          <h2 className="mb-3 text-lg font-semibold text-ink">Demand forecast: record-by-record agreement</h2>
+          <h2 className="mb-3 text-lg font-semibold text-ink dark:text-white">Demand forecast: record-by-record agreement</h2>
           <p className="mb-3 text-sm text-slate-500">
             Mean absolute difference between the two pipelines:{' '}
             <b>{data.comparison.demand_forecast_regression.mean_absolute_difference.toFixed(1)} units</b> ·{' '}

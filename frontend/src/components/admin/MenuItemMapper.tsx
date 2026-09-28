@@ -46,7 +46,7 @@ export function MenuItemMapper() {
       header: 'Menu item',
       render: (m) => (
         <div>
-          <p className="font-medium text-ink">{m.Name}</p>
+          <p className="font-medium text-ink dark:text-white">{m.Name}</p>
           <p className="text-xs text-slate-400">#{m.Id}</p>
         </div>
       ),

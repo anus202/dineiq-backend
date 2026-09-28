@@ -44,7 +44,7 @@ export function FloorPlan({ tables, loading, onSelect }: Props) {
             aria-label={`Table ${table.TableNumber}, ${table.Status.toLowerCase()}`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-lg font-semibold text-ink">{table.TableNumber}</span>
+              <span className="text-lg font-semibold text-ink dark:text-white">{table.TableNumber}</span>
               <Badge tone={statusTone(table.Status)} dot>
                 {table.Status}
               </Badge>
@@ -55,7 +55,7 @@ export function FloorPlan({ tables, loading, onSelect }: Props) {
                 <span key={i} className={`h-2.5 w-2.5 rounded-full ${i < pax ? 'bg-sky-500' : 'bg-slate-300/80'}`} />
               ))}
             </div>
-            <p className="mt-2 text-xs text-slate-600">
+            <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
               Pax <b>{pax}</b> / {table.Capacity} seats
             </p>
             {seated ? (

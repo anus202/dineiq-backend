@@ -13,7 +13,7 @@ function anomalyTone(type: string) {
 }
 
 const columns: Column<RatingAnomalyItem>[] = [
-  { key: 'item', header: 'Menu Item', render: (a) => <span className="font-medium text-ink">{a.menu_item_name}</span>, sortValue: (a) => a.menu_item_name },
+  { key: 'item', header: 'Menu Item', render: (a) => <span className="font-medium text-ink dark:text-white">{a.menu_item_name}</span>, sortValue: (a) => a.menu_item_name },
   { key: 'date', header: 'Date', render: (a) => a.date, sortValue: (a) => a.date },
   { key: 'type', header: 'Type', render: (a) => <Badge tone={anomalyTone(a.anomaly_type)}>{a.anomaly_type.replace('_', ' ')}</Badge>, sortValue: (a) => a.anomaly_type },
   { key: 'count', header: 'Ratings', align: 'right', render: (a) => a.rating_count, sortValue: (a) => a.rating_count },

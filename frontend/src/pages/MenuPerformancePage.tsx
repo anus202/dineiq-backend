@@ -44,7 +44,7 @@ function MenuPerformanceContent() {
   )
 
   const columns: Column<MenuQuadrantItem>[] = [
-    { key: 'name', header: 'Item', render: (i) => <span className="font-medium text-ink">{i.MenuItemName}</span> },
+    { key: 'name', header: 'Item', render: (i) => <span className="font-medium text-ink dark:text-white">{i.MenuItemName}</span> },
     { key: 'category', header: 'Category', render: (i) => i.CategoryName },
     { key: 'qty', header: 'Qty Sold', align: 'right', render: (i) => i.QuantitySold, sortValue: (i) => i.QuantitySold },
     { key: 'revenue', header: 'Revenue', align: 'right', render: (i) => money(i.Revenue), sortValue: (i) => i.Revenue },

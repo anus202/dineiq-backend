@@ -60,7 +60,7 @@ export function CategoryManager() {
 
   const columns: Column<Category>[] = [
     { key: 'id', header: 'ID', render: (c) => <span className="text-slate-400">#{c.Id}</span>, sortValue: (c) => c.Id },
-    { key: 'name', header: 'Category', render: (c) => <span className="font-medium text-ink">{c.Name}</span>, sortValue: (c) => c.Name },
+    { key: 'name', header: 'Category', render: (c) => <span className="font-medium text-ink dark:text-white">{c.Name}</span>, sortValue: (c) => c.Name },
     { key: 'created', header: 'Created', render: (c) => dateOnly(c.CreatedAt), sortValue: (c) => c.CreatedAt },
     {
       key: 'actions',

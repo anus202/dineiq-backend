@@ -38,7 +38,7 @@ export function MarketBasketPage() {
       <div className="space-y-3">
         {rules.data?.map((r, idx) => (
           <div key={idx} className="card p-4">
-            <p className="font-medium text-ink">
+            <p className="font-medium text-ink dark:text-white">
               {r.antecedent.join(', ')} → {r.consequent.join(', ')}
             </p>
             <p className="mt-1 text-sm text-slate-500">

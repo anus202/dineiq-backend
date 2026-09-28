@@ -48,7 +48,7 @@ function RatingForm({ orderId, menuItemId, itemName, onSubmitted }: { orderId: n
     )
   }
   return (
-    <div className="mt-2 space-y-2 rounded-xl bg-slate-50 p-3">
+    <div className="mt-2 space-y-2 rounded-xl bg-slate-50 dark:bg-slate-800 p-3">
       <Stars value={score} onChange={setScore} />
       <TextAreaField label="Comment (optional)" value={comment} maxLength={500} onChange={(e) => setComment(e.target.value)} placeholder="What did you think?" />
       <div className="flex gap-2">
@@ -83,7 +83,7 @@ export function RatingsFeedbackPage() {
         {completed.map((order) => (
           <div key={order.Id} className="card p-5">
             <div className="mb-3 flex items-center justify-between">
-              <p className="font-mono text-sm font-medium text-ink">{order.OrderNumber}</p>
+              <p className="font-mono text-sm font-medium text-ink dark:text-white">{order.OrderNumber}</p>
               <p className="text-xs text-slate-500">{dateOnly(order.OrderDate)}</p>
             </div>
             <div className="divide-y divide-slate-100">
@@ -92,7 +92,7 @@ export function RatingsFeedbackPage() {
                 return (
                   <div key={line.Id} className="py-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-ink">{line.MenuItemName}</span>
+                      <span className="text-sm text-ink dark:text-white">{line.MenuItemName}</span>
                       {ratedKeys.has(key) ? (
                         <span className="text-xs font-medium text-emerald-600">✓ Rated</span>
                       ) : (
@@ -109,12 +109,12 @@ export function RatingsFeedbackPage() {
 
       {(myRatings.data?.Items.length ?? 0) > 0 && (
         <>
-          <h2 className="mt-8 mb-3 text-lg font-semibold text-ink">Your past ratings</h2>
+          <h2 className="mt-8 mb-3 text-lg font-semibold text-ink dark:text-white">Your past ratings</h2>
           <div className="space-y-2">
             {myRatings.data!.Items.map((r) => (
               <div key={r.Id} className="card flex items-center justify-between p-4">
                 <div>
-                  <p className="font-medium text-ink">{r.MenuItemName}</p>
+                  <p className="font-medium text-ink dark:text-white">{r.MenuItemName}</p>
                   {r.Comment && <p className="text-sm text-slate-500">{r.Comment}</p>}
                 </div>
                 <span className="text-amber-500">{'★'.repeat(r.Score)}{'☆'.repeat(5 - r.Score)}</span>

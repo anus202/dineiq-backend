@@ -13,7 +13,7 @@ function riskTone(label: string) {
 }
 
 const demandColumns: Column<DemandForecastItem>[] = [
-  { key: 'name', header: 'Menu Item', render: (d) => <span className="font-medium text-ink">{d.MenuItemName}</span>, sortValue: (d) => d.MenuItemName },
+  { key: 'name', header: 'Menu Item', render: (d) => <span className="font-medium text-ink dark:text-white">{d.MenuItemName}</span>, sortValue: (d) => d.MenuItemName },
   { key: 'current', header: 'This Month', align: 'right', render: (d) => d.CurrentMonthQuantity.toLocaleString(), sortValue: (d) => d.CurrentMonthQuantity },
   { key: 'predicted', header: 'Predicted Next Month', align: 'right', render: (d) => d.PredictedNextMonthQuantity.toLocaleString(), sortValue: (d) => d.PredictedNextMonthQuantity },
   {
@@ -28,7 +28,7 @@ const demandColumns: Column<DemandForecastItem>[] = [
 ]
 
 const wastageColumns: Column<WastageRiskItem>[] = [
-  { key: 'name', header: 'Menu Item', render: (w) => <span className="font-medium text-ink">{w.MenuItemName}</span>, sortValue: (w) => w.MenuItemName },
+  { key: 'name', header: 'Menu Item', render: (w) => <span className="font-medium text-ink dark:text-white">{w.MenuItemName}</span>, sortValue: (w) => w.MenuItemName },
   {
     key: 'risk',
     header: 'Risk Level',
@@ -51,7 +51,7 @@ export function ForecastDashboardPage() {
         subtitle="Live predictions from the trained demand-forecast and wastage-risk regressors — historical vs. projected, not a simple statistical average"
       />
 
-      <h2 className="mb-3 text-lg font-semibold text-ink">Next-month demand forecast</h2>
+      <h2 className="mb-3 text-lg font-semibold text-ink dark:text-white">Next-month demand forecast</h2>
       <div className="mb-4 flex justify-end">
         <ExportButtons<DemandForecastItem>
           filename="demand_forecast"
@@ -75,7 +75,7 @@ export function ForecastDashboardPage() {
         emptyTitle="No forecast data yet"
       />
 
-      <h2 className="mt-8 mb-3 text-lg font-semibold text-ink">Predicted wastage risk</h2>
+      <h2 className="mt-8 mb-3 text-lg font-semibold text-ink dark:text-white">Predicted wastage risk</h2>
       <div className="mb-4 flex justify-end">
         <ExportButtons<WastageRiskItem>
           filename="wastage_risk"

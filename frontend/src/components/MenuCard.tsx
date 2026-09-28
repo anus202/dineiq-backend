@@ -46,17 +46,17 @@ export function MenuCard({ item, isFavorite, onToggleFavorite, quantityInCart = 
           disabled={favoriteBusy}
           aria-pressed={isFavorite}
           aria-label={isFavorite ? `Remove ${item.Name} from favorites` : `Add ${item.Name} to favorites`}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 transition hover:bg-white disabled:opacity-60"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 transition hover:bg-white disabled:opacity-60"
         >
           <Heart className={`h-4 w-4 transition-colors ${isFavorite ? 'fill-rose-500 text-rose-500' : 'fill-transparent text-slate-300'}`} strokeWidth={2} />
         </button>
       </div>
 
-      <h3 className="mt-1.5 font-semibold text-ink leading-snug">{item.Name}</h3>
+      <h3 className="mt-1.5 font-semibold text-ink dark:text-white leading-snug">{item.Name}</h3>
       {item.Description && <p className="mt-1 line-clamp-2 text-sm text-slate-500">{item.Description}</p>}
       {!item.IsAvailable && <p className="mt-1 text-xs font-medium text-rose-500">Currently unavailable</p>}
 
-      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+      <div className="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-3">
         <span className="text-sm font-semibold text-brand-700">{money(item.Price)}</span>
 
         {showCartControl &&
@@ -70,21 +70,21 @@ export function MenuCard({ item, isFavorite, onToggleFavorite, quantityInCart = 
               Add
             </button>
           ) : (
-            <div className="inline-flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1">
+            <div className="inline-flex items-center gap-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-1">
               <button
                 type="button"
                 onClick={() => onDecrement?.(item)}
                 aria-label={`Remove one ${item.Name}`}
-                className="flex h-6 w-6 items-center justify-center rounded-md text-slate-600 transition hover:bg-white hover:text-rose-600"
+                className="flex h-6 w-6 items-center justify-center rounded-md text-slate-600 dark:text-slate-300 transition hover:bg-white hover:text-rose-600"
               >
                 <Minus className="h-3.5 w-3.5" />
               </button>
-              <span className="w-4 text-center text-sm font-semibold text-ink">{quantityInCart}</span>
+              <span className="w-4 text-center text-sm font-semibold text-ink dark:text-white">{quantityInCart}</span>
               <button
                 type="button"
                 onClick={() => onIncrement?.(item)}
                 aria-label={`Add one more ${item.Name}`}
-                className="flex h-6 w-6 items-center justify-center rounded-md text-slate-600 transition hover:bg-white hover:text-brand-700"
+                className="flex h-6 w-6 items-center justify-center rounded-md text-slate-600 dark:text-slate-300 transition hover:bg-white hover:text-brand-700"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>

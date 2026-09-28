@@ -34,8 +34,8 @@ export function RestaurantBranchesView() {
 
   const columns: Column<RestaurantBranch>[] = [
     { key: 'id', header: 'Branch ID', render: (b) => <span className="text-slate-400">#{b.Id}</span>, sortValue: (b) => b.Id },
-    { key: 'name', header: 'Branch Name', render: (b) => <span className="font-medium text-ink">{b.BranchName}</span>, sortValue: (b) => b.BranchName },
-    { key: 'address', header: 'Location / Address', render: (b) => <span className="text-slate-600">{b.Address}, {b.City}</span> },
+    { key: 'name', header: 'Branch Name', render: (b) => <span className="font-medium text-ink dark:text-white">{b.BranchName}</span>, sortValue: (b) => b.BranchName },
+    { key: 'address', header: 'Location / Address', render: (b) => <span className="text-slate-600 dark:text-slate-300">{b.Address}, {b.City}</span> },
     { key: 'manager', header: 'Manager Assigned', render: (b) => b.ManagerName ?? <span className="text-slate-400">Unassigned</span> },
     {
       key: 'status',

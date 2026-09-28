@@ -119,12 +119,12 @@ export function SettlementDrawer({ orderId, onClose, onSettled, onCancelled }: P
           <div>
             {o.Customer ? (
               <p className="text-sm">
-                <span className="font-medium text-ink">{o.Customer.CustomerName}</span> <span className="text-slate-500">{o.Customer.Phone}</span>
+                <span className="font-medium text-ink dark:text-white">{o.Customer.CustomerName}</span> <span className="text-slate-500">{o.Customer.Phone}</span>
               </p>
             ) : (
               <Badge>Walk-in customer</Badge>
             )}
-            <ul className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-100 text-sm">
+            <ul className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-100 dark:border-slate-800 text-sm">
               {o.items.map((l) => (
                 <li key={l.Id} className="flex justify-between px-3 py-2">
                   <span>
@@ -182,7 +182,7 @@ export function SettlementDrawer({ orderId, onClose, onSettled, onCancelled }: P
             </div>
           )}
 
-          <div className="rounded-2xl bg-slate-50 p-4 text-sm">
+          <div className="rounded-2xl bg-slate-50 dark:bg-slate-800 p-4 text-sm">
             {preview.error && <p className="mb-2 text-rose-600">{preview.error}</p>}
             {!bill ? (
               <ShimmerSkeleton className="h-28" />

@@ -62,14 +62,14 @@ export function DemandForecastPage() {
             </div>
           </div>
 
-          <h2 className="mb-3 text-lg font-semibold text-ink">Stocking recommendations</h2>
+          <h2 className="mb-3 text-lg font-semibold text-ink dark:text-white">Stocking recommendations</h2>
           {f.Recommendations.length === 0 && (
             <p className="text-sm text-slate-500">Not enough order or recipe data yet to project ingredient stocking needs.</p>
           )}
           <div className="space-y-3">
             {f.Recommendations.map((r, idx) => (
               <div key={idx} className="card p-4">
-                <p className="font-medium text-ink">
+                <p className="font-medium text-ink dark:text-white">
                   {r.ItemName}: prep <b>{r.RecommendedPrepQuantity} {r.Unit}</b>
                 </p>
                 <p className="mt-1 text-sm text-slate-500">{r.Reasoning}</p>

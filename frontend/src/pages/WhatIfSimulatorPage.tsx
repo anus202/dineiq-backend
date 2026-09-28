@@ -167,23 +167,23 @@ export function WhatIfSimulatorPage() {
           </div>
 
           <div className="card mt-6 p-5">
-            <h2 className="mb-3 text-lg font-semibold text-ink">{result.menu_item_name}</h2>
+            <h2 className="mb-3 text-lg font-semibold text-ink dark:text-white">{result.menu_item_name}</h2>
             <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
               <div>
                 <p className="text-slate-500">Current price</p>
-                <p className="font-medium text-ink">{money(result.current_price)}</p>
+                <p className="font-medium text-ink dark:text-white">{money(result.current_price)}</p>
               </div>
               <div>
                 <p className="text-slate-500">Projected price</p>
-                <p className="font-medium text-ink">{money(result.projected_price)}</p>
+                <p className="font-medium text-ink dark:text-white">{money(result.projected_price)}</p>
               </div>
               <div>
                 <p className="text-slate-500">Current margin</p>
-                <p className="font-medium text-ink">{result.current_margin_percent.toFixed(1)}%</p>
+                <p className="font-medium text-ink dark:text-white">{result.current_margin_percent.toFixed(1)}%</p>
               </div>
               <div>
                 <p className="text-slate-500">Projected margin</p>
-                <p className="font-medium text-ink">{result.projected_margin_percent.toFixed(1)}%</p>
+                <p className="font-medium text-ink dark:text-white">{result.projected_margin_percent.toFixed(1)}%</p>
               </div>
             </div>
           </div>

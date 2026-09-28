@@ -18,24 +18,24 @@ export function LoyaltyProgress({ me }: { me: CustomerMe }) {
   return (
     <div className="card p-5">
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-100 p-4">
+        <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-4">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-base text-brand-700">{emoji}</span>
           <p className="mt-2.5 text-[11px] font-semibold tracking-wide text-slate-400 uppercase">Your tier</p>
-          <p className="mt-0.5 text-xl font-bold text-ink">{me.TierStatus.Tier}</p>
+          <p className="mt-0.5 text-xl font-bold text-ink dark:text-white">{me.TierStatus.Tier}</p>
           <span className="mt-1 inline-block rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold text-brand-700">{me.TierStatus.DiscountPercentage}% off every bill</span>
         </div>
-        <div className="rounded-xl border border-slate-100 p-4">
+        <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-4">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-base text-amber-700">★</span>
           <p className="mt-2.5 text-[11px] font-semibold tracking-wide text-slate-400 uppercase">Points balance</p>
-          <motion.p className="mt-0.5 text-xl font-bold text-ink" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.p className="mt-0.5 text-xl font-bold text-ink dark:text-white" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
             {count(me.LoyaltyPoints)}
           </motion.p>
           <p className="mt-1 text-xs text-slate-500">worth {money(me.PointsValue)}</p>
         </div>
-        <div className="rounded-xl border border-slate-100 p-4">
+        <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-4">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-base text-sky-700">→</span>
           <p className="mt-2.5 text-[11px] font-semibold tracking-wide text-slate-400 uppercase">Next tier</p>
-          <p className="mt-0.5 text-xl font-bold text-ink">{me.TierStatus.NextTier ?? 'Top tier'}</p>
+          <p className="mt-0.5 text-xl font-bold text-ink dark:text-white">{me.TierStatus.NextTier ?? 'Top tier'}</p>
           <p className="mt-1 text-xs text-slate-500">
             {me.TierStatus.NextTier ? `${count(me.TierStatus.PointsToNextTier ?? 0)} points to go` : `Stay above ${count(top.MinPoints)} pts`}
           </p>
@@ -63,7 +63,7 @@ export function LoyaltyProgress({ me }: { me: CustomerMe }) {
         <div className="relative mt-3 h-10">
           {tiers.map((tier) => (
             <div key={tier.Name} className="absolute -translate-x-1/2 text-center" style={{ left: `${Math.max((tier.MinPoints / scaleMax) * 100, 4)}%` }}>
-              <p className="text-xs font-semibold text-ink">{tier.Name}</p>
+              <p className="text-xs font-semibold text-ink dark:text-white">{tier.Name}</p>
               <p className="text-[11px] text-slate-500">
                 {count(tier.MinPoints)}+ · {tier.DiscountPercentage}%
               </p>
