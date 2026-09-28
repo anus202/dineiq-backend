@@ -45,7 +45,7 @@ import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-route
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import { useGlobalRevalidating } from '../../hooks/useApi'
-import { NAV, NAV_GROUPS, roleLabel, type NavGroup } from '../../utils/roles'
+import { hasNavAccess, NAV, NAV_GROUPS, roleLabel, type NavGroup } from '../../utils/roles'
 import { Badge, ShimmerSkeleton } from '../ui'
 import { BranchSelector } from './BranchSelector'
 
@@ -403,9 +403,9 @@ export function AppLayout() {
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />
   const visibleGroups = NAV_GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter((item) => item.roles.includes(user.Role)),
+    items: group.items.filter((item) => hasNavAccess(user, item)),
   })).filter((group) => group.items.length > 0)
-  const links = NAV.filter((item) => item.roles.includes(user.Role))
+  const links = NAV.filter((item) => hasNavAccess(user, item))
   // A nav item should only highlight for an exact-path match when some other listed
   // route sits underneath it (e.g. "/inventory" vs. "/inventory/new-item") — otherwise
   // both would light up together.

@@ -27,7 +27,7 @@ def _not_found(category_id: int) -> HTTPException:
 async def create_category(
     payload: CategoryCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: Signup = Depends(require_roles(MENU_MANAGERS)),
+    current_user: Signup = Depends(require_roles(MENU_MANAGERS, extra_permission="CanAccessMenuManagement")),
 ):
     return await category_service.create(db, payload, current_user.Id)
 
@@ -50,7 +50,7 @@ async def update_category(
     id: int,
     payload: CategoryUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: Signup = Depends(require_roles(MENU_MANAGERS)),
+    current_user: Signup = Depends(require_roles(MENU_MANAGERS, extra_permission="CanAccessMenuManagement")),
 ):
     category = await category_service.update(db, id, payload, current_user.Id)
     if category is None:
@@ -62,7 +62,7 @@ async def update_category(
 async def delete_category(
     id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: Signup = Depends(require_roles(MENU_MANAGERS)),
+    current_user: Signup = Depends(require_roles(MENU_MANAGERS, extra_permission="CanAccessMenuManagement")),
 ):
     if not await category_service.delete(db, id, current_user.Id):
         raise _not_found(id)

@@ -70,7 +70,7 @@ async def top_performing(
 
 inventory_router = APIRouter(
     tags=["Inventory Dashboard"],
-    dependencies=[Depends(require_roles(STOCK_MANAGERS))],
+    dependencies=[Depends(require_roles(STOCK_MANAGERS, extra_permission="CanAccessInventory"))],
     responses={**UNAUTHORIZED, 403: {"description": "Requires INVENTORY_MANAGER or ADMIN"}},
 )
 
@@ -121,7 +121,7 @@ async def movement_logs(
 async def adjust_stock(
     payload: StockAdjustment,
     db: AsyncSession = Depends(get_db),
-    user: Signup = Depends(require_roles(STOCK_MANAGERS)),
+    user: Signup = Depends(require_roles(STOCK_MANAGERS, extra_permission="CanAccessInventory")),
 ):
     try:
         result = await inventory_service.adjust_stock(db, payload, user.Id, user.BranchId)

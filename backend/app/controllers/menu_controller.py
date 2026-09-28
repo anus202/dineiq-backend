@@ -42,7 +42,7 @@ def _bad_category(exc: CategoryNotFound) -> HTTPException:
 async def create_menu_item(
     payload: MenuItemCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: Signup = Depends(require_roles(MENU_MANAGERS)),
+    current_user: Signup = Depends(require_roles(MENU_MANAGERS, extra_permission="CanAccessMenuManagement")),
 ):
     try:
         item = await menu_service.create_menu_item(db, payload, current_user.Id)
@@ -85,7 +85,7 @@ async def update_menu_item(
     id: int,
     payload: MenuItemUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: Signup = Depends(require_roles(MENU_MANAGERS)),
+    current_user: Signup = Depends(require_roles(MENU_MANAGERS, extra_permission="CanAccessMenuManagement")),
 ):
     try:
         item = await menu_service.update_menu_item(db, id, payload, current_user.Id)
@@ -100,7 +100,7 @@ async def update_menu_item(
 async def delete_menu_item(
     id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: Signup = Depends(require_roles(MENU_MANAGERS)),
+    current_user: Signup = Depends(require_roles(MENU_MANAGERS, extra_permission="CanAccessMenuManagement")),
 ):
     if not await menu_service.delete_menu_item(db, id, current_user.Id):
         raise _not_found(id)

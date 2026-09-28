@@ -1,11 +1,23 @@
-import type { RoleName } from '../types/api'
+import type { RoleName, User } from '../types/api'
+
+/** One of tbl_Signup's per-account grant flags (the "System permissions" toggles on user
+ * creation) -- lets an admin hand one account extra module access without changing their
+ * role. */
+export type PermissionFlag = 'CanAccessInventory' | 'CanTriggerPipeline' | 'CanAccessMenuManagement' | 'CanAccessBranchAnalytics'
 
 export interface NavItem {
   to: string
   label: string
   icon: string
   roles: RoleName[]
+  /** Visible even to a role outside `roles`, if this flag is set on their account. */
+  permission?: PermissionFlag
 }
+
+/** True if `user` may see/open this nav item: either their role is listed, or the item's
+ * `permission` flag is granted on their account. */
+export const hasNavAccess = (user: Pick<User, 'Role'> & Partial<User>, item: NavItem): boolean =>
+  item.roles.includes(user.Role) || Boolean(item.permission && user[item.permission])
 
 export interface NavGroup {
   title: string
@@ -22,42 +34,66 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Branch Performance',
     items: [
-      { to: '/dashboard/restaurant-manager', label: 'Branch Overview', icon: '📈', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
-      { to: '/dashboard/restaurant-manager/menu-performance', label: 'Menu Performance', icon: '🍽', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
-      { to: '/dashboard/restaurant-manager/recommendations', label: 'Business Recommendations', icon: '💡', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
+      { to: '/dashboard/restaurant-manager', label: 'Branch Overview', icon: '📈', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'], permission: 'CanAccessBranchAnalytics' },
+      {
+        to: '/dashboard/restaurant-manager/menu-performance',
+        label: 'Menu Performance',
+        icon: '🍽',
+        roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'],
+        permission: 'CanAccessBranchAnalytics',
+      },
+      {
+        to: '/dashboard/restaurant-manager/recommendations',
+        label: 'Business Recommendations',
+        icon: '💡',
+        roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'],
+        permission: 'CanAccessBranchAnalytics',
+      },
     ],
   },
   {
     title: 'ML & Big Data Insights',
     items: [
-      { to: '/ml-insights/recommendations', label: 'ML Recommendations', icon: '🧠', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
-      { to: '/ml-insights/market-basket', label: 'Market Basket Analysis', icon: '🛒', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
-      { to: '/ml-insights/price-sensitivity', label: 'Price Sensitivity', icon: '💲', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
-      { to: '/ml-insights/promotion-traps', label: 'Promotion Traps', icon: '⚠', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
-      { to: '/ml-insights/churn-risk', label: 'Customer Churn Risk', icon: '📉', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
-      { to: '/ml-insights/rating-anomalies', label: 'Rating Anomaly Detection', icon: '🚩', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
-      { to: '/ml-insights/slow-moving-dishes', label: 'Slow-Moving Dishes', icon: '🐌', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
-      { to: '/ml-insights/forecast-dashboard', label: 'Forecast & Wastage-Risk', icon: '📅', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER', 'INVENTORY_MANAGER'] },
-      { to: '/ml-insights/what-if', label: 'What-If Scenario Simulator', icon: '🎛', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
-      { to: '/ml-insights/dual-pipeline-comparison', label: 'Dual-Pipeline Comparison', icon: '⚖', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'] },
+      { to: '/ml-insights/recommendations', label: 'ML Recommendations', icon: '🧠', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'], permission: 'CanAccessBranchAnalytics' },
+      { to: '/ml-insights/market-basket', label: 'Market Basket Analysis', icon: '🛒', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'], permission: 'CanAccessBranchAnalytics' },
+      { to: '/ml-insights/price-sensitivity', label: 'Price Sensitivity', icon: '💲', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'], permission: 'CanAccessBranchAnalytics' },
+      { to: '/ml-insights/promotion-traps', label: 'Promotion Traps', icon: '⚠', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'], permission: 'CanAccessBranchAnalytics' },
+      { to: '/ml-insights/churn-risk', label: 'Customer Churn Risk', icon: '📉', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'], permission: 'CanAccessBranchAnalytics' },
+      { to: '/ml-insights/rating-anomalies', label: 'Rating Anomaly Detection', icon: '🚩', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'], permission: 'CanAccessBranchAnalytics' },
+      { to: '/ml-insights/slow-moving-dishes', label: 'Slow-Moving Dishes', icon: '🐌', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'], permission: 'CanAccessBranchAnalytics' },
+      {
+        to: '/ml-insights/forecast-dashboard',
+        label: 'Forecast & Wastage-Risk',
+        icon: '📅',
+        roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER', 'INVENTORY_MANAGER'],
+        permission: 'CanAccessBranchAnalytics',
+      },
+      { to: '/ml-insights/what-if', label: 'What-If Scenario Simulator', icon: '🎛', roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'], permission: 'CanAccessBranchAnalytics' },
+      {
+        to: '/ml-insights/dual-pipeline-comparison',
+        label: 'Dual-Pipeline Comparison',
+        icon: '⚖',
+        roles: ['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER'],
+        permission: 'CanAccessBranchAnalytics',
+      },
     ],
   },
   {
     title: 'Inventory & Stock Management',
     items: [
-      { to: '/inventory', label: 'Inventory Dashboard', icon: '▤', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'] },
-      { to: '/inventory/adjust-stock', label: 'Stock Adjustment', icon: '±', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'] },
-      { to: '/inventory/recipes', label: 'Recipe Builder', icon: '🍳', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'] },
-      { to: '/inventory/movement-log', label: 'Stock Movement Log', icon: '📋', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'] },
-      { to: '/dashboard/inventory-manager/wastage', label: 'Wastage Analytics', icon: '🗑', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'] },
-      { to: '/dashboard/inventory-manager/demand-forecast', label: 'Demand Forecast', icon: '📦', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'] },
+      { to: '/inventory', label: 'Inventory Dashboard', icon: '▤', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'], permission: 'CanAccessInventory' },
+      { to: '/inventory/adjust-stock', label: 'Stock Adjustment', icon: '±', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'], permission: 'CanAccessInventory' },
+      { to: '/inventory/recipes', label: 'Recipe Builder', icon: '🍳', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'], permission: 'CanAccessInventory' },
+      { to: '/inventory/movement-log', label: 'Stock Movement Log', icon: '📋', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'], permission: 'CanAccessInventory' },
+      { to: '/dashboard/inventory-manager/wastage', label: 'Wastage Analytics', icon: '🗑', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'], permission: 'CanAccessInventory' },
+      { to: '/dashboard/inventory-manager/demand-forecast', label: 'Demand Forecast', icon: '📦', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER'], permission: 'CanAccessInventory' },
     ],
   },
   {
     title: 'Menu & Category Management',
     items: [
-      { to: '/admin/categories', label: 'Category Management', icon: '🗂', roles: ['SUPER_ADMIN', 'ADMIN'] },
-      { to: '/admin/menu-mapper', label: 'Menu Item Mapper', icon: '🍽', roles: ['SUPER_ADMIN', 'ADMIN'] },
+      { to: '/admin/categories', label: 'Category Management', icon: '🗂', roles: ['SUPER_ADMIN', 'ADMIN'], permission: 'CanAccessMenuManagement' },
+      { to: '/admin/menu-mapper', label: 'Menu Item Mapper', icon: '🍽', roles: ['SUPER_ADMIN', 'ADMIN'], permission: 'CanAccessMenuManagement' },
     ],
   },
   {

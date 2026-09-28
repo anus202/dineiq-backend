@@ -27,7 +27,7 @@ router = APIRouter(prefix="/api/v1/dashboard", tags=["Branch Analytics"], respon
 
 @router.get(
     "/restaurant-manager/overview",
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Sales & profitability overview for a branch (Restaurant Manager)",
 )
 async def restaurant_manager_overview(
@@ -42,7 +42,7 @@ async def restaurant_manager_overview(
 @router.get(
     "/restaurant-manager/channel-mix",
     response_model=ChannelMixResponse,
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Order channel mix (Dine-in / Takeaway / Delivery) for a branch",
 )
 async def restaurant_manager_channel_mix(
@@ -57,7 +57,7 @@ async def restaurant_manager_channel_mix(
 @router.get(
     "/restaurant-manager/menu-quadrants",
     response_model=MenuQuadrantResponse,
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Menu performance quadrants: Profit Driver / Volume Driver / Hidden Opportunity / Low Performer",
 )
 async def restaurant_manager_menu_quadrants(
@@ -73,7 +73,7 @@ async def restaurant_manager_menu_quadrants(
 @router.get(
     "/restaurant-manager/recommendations",
     response_model=list[BusinessRecommendation],
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Evidence-backed recommendations for a branch",
 )
 async def restaurant_manager_recommendations(
@@ -88,7 +88,7 @@ async def restaurant_manager_recommendations(
 @router.get(
     "/restaurant-manager/branch-snapshot",
     response_model=BranchSnapshotResponse,
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Live snapshot for a branch: today's sales, recent orders, tables and stock alerts",
 )
 async def restaurant_manager_branch_snapshot(
@@ -100,7 +100,7 @@ async def restaurant_manager_branch_snapshot(
 
 @router.get(
     "/restaurant-manager/customer-rfm",
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Branch customer recency/frequency/monetary segmentation",
 )
 async def restaurant_manager_customer_rfm(
@@ -118,7 +118,7 @@ async def restaurant_manager_customer_rfm(
 @router.get(
     "/inventory-manager/wastage",
     response_model=WastageSummaryResponse,
-    dependencies=[Depends(require_roles(STOCK_MANAGERS))],
+    dependencies=[Depends(require_roles(STOCK_MANAGERS, extra_permission="CanAccessInventory"))],
     summary="Wastage analytics by ingredient and reason for a branch",
 )
 async def inventory_manager_wastage(
@@ -134,7 +134,7 @@ async def inventory_manager_wastage(
 @router.get(
     "/inventory-manager/demand-forecast",
     response_model=DemandForecastResponse,
-    dependencies=[Depends(require_roles(STOCK_MANAGERS))],
+    dependencies=[Depends(require_roles(STOCK_MANAGERS, extra_permission="CanAccessInventory"))],
     summary="Simple hourly demand pattern and stocking recommendations for a branch",
 )
 async def inventory_manager_demand_forecast(

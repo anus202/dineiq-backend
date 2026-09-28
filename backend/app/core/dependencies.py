@@ -57,11 +57,17 @@ async def get_current_user(
     return user
 
 
-def require_roles(roles: Iterable[RoleName | str], *, allow_super_admin: bool = True) -> Callable:
+def require_roles(roles: Iterable[RoleName | str], *, allow_super_admin: bool = True, extra_permission: Optional[str] = None) -> Callable:
     """Dependency: 401 without a valid token, 403 unless the user has one of `roles`.
 
     SUPER_ADMIN passes every check unless allow_super_admin=False (used for the customer
     portal, which needs the caller's own customer profile).
+
+    `extra_permission`, when given, is the name of one of tbl_Signup's per-account grant
+    flags (CanAccessInventory, CanTriggerPipeline, CanAccessMenuManagement,
+    CanAccessBranchAnalytics -- see the "System permissions" toggles on user creation): a
+    user whose role isn't in `roles` still passes if that flag is set on their account,
+    letting an admin hand one manager extra module access without changing their role.
 
         @router.get("/x", dependencies=[Depends(require_roles([RoleName.ADMIN]))])
         async def x(user: Signup = Depends(require_roles(["ADMIN", "CASHIER"]))): ...
@@ -72,12 +78,14 @@ def require_roles(roles: Iterable[RoleName | str], *, allow_super_admin: bool = 
     label = ", ".join(sorted(allowed))
 
     async def dependency(user: Signup = Depends(get_current_user)) -> Signup:
-        if user.Role.Name not in allowed:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Requires one of these roles: {label} (you are {user.Role.Name})",
-            )
-        return user
+        if user.Role.Name in allowed:
+            return user
+        if extra_permission and getattr(user, extra_permission, False):
+            return user
+        detail = f"Requires one of these roles: {label} (you are {user.Role.Name})"
+        if extra_permission:
+            detail += f", or {extra_permission}=true on your account"
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
 
     return dependency
 

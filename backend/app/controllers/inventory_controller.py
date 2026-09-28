@@ -28,7 +28,7 @@ from app.services.inventory_service import (
 router = APIRouter(
     prefix="/api/v1/inventory",
     tags=["Inventory"],
-    dependencies=[Depends(require_roles(STOCK_MANAGERS))],
+    dependencies=[Depends(require_roles(STOCK_MANAGERS, extra_permission="CanAccessInventory"))],
     responses={401: {"description": "Missing, invalid or expired token"}, 403: {"description": "Your role can't use this endpoint"}},
 )
 

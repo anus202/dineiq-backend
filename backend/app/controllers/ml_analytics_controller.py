@@ -29,7 +29,7 @@ router = APIRouter(
 @router.get(
     "/market-basket",
     response_model=list[MarketBasketRule],
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Market-basket association rules (Support / Confidence / Lift) from the analytics pipeline",
 )
 async def market_basket():
@@ -42,7 +42,7 @@ async def market_basket():
 @router.get(
     "/price-sensitivity",
     response_model=list[PriceSensitivityItem],
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Per-item price elasticity classification from the analytics pipeline",
 )
 async def price_sensitivity():
@@ -55,7 +55,7 @@ async def price_sensitivity():
 @router.get(
     "/promotion-traps",
     response_model=list[PromotionTrapItem],
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Promotions that grew volume while destroying margin",
 )
 async def promotion_traps():
@@ -68,7 +68,7 @@ async def promotion_traps():
 @router.get(
     "/recommendations",
     response_model=list[MLRecommendation],
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Evidence-backed recommendations combining menu, wastage, basket and pricing analysis",
 )
 async def ml_recommendations():
@@ -80,7 +80,7 @@ async def ml_recommendations():
 
 @router.get(
     "/dual-pipeline-comparison",
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Spark MLlib vs Python/XGBoost: model-selection metrics for each pipeline and their agreement on unseen records",
 )
 async def dual_pipeline_comparison():
@@ -93,7 +93,7 @@ async def dual_pipeline_comparison():
 @router.get(
     "/churn-risk",
     response_model=ChurnRiskResponse,
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Customers scored by the trained XGBoost churn-risk classifier, from live order data",
 )
 async def churn_risk(limit: int = Query(50, ge=1, le=1000), db: AsyncSession = Depends(get_db)):
@@ -106,7 +106,7 @@ async def churn_risk(limit: int = Query(50, ge=1, le=1000), db: AsyncSession = D
 @router.post(
     "/what-if",
     response_model=WhatIfResponse,
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Project revenue/profit/volume impact of a price change and/or discount on a menu item",
 )
 async def what_if(payload: WhatIfRequest, db: AsyncSession = Depends(get_db)):
@@ -126,7 +126,7 @@ async def what_if(payload: WhatIfRequest, db: AsyncSession = Depends(get_db)):
 @router.get(
     "/rating-anomalies",
     response_model=list[RatingAnomalyItem],
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Unusual rating patterns: sudden spikes/drops, volume spikes, identical-score clusters",
 )
 async def rating_anomalies(db: AsyncSession = Depends(get_db)):
@@ -136,7 +136,7 @@ async def rating_anomalies(db: AsyncSession = Depends(get_db)):
 @router.get(
     "/slow-moving-dishes",
     response_model=list[SlowMovingDish],
-    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Dishes flagged by a combination of low volume, low frequency, recency gap, weak margin and declining trend",
 )
 async def slow_moving_dishes(db: AsyncSession = Depends(get_db)):
@@ -146,7 +146,7 @@ async def slow_moving_dishes(db: AsyncSession = Depends(get_db)):
 @router.get(
     "/wastage-risk",
     response_model=list[WastageRiskItem],
-    dependencies=[Depends(require_roles(FORECAST_VIEWERS))],
+    dependencies=[Depends(require_roles(FORECAST_VIEWERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Menu items scored by the trained wastage-risk regressor, from live sales/rating data",
 )
 async def wastage_risk(limit: int = Query(50, ge=1, le=500), db: AsyncSession = Depends(get_db)):
@@ -159,7 +159,7 @@ async def wastage_risk(limit: int = Query(50, ge=1, le=500), db: AsyncSession = 
 @router.get(
     "/demand-forecast",
     response_model=list[DemandForecastItem],
-    dependencies=[Depends(require_roles(FORECAST_VIEWERS))],
+    dependencies=[Depends(require_roles(FORECAST_VIEWERS, extra_permission="CanAccessBranchAnalytics"))],
     summary="Next-month quantity-sold projection per menu item from the trained demand regressor",
 )
 async def demand_forecast(limit: int = Query(50, ge=1, le=500), db: AsyncSession = Depends(get_db)):

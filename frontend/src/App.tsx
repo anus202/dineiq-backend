@@ -10,7 +10,7 @@ import { ThemeProvider } from './context/ThemeContext'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import type { RoleName } from './types/api'
-import { homeFor } from './utils/roles'
+import { homeFor, type PermissionFlag } from './utils/roles'
 
 // Each page is its own chunk: a cashier never downloads the admin charts.
 const AdminOverviewPage = lazy(() => import('./pages/AdminOverviewPage').then((m) => ({ default: m.AdminOverviewPage })))
@@ -48,9 +48,9 @@ const SlowMovingDishesPage = lazy(() => import('./pages/SlowMovingDishesPage').t
 const ForecastDashboardPage = lazy(() => import('./pages/ForecastDashboardPage').then((m) => ({ default: m.ForecastDashboardPage })))
 const DualPipelineComparisonPage = lazy(() => import('./pages/DualPipelineComparisonPage').then((m) => ({ default: m.DualPipelineComparisonPage })))
 
-function Page({ roles, children }: { roles: RoleName[]; children: ReactNode }) {
+function Page({ roles, permission, children }: { roles: RoleName[]; permission?: PermissionFlag; children: ReactNode }) {
   return (
-    <ProtectedRoute roles={roles}>
+    <ProtectedRoute roles={roles} permission={permission}>
       <Suspense fallback={<ShimmerSkeleton className="h-96" rounded="rounded-2xl" />}>{children}</Suspense>
     </ProtectedRoute>
   )
@@ -84,7 +84,7 @@ export default function App() {
               <Route
                 path="/admin/categories"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN']} permission="CanAccessMenuManagement">
                     <CategoryManagementPage />
                   </Page>
                 }
@@ -92,7 +92,7 @@ export default function App() {
               <Route
                 path="/admin/menu-mapper"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN']} permission="CanAccessMenuManagement">
                     <MenuItemMapperPage />
                   </Page>
                 }
@@ -132,7 +132,7 @@ export default function App() {
               <Route
                 path="/inventory"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER']} permission="CanAccessInventory">
                     <InventoryDashboard />
                   </Page>
                 }
@@ -140,7 +140,7 @@ export default function App() {
               <Route
                 path="/inventory/adjust-stock"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER']} permission="CanAccessInventory">
                     <StockAdjustmentPage />
                   </Page>
                 }
@@ -148,7 +148,7 @@ export default function App() {
               <Route
                 path="/inventory/recipes"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER']} permission="CanAccessInventory">
                     <RecipeBuilderPage />
                   </Page>
                 }
@@ -156,7 +156,7 @@ export default function App() {
               <Route
                 path="/inventory/movement-log"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER']} permission="CanAccessInventory">
                     <StockMovementLogPage />
                   </Page>
                 }
@@ -212,7 +212,7 @@ export default function App() {
               <Route
                 path="/dashboard/restaurant-manager"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']} permission="CanAccessBranchAnalytics">
                     <BranchOverviewPage />
                   </Page>
                 }
@@ -220,7 +220,7 @@ export default function App() {
               <Route
                 path="/dashboard/restaurant-manager/menu-performance"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']} permission="CanAccessBranchAnalytics">
                     <MenuPerformancePage />
                   </Page>
                 }
@@ -228,7 +228,7 @@ export default function App() {
               <Route
                 path="/dashboard/restaurant-manager/recommendations"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']} permission="CanAccessBranchAnalytics">
                     <BranchRecommendationsPage />
                   </Page>
                 }
@@ -236,7 +236,7 @@ export default function App() {
               <Route
                 path="/dashboard/inventory-manager/wastage"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER']} permission="CanAccessInventory">
                     <WastageAnalyticsPage />
                   </Page>
                 }
@@ -244,7 +244,7 @@ export default function App() {
               <Route
                 path="/dashboard/inventory-manager/demand-forecast"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'INVENTORY_MANAGER']} permission="CanAccessInventory">
                     <DemandForecastPage />
                   </Page>
                 }
@@ -268,7 +268,7 @@ export default function App() {
               <Route
                 path="/ml-insights/recommendations"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']} permission="CanAccessBranchAnalytics">
                     <MLRecommendationsPage />
                   </Page>
                 }
@@ -276,7 +276,7 @@ export default function App() {
               <Route
                 path="/ml-insights/market-basket"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']} permission="CanAccessBranchAnalytics">
                     <MarketBasketPage />
                   </Page>
                 }
@@ -284,7 +284,7 @@ export default function App() {
               <Route
                 path="/ml-insights/price-sensitivity"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']} permission="CanAccessBranchAnalytics">
                     <PriceSensitivityPage />
                   </Page>
                 }
@@ -292,7 +292,7 @@ export default function App() {
               <Route
                 path="/ml-insights/promotion-traps"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']} permission="CanAccessBranchAnalytics">
                     <PromotionTrapsPage />
                   </Page>
                 }
@@ -300,7 +300,7 @@ export default function App() {
               <Route
                 path="/ml-insights/churn-risk"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']} permission="CanAccessBranchAnalytics">
                     <ChurnRiskPage />
                   </Page>
                 }
@@ -308,7 +308,7 @@ export default function App() {
               <Route
                 path="/ml-insights/what-if"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']} permission="CanAccessBranchAnalytics">
                     <WhatIfSimulatorPage />
                   </Page>
                 }
@@ -316,7 +316,7 @@ export default function App() {
               <Route
                 path="/ml-insights/rating-anomalies"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']} permission="CanAccessBranchAnalytics">
                     <RatingAnomaliesPage />
                   </Page>
                 }
@@ -324,7 +324,7 @@ export default function App() {
               <Route
                 path="/ml-insights/slow-moving-dishes"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']} permission="CanAccessBranchAnalytics">
                     <SlowMovingDishesPage />
                   </Page>
                 }
@@ -332,7 +332,7 @@ export default function App() {
               <Route
                 path="/ml-insights/forecast-dashboard"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER', 'INVENTORY_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER', 'INVENTORY_MANAGER']} permission="CanAccessBranchAnalytics">
                     <ForecastDashboardPage />
                   </Page>
                 }
@@ -340,7 +340,7 @@ export default function App() {
               <Route
                 path="/ml-insights/dual-pipeline-comparison"
                 element={
-                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']}>
+                  <Page roles={['SUPER_ADMIN', 'ADMIN', 'RESTAURANT_MANAGER']} permission="CanAccessBranchAnalytics">
                     <DualPipelineComparisonPage />
                   </Page>
                 }
