@@ -9,7 +9,14 @@ const app = new Hono();
 
 // CORS
 app.use('*', cors({
-  origin: ['http://localhost:5173', 'https://frontend-c8y86zta5-software-engineer9.vercel.app'],
+  origin: [
+    'http://localhost:5173',
+    'https://frontend-c8y86zta5-software-engineer9.vercel.app',
+    'https://frontend-3tk8qa7lg-software-engineer9.vercel.app',
+    'https://frontend-3sqzt3r5x-software-engineer9.vercel.app',
+    'https://frontend-2dhlxow62-software-engineer9.vercel.app',
+    'https://frontend-rosy-nine-90.vercel.app',
+  ],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
