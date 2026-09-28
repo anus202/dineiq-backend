@@ -1,0 +1,21 @@
+-- Clears all data (schema stays) before the real SQL Server migration.
+DELETE FROM tbl_AuditLog;
+DELETE FROM tbl_Login;
+DELETE FROM Customer_Favorites;
+DELETE FROM tbl_Recipe;
+DELETE FROM tbl_StockMovementLog;
+DELETE FROM Wastage;
+DELETE FROM Ratings;
+DELETE FROM Promotions;
+DELETE FROM Pricing_History;
+DELETE FROM tbl_Payment;
+DELETE FROM Order_Items;
+DELETE FROM Orders;
+DELETE FROM Inventory;
+DELETE FROM tbl_DiningTable;
+DELETE FROM tbl_Signup;
+DELETE FROM Menu_Items;
+DELETE FROM Menu_Categories;
+DELETE FROM Customers;
+DELETE FROM Restaurants;
+DELETE FROM tbl_Role;
