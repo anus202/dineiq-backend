@@ -16,6 +16,7 @@ import {
   Flag,
   FolderTree,
   Globe,
+  House,
   LayoutDashboard,
   LayoutGrid,
   Lightbulb,
@@ -256,6 +257,22 @@ function ThemeToggle() {
   )
 }
 
+function HomeButton() {
+  return (
+    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="shrink-0">
+      <NavLink
+        to="/"
+        title="DineIQ home page"
+        aria-label="Go to the DineIQ home page"
+        className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 text-sm font-medium text-slate-600 transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-brand-800 dark:hover:bg-brand-900/40 dark:hover:text-teal-300"
+      >
+        <House className="h-4 w-4" />
+        <span className="hidden lg:inline">Home</span>
+      </NavLink>
+    </motion.div>
+  )
+}
+
 function SearchBox() {
   return (
     <label className="relative flex min-w-0 flex-1 items-center justify-center">
@@ -440,6 +457,7 @@ export function AppLayout() {
             <div className="max-w-[108px] lg:max-w-none [&_select]:w-full">
               <BranchSelector />
             </div>
+            <HomeButton />
             <ThemeToggle />
             <UserMenu />
           </div>

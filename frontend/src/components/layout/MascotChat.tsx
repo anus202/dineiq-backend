@@ -13,6 +13,7 @@ interface ChatMessage {
 const QUICK_PROMPTS = ['What is this page for?', 'How do I get started here?', 'What do these numbers mean?']
 
 function pageLabel(pathname: string): string {
+  if (pathname === '/') return 'DineIQ'
   if (pathname === '/login') return 'the login page'
   if (pathname === '/register') return 'the sign-up page'
   if (pathname.startsWith('/inventory')) return 'the inventory section'

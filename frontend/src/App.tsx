@@ -7,6 +7,7 @@ import { ShimmerSkeleton, ToastProvider } from './components/ui'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { BranchProvider } from './context/BranchContext'
 import { ThemeProvider } from './context/ThemeContext'
+import { LandingPage } from './pages/LandingPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import type { RoleName } from './types/api'
@@ -69,6 +70,7 @@ export default function App() {
         <AuthProvider>
           <BranchProvider>
           <Routes>
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route element={<AppLayout />}>

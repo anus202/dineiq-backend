@@ -308,6 +308,13 @@ export function AuthCardShell({ title, subtitle, children }: { title: string; su
     <div className="relative flex min-h-full items-center justify-center overflow-hidden px-4 py-10 sm:px-6">
       <AuthBackdrop />
 
+      <Link
+        to="/"
+        className="absolute top-5 left-5 z-10 inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-teal-50 backdrop-blur transition hover:bg-white/15 sm:top-6 sm:left-6"
+      >
+        <span aria-hidden>←</span> DineIQ home
+      </Link>
+
       <div className="relative w-full max-w-sm">
         <div
           className="absolute inset-0 rotate-[-2deg] translate-x-4 translate-y-5 rounded-[28px] border border-white/20 bg-white/5"
