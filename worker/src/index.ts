@@ -1,6 +1,14 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { sign as jwtSign, verify as jwtVerify } from 'hono/jwt';
+import bcrypt from 'bcryptjs';
+
+/** Verifies a password against a bcrypt hash (or plain text for legacy rows). */
+const verifyPassword = (plain: string, hash: string | null): boolean => {
+  if (!hash) return false;
+  return hash.startsWith('$2') ? bcrypt.compareSync(plain, hash) : plain === hash;
+};
+const hashPassword = (plain: string): string => bcrypt.hashSync(plain, 12);
 
 interface Env { DB: D1Database; JWT_SECRET: string; }
 
@@ -75,7 +83,7 @@ async function loadUser(db: D1Database, userId: number) {
 app.post('/api/auth/login', async (c) => {
   const { Email, Password } = await c.req.json();
   const user = await one(c.env.DB, 'SELECT * FROM tbl_Signup WHERE Email = ? AND IsActive = 1 AND IsDeleted = 0', Email);
-  if (!user || Password !== user.PasswordHash) {
+  if (!user || !verifyPassword(Password, user.PasswordHash)) {
     return c.json({ Success: false, Message: 'Invalid credentials', Token: null, TokenType: null, Data: null }, 401);
   }
   const token = await jwtSign({ userId: user.Id, roleId: user.RoleId, customerId: user.CustomerId, branchId: user.BranchId, exp: Math.floor(Date.now() / 1000) + 86400 }, c.env.JWT_SECRET);
@@ -89,7 +97,7 @@ app.post('/api/auth/signup', async (c) => {
   const role = await one(c.env.DB, "SELECT Id FROM tbl_Role WHERE Name = 'CUSTOMER'");
   const res = await run(c.env.DB,
     `INSERT INTO tbl_Signup (FullName, Email, PhoneNumber, PasswordHash, RoleId) VALUES (?, ?, ?, ?, ?)`,
-    d.FullName, d.Email, d.PhoneNumber ?? null, d.Password, role?.Id ?? 5);
+    d.FullName, d.Email, d.PhoneNumber ?? null, hashPassword(d.Password), role?.Id ?? 5);
   const id = Number(res.meta.last_row_id);
   const token = await jwtSign({ userId: id, roleId: role?.Id ?? 5, exp: Math.floor(Date.now() / 1000) + 86400 }, c.env.JWT_SECRET);
   return c.json({ Success: true, Message: 'Signup successful', Token: token, TokenType: 'Bearer', Data: await loadUser(c.env.DB, id) });
@@ -318,7 +326,7 @@ app.post('/api/users', async (c) => {
   const role = await one(c.env.DB, 'SELECT Id FROM tbl_Role WHERE Name = ?', d.Role);
   const res = await run(c.env.DB,
     `INSERT INTO tbl_Signup (FullName, Email, PhoneNumber, PasswordHash, RoleId, BranchId, CanAccessInventory, CanTriggerPipeline, CanAccessMenuManagement, CanAccessBranchAnalytics) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-    d.FullName, d.Email, d.PhoneNumber ?? null, d.Password, role?.Id ?? 5, d.BranchId ?? null,
+    d.FullName, d.Email, d.PhoneNumber ?? null, hashPassword(d.Password), role?.Id ?? 5, d.BranchId ?? null,
     d.CanAccessInventory ? 1 : 0, d.CanTriggerPipeline ? 1 : 0, d.CanAccessMenuManagement ? 1 : 0, d.CanAccessBranchAnalytics ? 1 : 0);
   return c.json(await loadUser(c.env.DB, Number(res.meta.last_row_id)));
 });
