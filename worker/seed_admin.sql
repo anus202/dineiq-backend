@@ -14,6 +14,14 @@ VALUES
   (3, 'Demo Inventory Manager', 'inventory@dineiq.demo', '0300-3333333', 'Demo@12345',
      (SELECT Id FROM tbl_Role WHERE Name = 'INVENTORY_MANAGER'), 1, 1, 0, 0, 0);
 
+INSERT OR IGNORE INTO tbl_DiningTable (Id, TableNumber, Capacity, Status) VALUES
+  (1, 'T1', 2, 'AVAILABLE'),
+  (2, 'T2', 4, 'AVAILABLE'),
+  (3, 'T3', 4, 'AVAILABLE'),
+  (4, 'T4', 6, 'AVAILABLE'),
+  (5, 'T5', 2, 'AVAILABLE'),
+  (6, 'T6', 8, 'AVAILABLE');
+
 -- Basic menu data so dashboards/POS have something to show.
 INSERT OR IGNORE INTO Menu_Categories (Id, Name) VALUES (1, 'Fast Food'), (2, 'Beverages');
 
