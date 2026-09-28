@@ -5,12 +5,10 @@ from pydantic import BaseModel, Field
 
 from app.schemas.common import MoneyTotal
 
-
 class DateRange(BaseModel):
     StartDate: Optional[date] = None
     EndDate: Optional[date] = None
     TimeZoneOffsetMinutes: int = Field(..., description="Dates and hours are in this offset from UTC")
-
 
 class OverviewResponse(BaseModel):
     Period: DateRange
@@ -27,7 +25,6 @@ class OverviewResponse(BaseModel):
     TotalGuests: int
     AverageSpendPerGuest: MoneyTotal = Field(..., description="GrossSales / TotalGuests")
 
-
 class HourlyBucket(BaseModel):
     Hour: int = Field(..., ge=0, le=23)
     Label: str = Field(..., examples=["13:00"])
@@ -37,14 +34,12 @@ class HourlyBucket(BaseModel):
     AverageOrderValue: MoneyTotal
     ShareOfOrdersPercentage: MoneyTotal
 
-
 class PeakHoursResponse(BaseModel):
     Period: DateRange
     Hours: List[HourlyBucket] = Field(..., description="Always 24 entries, 00:00 to 23:00 local time")
     BusiestHour: Optional[HourlyBucket] = None
     LunchPeak: Optional[HourlyBucket] = Field(None, description="Busiest hour between 11:00 and 15:59")
     DinnerPeak: Optional[HourlyBucket] = Field(None, description="Busiest hour between 18:00 and 23:59")
-
 
 class TopItem(BaseModel):
     Rank: int
@@ -56,12 +51,10 @@ class TopItem(BaseModel):
     OrdersContaining: int
     RevenueSharePercentage: MoneyTotal
 
-
 class TopItemsResponse(BaseModel):
     Period: DateRange
     TopByQuantity: List[TopItem]
     TopByRevenue: List[TopItem]
-
 
 class SegmentSummary(BaseModel):
     Segment: str
@@ -71,7 +64,6 @@ class SegmentSummary(BaseModel):
     AverageFrequency: MoneyTotal
     AverageMonetary: MoneyTotal
     ShareOfCustomersPercentage: MoneyTotal
-
 
 class RFMSegmentationResponse(BaseModel):
     AsOf: datetime
@@ -88,7 +80,6 @@ class RFMSegmentationResponse(BaseModel):
     WalkInRevenue: MoneyTotal
     WalkInShareOfOrdersPercentage: MoneyTotal
 
-
 class CustomerRFMResponse(BaseModel):
     CustomerId: int
     CustomerName: str
@@ -104,7 +95,6 @@ class CustomerRFMResponse(BaseModel):
     Segment: str
     LoyaltyPoints: int
 
-
 class HeatmapCell(BaseModel):
     DayOfWeek: int = Field(..., ge=0, le=6, description="0 = Monday ... 6 = Sunday")
     DayName: str
@@ -112,20 +102,17 @@ class HeatmapCell(BaseModel):
     Orders: int
     Revenue: MoneyTotal
 
-
 class HourlyHeatmapResponse(BaseModel):
     Period: DateRange
     Cells: List[HeatmapCell] = Field(..., description="Always 7 x 24 = 168 cells, zero-filled")
     MaxOrders: int
     BusiestSlot: Optional[HeatmapCell] = None
 
-
 class RFMMatrixCell(BaseModel):
     RScore: int
     Score: int = Field(..., description="F score (FrequencyMatrix) or M score (MonetaryMatrix)")
     Customers: int
     AverageMonetary: MoneyTotal
-
 
 class RFMMatrixResponse(BaseModel):
     AsOf: datetime

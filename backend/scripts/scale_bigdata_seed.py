@@ -1,19 +1,3 @@
-"""Scale the operational database to SRS Big-Data volumes.
-
-Targets (SRS Phase 2):
-  - Order_Items  >= 1,000,000 rows (order lines)
-  - Ratings        >=   100,000 rows
-  - Wastage >= 50,000 rows
-  - Promotions     seeded with a realistic set of campaigns
-
-Safe to run repeatedly: every section checks its current count against its target
-first and only inserts the shortfall. Ensures the schema (including the new
-Promotions table) exists by running the app's own init_db() before touching data,
-exactly like a normal app startup would.
-
-    cd backend
-    .venv\\Scripts\\python scripts\\scale_bigdata_seed.py
-"""
 import asyncio
 import os
 import random
@@ -28,9 +12,9 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-from app.db.init_db import init_db  # noqa: E402
-from app.db.sequences import ORDER_NUMBERS  # noqa: E402
-from app.db.session import engine  # noqa: E402
+from app.db.init_db import init_db
+from app.db.sequences import ORDER_NUMBERS
+from app.db.session import engine
 
 TARGET_ORDER_DETAILS = 1_000_000
 TARGET_RATINGS = 100_000
@@ -77,7 +61,6 @@ PROMOTIONS = [
     ("Rainy Day Delivery Discount", "Discount to encourage delivery on rainy days", 10),
 ]
 
-
 def sql():
     return pyodbc.connect(
         f"Driver={{{os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server')}}};Server={os.getenv('DB_SERVER', '.')};"
@@ -86,12 +69,10 @@ def sql():
         autocommit=False,
     )
 
-
 def random_datetime(start: datetime, end: datetime) -> datetime:
     delta = end - start
     seconds = random.uniform(0, delta.total_seconds())
     return start + timedelta(seconds=seconds)
-
 
 def scale_orders_and_lines(conn) -> None:
     cur = conn.cursor()
@@ -160,10 +141,6 @@ def scale_orders_and_lines(conn) -> None:
             orders_batch,
         )
 
-        # IDENT_CURRENT read *after* the insert: read before, IDENT_CURRENT returns the
-        # seed value (not 0) on a table with no rows yet, which is off by one on the very
-        # first batch and misassigns every Order_Items.OrderId in it (the last line ends
-        # up pointing at an order ID that was never inserted, failing the FK constraint).
         cur.execute("SELECT IDENT_CURRENT('dbo.Orders')")
         last_id = int(cur.fetchone()[0])
         start_id = last_id - len(orders_batch)
@@ -185,7 +162,6 @@ def scale_orders_and_lines(conn) -> None:
         print(f"  +{len(orders_batch):,} orders / +{len(detail_rows):,} lines (total new lines: {lines_inserted:,} / {shortfall:,})", flush=True)
 
     print("Orders / Order_Items scale-up complete.", flush=True)
-
 
 def scale_ratings(conn) -> None:
     cur = conn.cursor()
@@ -242,7 +218,6 @@ def scale_ratings(conn) -> None:
 
     print(f"Ratings scale-up complete: +{inserted:,} rows.", flush=True)
 
-
 def scale_wastage(conn) -> None:
     cur = conn.cursor()
     cur.fast_executemany = True
@@ -294,7 +269,6 @@ def scale_wastage(conn) -> None:
 
     print(f"Wastage scale-up complete: +{inserted:,} rows.", flush=True)
 
-
 def seed_promotions(conn) -> None:
     cur = conn.cursor()
     cur.fast_executemany = True
@@ -319,9 +293,7 @@ def seed_promotions(conn) -> None:
         end = start + timedelta(days=duration)
         menu_item_id = random.choice(menu_item_ids) if random.random() < 0.4 else None
         branch_id = random.choice(branch_ids) if random.random() < 0.3 else None
-        # Redeemable voucher code for the customer self-checkout "Apply" box: initials of
-        # the promotion name + its index, e.g. "Weekday Lunch Deal" -> WLD01. The index
-        # guarantees uniqueness even for two promotions whose names share initials.
+
         initials = "".join(word[0] for word in name.upper().split() if word[0].isalpha())
         code = f"{initials}{index:02d}"
         rows.append((name, description, discount, start, end, menu_item_id, branch_id, code))
@@ -334,17 +306,10 @@ def seed_promotions(conn) -> None:
     conn.commit()
     print(f"Promotions seeded: +{len(rows):,} campaigns.", flush=True)
 
-
 async def _resync_order_number_sequence() -> None:
-    # init_db() creates each year's SEQUENCE on the app's very first startup (typically
-    # against an empty Orders table, seeding it at 1) and never re-syncs an existing one.
-    # This script's bulk INSERT above writes OrderNumbers directly, bypassing that
-    # SEQUENCE entirely -- so without this, the sequence stays stuck near 1 and the very
-    # first order placed through the API after a scale-up collides with an already-used
-    # OrderNumber (a UNIQUE constraint violation). See db/sequences.py's resync() docstring.
+
     async with engine.connect() as conn:
         await ORDER_NUMBERS.resync(conn, date.today().year)
-
 
 def main() -> None:
     print("Ensuring schema is up to date (creates Promotions if missing)...", flush=True)
@@ -362,7 +327,6 @@ def main() -> None:
     print("Resyncing the order-number sequence past the scaled-up data...", flush=True)
     asyncio.run(_resync_order_number_sequence())
     print("Phase 2 scale-up complete.", flush=True)
-
 
 if __name__ == "__main__":
     main()

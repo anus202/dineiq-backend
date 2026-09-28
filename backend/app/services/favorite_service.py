@@ -3,25 +3,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import CustomerFavorite, MenuItem
 
-
 class MenuItemNotFound(Exception):
     def __init__(self, menu_item_id: int):
         super().__init__(f"Menu item {menu_item_id} does not exist")
-
 
 async def list_favorite_ids(db: AsyncSession, customer_id: int) -> list[int]:
     rows = await db.scalars(select(CustomerFavorite.MenuItemId).where(CustomerFavorite.CustomerId == customer_id))
     return list(rows)
 
-
 async def toggle_favorite(db: AsyncSession, customer_id: int, menu_item_id: int, user_id: int) -> bool:
-    """Adds the favorite if it doesn't exist, removes it if it does. Returns the new state
-    (True = now favorited). `user_id` is the acting Signup account (for CreatedBy/UpdatedBy),
-    distinct from `customer_id`, the linked Customer profile the favorite belongs to."""
     menu_item_exists = await db.scalar(
         select(MenuItem.Id).where(
             MenuItem.Id == menu_item_id,
-            MenuItem.IsDeleted == False,  # noqa: E712
+            MenuItem.IsDeleted == False,
         )
     )
     if menu_item_exists is None:

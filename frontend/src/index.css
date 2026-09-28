@@ -1,9 +1,5 @@
 @import 'tailwindcss';
 
-/* Class-based dark mode (Tailwind v4 doesn't read a JS config for this): `dark:` utility
- * classes anywhere in the app activate once <html> carries `.dark`, which ThemeContext
- * toggles -- see context/ThemeContext.tsx. This is the app's one and only theme
- * mechanism. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
@@ -38,9 +34,6 @@
   .field-input {
     @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-xs transition outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-brand-900/40 dark:disabled:bg-slate-900 dark:disabled:text-slate-600;
   }
-  /* Thin, near-invisible scrollbar for the sidebar's nav list -- it still scrolls (9
-     groups, several expanded, can exceed the viewport height), just without a bulky
-     default scrollbar track competing with the nav for attention. */
   .sidebar-scroll {
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;

@@ -1,16 +1,3 @@
-"""Bill settlement: discount rules, loyalty points and invoices.
-
-Discount rules, applied in order:
-  1. The order's own Discount (entered when the order was placed).
-  2. Loyalty tier discount for registered customers (config TIER_DISCOUNT_PERCENT:
-     Silver 0%, Gold 5%, Platinum 10% by default) on what's left.
-  3. Loyalty points redemption (LOYALTY_POINT_VALUE_PKR per point), up to the amount due.
-Points are earned on what cash / card actually paid (LOYALTY_POINTS_PER_100 per 100 PKR).
-
-The order's Discount and NetAmount are updated to include the tier discount, so revenue
-analytics match what the customer was charged. Points redemption is a way of paying,
-not a discount, so it stays in revenue.
-"""
 import math
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
@@ -39,23 +26,18 @@ from app.services.loyalty_service import tier_for
 
 ZERO = Decimal("0.00")
 
-
 class PaymentError(Exception):
-    """Base class for settlement failures the controller turns into HTTP errors."""
-
+    pass
 
 class OrderNotFound(PaymentError):
     def __init__(self, order_id: int):
         super().__init__(f"Order {order_id} not found")
 
-
 class OrderNotPayable(PaymentError):
-    """Already settled, completed or cancelled (409)."""
-
+    pass
 
 class InvalidPayment(PaymentError):
-    """The request can't pay this bill: not enough cash or points, no customer for points (400)."""
-
+    pass
 
 @dataclass
 class _Bill:
@@ -63,10 +45,8 @@ class _Bill:
     method: PaymentMethodEnum
     customer: Optional[Customer]
 
-
 def _money(value) -> Decimal:
     return Decimal(value).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
-
 
 async def _load_order(db: AsyncSession, order_id: int) -> Order:
     order = await db.scalar(
@@ -77,13 +57,12 @@ async def _load_order(db: AsyncSession, order_id: int) -> Order:
             selectinload(Order.Payment),
             selectinload(Order.items).selectinload(OrderDetail.MenuItem),
         )
-        .where(Order.Id == order_id, Order.IsDeleted == False)  # noqa: E712
+        .where(Order.Id == order_id, Order.IsDeleted == False)
         .execution_options(populate_existing=True)
     )
     if order is None:
         raise OrderNotFound(order_id)
     return order
-
 
 def _compute_bill(order: Order, payload: SettleRequest) -> _Bill:
     if order.Payment is not None:
@@ -122,7 +101,7 @@ def _compute_bill(order: Order, payload: SettleRequest) -> _Bill:
             raise InvalidPayment(f"AmountTendered {payload.AmountTendered} is less than the {payable} payable")
         tendered = _money(payload.AmountTendered)
     else:
-        tendered = payable  # Card charges the exact amount; points leave nothing to pay
+        tendered = payable
     earned = int(payable // 100) * LOYALTY_POINTS_PER_100 if customer else 0
 
     return _Bill(
@@ -146,21 +125,18 @@ def _compute_bill(order: Order, payload: SettleRequest) -> _Bill:
         customer=customer,
     )
 
-
 async def preview(db: AsyncSession, payload: SettleRequest) -> PaymentPreviewResponse:
-    """The bill as settle would compute it, without saving anything."""
     order = await _load_order(db, payload.OrderId)
     bill = _compute_bill(order, payload)
     return PaymentPreviewResponse(
         OrderId=order.Id, OrderNumber=order.OrderNumber, PaymentMethod=bill.method.value, Bill=bill.breakdown
     )
 
-
 async def settle(db: AsyncSession, payload: SettleRequest, cashier: Signup) -> InvoiceResponse:
-    # A plain int: rollbacks (in ensure() or a deadlock retry) expire ORM objects like `cashier`.
+
     cashier_id = cashier.Id
     year = utc_now().year
-    # First, because it may commit / roll back: only creates a sequence on a new year.
+
     await INVOICE_NUMBERS.ensure(db, year)
 
     async def once() -> InvoiceResponse:
@@ -168,8 +144,6 @@ async def settle(db: AsyncSession, payload: SettleRequest, cashier: Signup) -> I
         bill = _compute_bill(order, payload)
         b = bill.breakdown
 
-        # Completes the order (conditional, so a concurrent settle / cancel can't also win),
-        # deducts its ingredients and frees its table, all in this transaction.
         alerts = await order_service.apply_status_change(
             db,
             order.Id,
@@ -181,7 +155,7 @@ async def settle(db: AsyncSession, payload: SettleRequest, cashier: Signup) -> I
         )
 
         if bill.customer is not None and (b.PointsRedeemed or b.PointsEarned):
-            # Atomic and guarded: two bills can't spend the same points.
+
             new_balance = await db.scalar(
                 update(Customer)
                 .where(Customer.Id == bill.customer.Id, Customer.LoyaltyPoints >= b.PointsRedeemed)
@@ -230,7 +204,6 @@ async def settle(db: AsyncSession, payload: SettleRequest, cashier: Signup) -> I
         return invoice
 
     return await order_service.run_with_deadlock_retry(db, once)
-
 
 async def get_invoice(db: AsyncSession, invoice_number: str) -> Optional[InvoiceResponse]:
     row = (

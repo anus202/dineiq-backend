@@ -7,7 +7,6 @@ interface ExportButtonsProps<T> {
   columns: ExportColumn<T>[]
 }
 
-/** Two small buttons that export the given tabular data as CSV or Excel (.xlsx). */
 export function ExportButtons<T>({ filename, data, columns }: ExportButtonsProps<T>) {
   const disabled = !data || data.length === 0
 

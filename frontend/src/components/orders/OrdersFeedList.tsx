@@ -5,8 +5,6 @@ import type { Order, OrderType } from '../../types/api'
 
 const typeIcon: Record<OrderType, string> = { 'Dine-in': '🍽', Takeaway: '🥡', Delivery: '🛵' }
 
-/** The animated order-list body shared by the admin and branch-manager "recent activity"
- * panels -- each caller supplies its own header/title and real order list. */
 export function OrdersFeedList({ orders, loading }: { orders: Order[]; loading: boolean }) {
   if (loading && orders.length === 0) {
     return (

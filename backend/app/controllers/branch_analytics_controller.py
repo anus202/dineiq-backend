@@ -21,10 +21,6 @@ from app.services import analytics_service, branch_analytics_service
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["Branch Analytics"], responses={401: {"description": "Missing, invalid or expired token"}})
 
-
-# --- Restaurant Manager (own branch) / Admin (any branch or all) ------------------------
-
-
 @router.get(
     "/restaurant-manager/overview",
     dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
@@ -37,7 +33,6 @@ async def restaurant_manager_overview(
     db: AsyncSession = Depends(get_db),
 ):
     return await analytics_service.get_overview(db, start_date, end_date, branch_id)
-
 
 @router.get(
     "/restaurant-manager/channel-mix",
@@ -52,7 +47,6 @@ async def restaurant_manager_channel_mix(
     db: AsyncSession = Depends(get_db),
 ):
     return await branch_analytics_service.get_channel_mix(db, start_date, end_date, branch_id)
-
 
 @router.get(
     "/restaurant-manager/menu-quadrants",
@@ -69,7 +63,6 @@ async def restaurant_manager_menu_quadrants(
 ):
     return await branch_analytics_service.get_menu_quadrants(db, start_date, end_date, branch_id, refresh)
 
-
 @router.get(
     "/restaurant-manager/recommendations",
     response_model=list[BusinessRecommendation],
@@ -84,7 +77,6 @@ async def restaurant_manager_recommendations(
 ):
     return await branch_analytics_service.get_recommendations(db, start_date, end_date, branch_id)
 
-
 @router.get(
     "/restaurant-manager/branch-snapshot",
     response_model=BranchSnapshotResponse,
@@ -97,7 +89,6 @@ async def restaurant_manager_branch_snapshot(
 ):
     return await branch_analytics_service.get_branch_snapshot(db, branch_id)
 
-
 @router.get(
     "/restaurant-manager/customer-rfm",
     dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
@@ -107,13 +98,8 @@ async def restaurant_manager_customer_rfm(
     branch_id: Optional[int] = Depends(branch_scope()),
     db: AsyncSession = Depends(get_db),
 ):
-    # RFM segmentation is currently system-wide (see analytics_service._scored_customers);
-    # this endpoint is a placeholder for branch-scoped RFM until that query is branch-aware.
+
     return await analytics_service.get_rfm_segmentation(db, None)
-
-
-# --- Inventory Manager (own branch) / Admin -----------------------------------------------
-
 
 @router.get(
     "/inventory-manager/wastage",
@@ -130,7 +116,6 @@ async def inventory_manager_wastage(
 ):
     return await branch_analytics_service.get_wastage_summary(db, start_date, end_date, branch_id, refresh)
 
-
 @router.get(
     "/inventory-manager/demand-forecast",
     response_model=DemandForecastResponse,
@@ -144,10 +129,6 @@ async def inventory_manager_demand_forecast(
 ):
     return await branch_analytics_service.get_demand_forecast(db, branch_id, days)
 
-
-# --- Administrator (global) ---------------------------------------------------------------
-
-
 @router.get(
     "/admin/branch-comparison",
     response_model=BranchComparisonResponse,
@@ -160,7 +141,6 @@ async def admin_branch_comparison(
     db: AsyncSession = Depends(get_db),
 ):
     return await branch_analytics_service.get_branch_comparison(db, start_date, end_date)
-
 
 @router.get(
     "/admin/anomalies",

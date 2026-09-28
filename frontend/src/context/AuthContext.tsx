@@ -5,7 +5,7 @@ import type { User } from '../types/api'
 
 interface AuthState {
   user: User | null
-  /** True until a stored token has been checked against /auth/me. */
+
   restoring: boolean
   login: (email: string, password: string) => Promise<User>
   logout: () => void
@@ -17,7 +17,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [restoring, setRestoring] = useState(() => tokenStore.get() !== null)
 
-  // Resume a session from a stored token.
   useEffect(() => {
     if (!tokenStore.get()) return
     authApi
@@ -27,7 +26,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setRestoring(false))
   }, [])
 
-  // Any 401 from the API (expired token, deactivated account) signs the user out.
   useEffect(() => onSessionExpired(() => setUser(null)), [])
 
   const login = useCallback(async (email: string, password: string) => {

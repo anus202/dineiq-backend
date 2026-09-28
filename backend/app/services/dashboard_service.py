@@ -1,5 +1,3 @@
-"""Role-specific dashboards. Aggregation happens in SQL Server; days and months are local
-business time (BUSINESS_UTC_OFFSET_MINUTES), like the analytics endpoints."""
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Optional
@@ -34,44 +32,32 @@ PENDING = OrderStatusEnum.PENDING.value
 CANCELLED = OrderStatusEnum.CANCELLED.value
 OFFSET = timedelta(minutes=BUSINESS_UTC_OFFSET_MINUTES)
 
-
 def _money(value) -> Decimal:
     return Decimal(value or 0).quantize(Decimal("0.01"))
-
 
 def _local_today() -> date:
     return (utc_now() + OFFSET).date()
 
-
 def _utc_start_of(local_day: date) -> datetime:
     return datetime.combine(local_day, time.min) - OFFSET
 
-
 def _local(column):
-    # Offset inlined (trusted int from config) so SELECT and GROUP BY render identically.
+
     return func.dateadd(literal_column("minute"), literal_column(str(int(BUSINESS_UTC_OFFSET_MINUTES))), column)
 
-
-# --- Admin -----------------------------------------------------------------------------
-
-# "Today at a glance" changes with every order, so its TTL is short -- long enough to
-# absorb repeat dashboard visits/navigation without ever showing a cold multi-second load,
-# short enough that it never looks stale during a shift.
 _ADMIN_SUMMARY_TTL_SECONDS = 60
 _DASHBOARD_TTL_SECONDS = 300
 _admin_summary_cache = TTLCache()
 _revenue_chart_cache = TTLCache()
 _top_performing_cache = TTLCache()
 
-
 async def admin_summary(db: AsyncSession) -> AdminSummaryResponse:
     return await _admin_summary_cache.get_or_set((), _ADMIN_SUMMARY_TTL_SECONDS, lambda: _admin_summary_uncached(db))
-
 
 async def _admin_summary_uncached(db: AsyncSession) -> AdminSummaryResponse:
     today = _local_today()
     start, end = _utc_start_of(today), _utc_start_of(today + timedelta(days=1))
-    not_deleted = Order.IsDeleted == False  # noqa: E712
+    not_deleted = Order.IsDeleted == False
     today_row = (
         await db.execute(
             select(
@@ -88,7 +74,7 @@ async def _admin_summary_uncached(db: AsyncSession) -> AdminSummaryResponse:
         (
             await db.execute(
                 select(DiningTable.Status, func.count())
-                .where(DiningTable.IsDeleted == False)  # noqa: E712
+                .where(DiningTable.IsDeleted == False)
                 .group_by(DiningTable.Status)
             )
         ).all()
@@ -98,7 +84,7 @@ async def _admin_summary_uncached(db: AsyncSession) -> AdminSummaryResponse:
             select(
                 func.sum(case((InventoryItem.CurrentStock <= InventoryItem.ReorderLevel, 1), else_=0)),
                 func.sum(case((InventoryItem.CurrentStock <= 0, 1), else_=0)),
-            ).where(InventoryItem.IsDeleted == False)  # noqa: E712
+            ).where(InventoryItem.IsDeleted == False)
         )
     ).one()
     return AdminSummaryResponse(
@@ -116,29 +102,24 @@ async def _admin_summary_uncached(db: AsyncSession) -> AdminSummaryResponse:
         OutOfStockItems=stock[1] or 0,
     )
 
-
 def _month_key(d: date) -> str:
     return f"{d.year:04d}-{d.month:02d}"
 
-
 def _months_back(today: date, months: int) -> list[date]:
-    """First day of each of the last `months` months, oldest first, ending with this month."""
     firsts, year, month = [], today.year, today.month
     for _ in range(months):
         firsts.append(date(year, month, 1))
         year, month = (year, month - 1) if month > 1 else (year - 1, 12)
     return list(reversed(firsts))
 
-
 async def revenue_chart(db: AsyncSession, days: int, months: int) -> RevenueChartResponse:
     return await _revenue_chart_cache.get_or_set(
         (days, months), _DASHBOARD_TTL_SECONDS, lambda: _revenue_chart_uncached(db, days, months)
     )
 
-
 async def _revenue_chart_uncached(db: AsyncSession, days: int, months: int) -> RevenueChartResponse:
     today = _local_today()
-    completed = [Order.IsDeleted == False, Order.Status == COMPLETED]  # noqa: E712
+    completed = [Order.IsDeleted == False, Order.Status == COMPLETED]
 
     first_day = today - timedelta(days=days - 1)
     local_date = cast(_local(Order.OrderDate), Date)
@@ -183,12 +164,10 @@ async def _revenue_chart_uncached(db: AsyncSession, days: int, months: int) -> R
         ],
     )
 
-
 async def admin_top_performing(db: AsyncSession, days: int, segments: int) -> AdminTopPerformingResponse:
     return await _top_performing_cache.get_or_set(
         (days, segments), _DASHBOARD_TTL_SECONDS, lambda: _admin_top_performing_uncached(db, days, segments)
     )
-
 
 async def _admin_top_performing_uncached(db: AsyncSession, days: int, segments: int) -> AdminTopPerformingResponse:
     start = _local_today() - timedelta(days=days - 1)
@@ -199,10 +178,6 @@ async def _admin_top_performing_uncached(db: AsyncSession, days: int, segments: 
         TopItems=top.TopByRevenue,
         TopSpendingSegments=sorted(rfm.Segments, key=lambda s: s.Revenue, reverse=True)[:segments],
     )
-
-
-# --- Customer portal -------------------------------------------------------------------
-
 
 async def customer_me(db: AsyncSession, customer: Customer) -> CustomerMeResponse:
     stats, _ = await customer_service.get_customer_history(db, customer.Id)
@@ -228,7 +203,6 @@ async def customer_me(db: AsyncSession, customer: Customer) -> CustomerMeRespons
         LastOrderDate=stats.LastOrderDate,
     )
 
-
 def _tracking_status(order: Order) -> str:
     if order.Status == CANCELLED:
         return "Cancelled"
@@ -238,9 +212,8 @@ def _tracking_status(order: Order) -> str:
         return f"Being served at table {order.Table.TableNumber}"
     return {"Delivery": "Preparing for delivery", "Takeaway": "Preparing for pickup"}.get(order.OrderType, "Order received")
 
-
 async def my_orders(db: AsyncSession, customer_id: int, skip: int, limit: int, open_only: Optional[bool]) -> MyOrdersResponse:
-    filters = [Order.CustomerId == customer_id, Order.IsDeleted == False]  # noqa: E712
+    filters = [Order.CustomerId == customer_id, Order.IsDeleted == False]
     if open_only is True:
         filters.append(Order.Status == PENDING)
     elif open_only is False:
@@ -255,7 +228,7 @@ async def my_orders(db: AsyncSession, customer_id: int, skip: int, limit: int, o
             selectinload(Order.items).selectinload(OrderDetail.MenuItem),
         )
         .where(*filters)
-        # Open orders first, then newest.
+
         .order_by(case((Order.Status == PENDING, 0), else_=1), Order.OrderDate.desc(), Order.Id.desc())
         .offset(skip)
         .limit(limit)
@@ -270,18 +243,11 @@ async def my_orders(db: AsyncSession, customer_id: int, skip: int, limit: int, o
         ],
     )
 
-
 async def recommendations(db: AsyncSession, customer_id: int, limit: int) -> RecommendationsResponse:
-    """Up to `limit` dishes, in three passes:
-    1. Dishes the customer orders most ("order again").
-    2. Best sellers in their favourite categories that they haven't tried.
-    3. Best sellers overall, so new customers still get suggestions.
-    Only available, active menu items are suggested.
-    """
     completed_lines = (
         select(OrderDetail.MenuItemId, OrderDetail.Quantity)
         .join(Order, Order.Id == OrderDetail.OrderId)
-        .where(Order.Status == COMPLETED, Order.IsDeleted == False, OrderDetail.IsDeleted == False)  # noqa: E712
+        .where(Order.Status == COMPLETED, Order.IsDeleted == False, OrderDetail.IsDeleted == False)
     )
     mine = completed_lines.where(Order.CustomerId == customer_id).subquery()
     my_counts = dict(
@@ -289,7 +255,7 @@ async def recommendations(db: AsyncSession, customer_id: int, limit: int) -> Rec
     )
     order_count = await db.scalar(
         select(func.count()).select_from(Order).where(
-            Order.CustomerId == customer_id, Order.Status == COMPLETED, Order.IsDeleted == False  # noqa: E712
+            Order.CustomerId == customer_id, Order.Status == COMPLETED, Order.IsDeleted == False
         )
     )
 
@@ -302,7 +268,7 @@ async def recommendations(db: AsyncSession, customer_id: int, limit: int) -> Rec
             select(MenuItem.Id, MenuItem.Name, MenuItem.CategoryId, Category.Name, MenuItem.Price, func.coalesce(popularity.c.Sold, 0))
             .join(Category, Category.Id == MenuItem.CategoryId)
             .outerjoin(popularity, popularity.c.MenuItemId == MenuItem.Id)
-            .where(MenuItem.IsDeleted == False, MenuItem.IsActive == True, MenuItem.IsAvailable == True)  # noqa: E712
+            .where(MenuItem.IsDeleted == False, MenuItem.IsActive == True, MenuItem.IsAvailable == True)
             .order_by(desc(func.coalesce(popularity.c.Sold, 0)), MenuItem.Id)
         )
     ).all()
@@ -326,7 +292,7 @@ async def recommendations(db: AsyncSession, customer_id: int, limit: int) -> Rec
     for item_id, qty in sorted(my_counts.items(), key=lambda kv: -kv[1])[:3]:
         if item_id in by_id:
             add(by_id[item_id], f"You've ordered this {qty} time{'s' if qty != 1 else ''}")
-    for row in menu:  # already sorted by popularity
+    for row in menu:
         if row[2] in favourite_ids and row[0] not in my_counts:
             add(row, f"Popular in {row[3]}, which you like")
     for row in menu:

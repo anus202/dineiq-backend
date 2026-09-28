@@ -9,7 +9,6 @@ from app.core.config import BUSINESS_UTC_OFFSET_MINUTES
 from app.models import AuditLog, Signup
 from app.schemas.audit_schema import AuditLogResponse
 
-
 def _load(value: Optional[str]) -> Optional[dict]:
     if not value:
         return None
@@ -17,7 +16,6 @@ def _load(value: Optional[str]) -> Optional[dict]:
         return json.loads(value)
     except ValueError:
         return {"raw": value}
-
 
 async def get_audit_logs(
     db: AsyncSession,
@@ -30,7 +28,6 @@ async def get_audit_logs(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
 ) -> tuple[int, list[AuditLogResponse]]:
-    """Newest first. Dates are local business dates (inclusive)."""
     offset = timedelta(minutes=BUSINESS_UTC_OFFSET_MINUTES)
     filters = []
     if user_id is not None:
@@ -73,7 +70,6 @@ async def get_audit_logs(
         )
         for log, name, email in rows
     ]
-
 
 async def get_filter_options(db: AsyncSession) -> dict[str, list[str]]:
     actions = list(await db.scalars(select(AuditLog.Action).distinct().order_by(AuditLog.Action)))

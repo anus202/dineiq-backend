@@ -15,7 +15,6 @@ const surface: Record<DiningTable['Status'], string> = {
   RESERVED: 'border-amber-300 bg-amber-50/70 hover:border-amber-500',
 }
 
-/** Seating floor plan: one tile per table with status and Pax (party size / seats). */
 export function FloorPlan({ tables, loading, onSelect }: Props) {
   if (loading && !tables.length) {
     return (
@@ -49,7 +48,7 @@ export function FloorPlan({ tables, loading, onSelect }: Props) {
                 {table.Status}
               </Badge>
             </div>
-            {/* Seats: filled = guests seated */}
+
             <div className="mt-3 flex flex-wrap gap-1" aria-hidden>
               {Array.from({ length: table.Capacity }, (_, i) => (
                 <span key={i} className={`h-2.5 w-2.5 rounded-full ${i < pax ? 'bg-sky-500' : 'bg-slate-300/80'}`} />

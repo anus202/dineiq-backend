@@ -9,11 +9,6 @@ interface Props {
   onCreated: (order: Order) => void
 }
 
-/** Seating a party at a specific table is inherently tied to that table (picked on the
- * floor plan), so it stays a modal reached from the table itself rather than a generic
- * sidebar page. Standalone takeaway/delivery orders live at their own sidebar page
- * (NewTakeawayOrderPage), which renders the same OrderBuilderBody with table=null.
- */
 export function OrderBuilder({ open, table, onClose, onCreated }: Props) {
   return (
     <Modal open={open} title={table ? `New order · Table ${table.TableNumber}` : 'New order'} onClose={onClose} size="xl">

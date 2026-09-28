@@ -10,8 +10,7 @@ export function BranchOverviewPage() {
   const { selectedBranchId, canSelectBranch } = useBranch()
   const overview = useApi(() => branchAnalyticsApi.overview({ branch_id: selectedBranchId }), [selectedBranchId])
   const mix = useApi(() => branchAnalyticsApi.channelMix({ branch_id: selectedBranchId }), [selectedBranchId])
-  // "Right now" detail -- today's branch sales/orders and the branch's own recent order
-  // (cashier) activity, refreshed every 20s so it reads as live without hammering the API.
+
   const snapshot = useApi(() => branchAnalyticsApi.snapshot({ branch_id: selectedBranchId }), [selectedBranchId], 20_000)
   const o = overview.data
   const s = snapshot.data

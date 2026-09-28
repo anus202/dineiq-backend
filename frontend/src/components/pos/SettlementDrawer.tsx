@@ -19,7 +19,6 @@ const METHODS: { key: PaymentMethod; label: string; icon: string }[] = [
   { key: 'Loyalty Points', label: 'Points', icon: '★' },
 ]
 
-/** Multi-payment settlement: Cash / Card / Loyalty Points, with a live bill preview. */
 export function SettlementDrawer({ orderId, onClose, onSettled, onCancelled }: Props) {
   const toast = useToast()
   const order = useApi(() => (orderId ? orderApi.get(orderId) : Promise.resolve(undefined)), [orderId])
@@ -44,8 +43,7 @@ export function SettlementDrawer({ orderId, onClose, onSettled, onCancelled }: P
         AmountTendered: method === 'Cash' ? (tendered === '' ? undefined : tendered) : undefined,
       }
     : null
-  // Cash and card have the same discounts, points and payable; previewing cash as card
-  // shows the bill before any cash is entered, and the change is worked out locally.
+
   const previewKey = useDebounce(orderId ? `${orderId}|${method}|${redeem}` : '', 300)
   const preview = useApi(
     () =>

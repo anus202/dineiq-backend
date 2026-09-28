@@ -43,7 +43,7 @@ export function InventoryItemFormModal({ open, item, onClose, onSaved }: Props) 
     try {
       const body = { ...form, ItemName: form.ItemName.trim() }
       if (item) {
-        // Stock itself only changes through a logged adjustment.
+
         const { CurrentStock: _ignored, ...changes } = body
         void _ignored
         await inventoryApi.update(item.Id, changes)

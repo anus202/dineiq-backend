@@ -3,10 +3,6 @@ const pkr2 = new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR'
 const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 })
 const integer = new Intl.NumberFormat('en')
 
-// The backend serializes Pydantic `Decimal` fields (money, wastage quantities, etc.) as
-// JSON strings, not numbers, to avoid float rounding -- every formatter here must coerce
-// before calling a numeric method, or a string payload throws "value.toFixed is not a
-// function" and (without an error boundary) takes the whole page down with it.
 export const money = (value: number): string => pkr.format(Number(value))
 export const moneyExact = (value: number): string => pkr2.format(Number(value))
 export const moneyCompact = (value: number): string => `Rs ${compact.format(Number(value))}`
@@ -15,7 +11,6 @@ export const quantity = (value: number, unit?: string): string =>
   `${Number(Number(value).toFixed(3)).toLocaleString('en')}${unit ? ` ${unit}` : ''}`
 export const percent = (value: number): string => `${Number(value).toFixed(1)}%`
 
-// API datetimes are UTC without a zone suffix; show them in the viewer's local time.
 const asUtc = (iso: string): Date => new Date(/[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : `${iso}Z`)
 export const dateTime = (iso: string): string =>
   asUtc(iso).toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' })
@@ -29,7 +24,6 @@ export const timeAgo = (iso: string): string => {
   return `${Math.round(hours / 24)} d ago`
 }
 
-/** ISO date (YYYY-MM-DD) `days` before today, for API date filters. */
 export const isoDaysAgo = (days: number): string => {
   const d = new Date()
   d.setDate(d.getDate() - days)

@@ -21,41 +21,33 @@ from app.services import inventory_service
 
 logger = logging.getLogger("dineiq.orders")
 
-# Pending is the only status that can still change; Completed and Cancelled are final.
 ALLOWED_TRANSITIONS = {
     OrderStatusEnum.PENDING.value: {OrderStatusEnum.COMPLETED.value, OrderStatusEnum.CANCELLED.value},
 }
 
-
 class OrderError(Exception):
-    """Base class for order failures the controller turns into HTTP errors."""
-
+    pass
 
 class MenuItemsUnavailable(OrderError):
     def __init__(self, item_ids: list[int]):
         super().__init__(f"Menu items not found or unavailable: {item_ids}")
         self.item_ids = item_ids
 
-
 class DiscountTooLarge(OrderError):
     def __init__(self, discount: Decimal, total: Decimal):
         super().__init__(f"Discount {discount} is greater than the order total {total}")
-
 
 class InvalidStatusTransition(OrderError):
     def __init__(self, current: str, new: str):
         super().__init__(f"Cannot change status from {current} to {new}")
 
-
 class CustomerNotFound(OrderError):
     def __init__(self, customer_id: int):
         super().__init__(f"Customer {customer_id} does not exist")
 
-
 class BranchNotFound(OrderError):
     def __init__(self, branch_id: int):
         super().__init__(f"Branch {branch_id} does not exist or is inactive")
-
 
 def _with_relations():
     return (
@@ -65,15 +57,13 @@ def _with_relations():
         selectinload(Order.items).selectinload(OrderDetail.MenuItem),
     )
 
-
 async def get_order_by_id(db: AsyncSession, order_id: int) -> Optional[Order]:
     return await db.scalar(
         select(Order)
         .options(*_with_relations())
-        .where(Order.Id == order_id, Order.IsDeleted == False)  # noqa: E712
+        .where(Order.Id == order_id, Order.IsDeleted == False)
         .execution_options(populate_existing=True)
     )
-
 
 async def get_all_orders(
     db: AsyncSession,
@@ -85,8 +75,7 @@ async def get_all_orders(
     end_date: Optional[date] = None,
     customer_id: Optional[int] = None,
 ) -> tuple[int, list[Order]]:
-    """Return (total matching, one page of orders, newest first). Dates are inclusive, in UTC."""
-    filters = [Order.IsDeleted == False]  # noqa: E712
+    filters = [Order.IsDeleted == False]
     if customer_id is not None:
         filters.append(Order.CustomerId == customer_id)
     if order_type is not None:
@@ -109,13 +98,11 @@ async def get_all_orders(
     )
     return total or 0, list(orders)
 
-
 async def create_order(db: AsyncSession, payload: OrderCreate, user_id: int, branch_id: Optional[int] = None) -> Order:
     year = utc_now().year
-    # First, because it may commit/roll back: only created at startup or on a new year.
+
     await ORDER_NUMBERS.ensure(db, year)
 
-    # Merge repeated lines for the same menu item, keeping the order they were sent in.
     quantities: "OrderedDict[int, int]" = OrderedDict()
     for line in payload.items:
         quantities[line.MenuItemId] = quantities.get(line.MenuItemId, 0) + line.Quantity
@@ -125,9 +112,9 @@ async def create_order(db: AsyncSession, payload: OrderCreate, user_id: int, bra
         for m in await db.scalars(
             select(MenuItem).where(
                 MenuItem.Id.in_(quantities),
-                MenuItem.IsDeleted == False,  # noqa: E712
-                MenuItem.IsActive == True,  # noqa: E712
-                MenuItem.IsAvailable == True,  # noqa: E712
+                MenuItem.IsDeleted == False,
+                MenuItem.IsActive == True,
+                MenuItem.IsAvailable == True,
             )
         )
     }
@@ -139,8 +126,8 @@ async def create_order(db: AsyncSession, payload: OrderCreate, user_id: int, bra
         customer_exists = await db.scalar(
             select(Customer.Id).where(
                 Customer.Id == payload.CustomerId,
-                Customer.IsDeleted == False,  # noqa: E712
-                Customer.IsActive == True,  # noqa: E712
+                Customer.IsDeleted == False,
+                Customer.IsActive == True,
             )
         )
         if customer_exists is None:
@@ -150,8 +137,8 @@ async def create_order(db: AsyncSession, payload: OrderCreate, user_id: int, bra
         branch_exists = await db.scalar(
             select(RestaurantBranch.Id).where(
                 RestaurantBranch.Id == branch_id,
-                RestaurantBranch.IsDeleted == False,  # noqa: E712
-                RestaurantBranch.IsActive == True,  # noqa: E712
+                RestaurantBranch.IsDeleted == False,
+                RestaurantBranch.IsActive == True,
             )
         )
         if branch_exists is None:
@@ -176,7 +163,6 @@ async def create_order(db: AsyncSession, payload: OrderCreate, user_id: int, bra
     if payload.Discount > total:
         raise DiscountTooLarge(payload.Discount, total)
 
-    # The order and all its lines commit together in one transaction.
     order = Order(
         OrderNumber=await ORDER_NUMBERS.next(db, year),
         OrderType=payload.OrderType.value,
@@ -196,16 +182,9 @@ async def create_order(db: AsyncSession, payload: OrderCreate, user_id: int, bra
     await db.commit()
     return await get_order_by_id(db, order.Id)
 
-
 MAX_DEADLOCK_RETRIES = 3
 
-
 async def run_with_deadlock_retry(db: AsyncSession, operation):
-    """Run `operation()` (which commits), retrying if SQL Server picks it as a deadlock victim.
-
-    Two orders completing at once can lock the same ingredient (or customer) rows in
-    different orders; SQL Server then aborts one, which is safe to simply run again.
-    """
     for attempt in range(1, MAX_DEADLOCK_RETRIES + 1):
         try:
             return await operation()
@@ -215,26 +194,17 @@ async def run_with_deadlock_retry(db: AsyncSession, operation):
                 raise
     raise AssertionError("unreachable")
 
-
 async def apply_status_change(
     db: AsyncSession, order_id: int, new_status: OrderStatusEnum, user_id: int, **extra_values
 ) -> Optional[list[LowStockAlert]]:
-    """Change an order's status inside the caller's transaction (no commit).
-
-    Returns low-stock alerts, or None if the order doesn't exist. Completing an order
-    deducts its ingredients; completing or cancelling it frees its table. extra_values
-    are written to the order in the same UPDATE (used by payment settlement).
-    """
     current = await db.scalar(
-        select(Order.Status).where(Order.Id == order_id, Order.IsDeleted == False)  # noqa: E712
+        select(Order.Status).where(Order.Id == order_id, Order.IsDeleted == False)
     )
     if current is None:
         return None
     if new_status.value not in ALLOWED_TRANSITIONS.get(current, set()):
         raise InvalidStatusTransition(current, new_status.value)
 
-    # Conditional UPDATE: only succeeds if the status is still what we read. Two requests
-    # finishing the same order at once can't both pass, so stock is deducted only once.
     updated = (
         await db.execute(
             update(Order)
@@ -245,7 +215,7 @@ async def apply_status_change(
         )
     ).first()
     if updated is None:
-        # Another request changed the status between our read and this UPDATE.
+
         await db.rollback()
         latest = await db.scalar(select(Order.Status).where(Order.Id == order_id))
         raise InvalidStatusTransition(latest, new_status.value)
@@ -255,7 +225,7 @@ async def apply_status_change(
     )
 
     if table_id is not None:
-        # The party has left (or the order was cancelled): the table is free again.
+
         freed = await db.scalar(
             update(DiningTable)
             .where(DiningTable.Id == table_id, DiningTable.Status == "OCCUPIED")
@@ -279,20 +249,15 @@ async def apply_status_change(
             )
     return alerts
 
-
 async def update_order_status(
     db: AsyncSession, order_id: int, new_status: OrderStatusEnum, user_id: int
 ) -> Optional[tuple[Order, list[LowStockAlert]]]:
-    """Change status; completing an order also deducts its ingredients from stock.
-
-    Returns (order, low-stock alerts) or None if the order doesn't exist.
-    """
 
     async def once():
         alerts = await apply_status_change(db, order_id, new_status, user_id)
         if alerts is None:
             return None
-        # Status change, table release and stock deduction commit (or roll back) together.
+
         await db.commit()
         return await get_order_by_id(db, order_id), alerts
 

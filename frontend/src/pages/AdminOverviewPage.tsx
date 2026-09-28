@@ -10,7 +10,7 @@ import { adminDashboardApi, analyticsApi } from '../services/endpoints'
 import { count, isoDaysAgo, money } from '../utils/format'
 
 export function AdminOverviewPage() {
-  // Today's live figures refresh every 30 s; the heavier analytics load once.
+
   const summary = useApi(() => adminDashboardApi.summary(), [], 30_000)
   const overview = useApi(() => analyticsApi.overview(isoDaysAgo(29)), [])
   const chart = useApi(() => adminDashboardApi.revenueChart(30, 12), [])
@@ -21,9 +21,6 @@ export function AdminOverviewPage() {
   const o = overview.data
   const errors = [summary, overview, chart, heatmap, rfm, top].map((r) => r.error).filter(Boolean)
 
-  // Everything below is derived from data already being fetched for the page -- no
-  // extra API calls, and nothing here is simulated: if the real series is too short to
-  // support it, the value/chip is simply omitted rather than invented.
   const daily = chart.data?.Daily ?? []
   const revenueSpark = daily.slice(-10).map((d) => d.Revenue)
   const revenueTrendPct =

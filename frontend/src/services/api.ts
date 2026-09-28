@@ -14,19 +14,18 @@ export const tokenStore = {
     try {
       localStorage.setItem(TOKEN_KEY, token)
     } catch {
-      /* storage unavailable: the session lasts until reload */
+
     }
   },
   clear: (): void => {
     try {
       localStorage.removeItem(TOKEN_KEY)
     } catch {
-      /* ignore */
+
     }
   },
 }
 
-/** Axios instance for the DineIQ API, with the JWT attached to every request. */
 export const api: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1',
   timeout: 120_000,
@@ -38,7 +37,6 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Listeners (the auth context) are told when the session is no longer valid.
 type SessionListener = () => void
 const sessionListeners = new Set<SessionListener>()
 export const onSessionExpired = (listener: SessionListener): (() => void) => {
@@ -63,7 +61,6 @@ interface ValidationIssue {
   msg: string
 }
 
-/** A readable message from any API error: FastAPI `detail`, validation errors or network failure. */
 export function apiErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     if (!error.response) return 'Cannot reach the DineIQ API. Is the backend running on port 8000?'

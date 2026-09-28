@@ -27,14 +27,12 @@ function downloadBlob(filename: string, blob: Blob): void {
   URL.revokeObjectURL(url)
 }
 
-/** Exports `data` as a CSV file, using `columns` to pick and label fields. */
 export function exportToCsv<T>(filename: string, data: T[], columns: ExportColumn<T>[]): void {
   const rows = toRows(data, columns)
   const csv = rows.map((r) => r.map(csvEscape).join(',')).join('\r\n')
   downloadBlob(`${filename}.csv`, new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
 }
 
-/** Exports `data` as a genuine .xlsx workbook, using `columns` to pick and label fields. */
 export function exportToExcel<T>(filename: string, data: T[], columns: ExportColumn<T>[]): void {
   const rows = toRows(data, columns)
   const sheet = XLSX.utils.aoa_to_sheet(rows)

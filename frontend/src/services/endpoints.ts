@@ -69,7 +69,6 @@ import { api } from './api'
 
 type Params = Record<string, string | number | boolean | undefined | null>
 
-/** Drop empty filters so they aren't sent as "?search=". */
 const clean = (params: Params): Params =>
   Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ''))
 
@@ -150,7 +149,7 @@ export const menuApi = {
   create: (body: MenuItemInput) => post<MenuItem>('/menu-items', body),
   update: (id: number, body: Partial<MenuItemInput>) => put<MenuItem>(`/menu-items/${id}`, body),
   remove: (id: number) => del(`/menu-items/${id}`),
-  /** Every available item (the API pages at 100). */
+
   async all(onlyAvailable = true): Promise<MenuItem[]> {
     const items: MenuItem[] = []
     for (let skip = 0; ; skip += 100) {
@@ -216,13 +215,11 @@ export const orderApi = {
   cancel: (id: number) => put<Order>(`/orders/${id}/status`, { Status: 'Cancelled' }),
 }
 
-/** The heart-toggle favorite on the customer Menu Browse page. */
 export const favoriteApi = {
   mine: () => get<FavoriteListResponse>('/favorites'),
   toggle: (menuItemId: number) => post<FavoriteToggleResponse>(`/favorites/${menuItemId}/toggle`),
 }
 
-/** Voucher/discount code lookup for the self-checkout "Apply" box. */
 export const promotionApi = {
   validate: (code: string, branchId?: number) => get<PromoValidateResponse>(`/promotions/validate/${encodeURIComponent(code)}`, { branch_id: branchId }),
 }
@@ -238,8 +235,6 @@ export const customerPortalApi = {
   recommendations: () => get<Recommendations>('/dashboard/customer/recommendations'),
 }
 
-/** The floating AI assistant widget, mounted globally so it's public (works on /login
- * and /register before a token exists) and scoped to whatever page the caller is on. */
 export const assistantApi = {
   chat: (body: AssistantChatRequest) => post<AssistantChatResponse>('/assistant/chat', body),
 }

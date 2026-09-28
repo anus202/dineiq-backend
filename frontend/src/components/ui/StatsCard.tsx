@@ -10,11 +10,9 @@ export interface StatsCardProps {
   tone?: 'teal' | 'amber' | 'rose' | 'sky' | 'violet' | 'slate'
   loading?: boolean
   index?: number
-  /** A real recent-history series (e.g. last N days of this metric) to draw as a tiny
-   * inline trend line. Omit rather than fabricate one when no such history exists. */
+
   sparkline?: number[]
-  /** A real period-over-period change (e.g. today vs yesterday), as a signed percentage.
-   * Omit rather than compute one from data that doesn't actually support it. */
+
   trend?: number
 }
 
@@ -36,8 +34,6 @@ const sparkColor: Record<StatsCardProps['tone'] & string, string> = {
   slate: '#475569',
 }
 
-/** Tiny inline SVG trend line from a handful of real data points -- no chart library
- * needed for something this small. */
 function Sparkline({ points, color }: { points: number[]; color: string }) {
   if (points.length < 2) return null
   const min = Math.min(...points)
@@ -73,8 +69,7 @@ export function StatsCard({ label, value, hint, icon, tone = 'teal', loading = f
       transition={{ delay: index * 0.08, type: 'spring', stiffness: 220, damping: 20 }}
       whileHover={{ y: -6, scale: 1.015, transition: { type: 'spring', stiffness: 400, damping: 18 } }}
     >
-      {/* one-shot light sweep across the card on first mount -- a small, tasteful nod to
-          the "attractive" ask without becoming a permanent distraction. */}
+
       <motion.div
         className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent dark:via-white/10"
         animate={{ x: ['-100%', '160%'] }}

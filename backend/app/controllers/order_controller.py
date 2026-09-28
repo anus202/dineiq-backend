@@ -26,10 +26,6 @@ from app.services.order_service import (
     MenuItemsUnavailable,
 )
 
-# Every route here requires a valid token. Reading/listing/status-changes stay staff-only
-# (FRONT_OF_HOUSE, applied per-route below); only order CREATION is also open to CUSTOMER,
-# for the Menu Browse -> self-checkout flow -- a customer places their own order but must
-# never be able to list or read someone else's order by guessing an id.
 router = APIRouter(
     prefix="/api/v1/orders",
     tags=["Orders & Sales"],
@@ -38,10 +34,8 @@ router = APIRouter(
 
 NOT_FOUND = {404: {"description": "Order not found"}}
 
-
 def _not_found(order_id: int) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Order {order_id} not found")
-
 
 @router.post(
     "",
@@ -75,7 +69,7 @@ async def create_order(
             )
         if payload.BranchId is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Please choose a branch.")
-        # Never trust a customer-supplied CustomerId -- always their own linked profile.
+
         payload = payload.model_copy(update={"CustomerId": current_user.CustomerId})
         branch_id = payload.BranchId
     else:
@@ -86,7 +80,6 @@ async def create_order(
     except (MenuItemsUnavailable, DiscountTooLarge, CustomerNotFound, BranchNotFound) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     return OrderResponse.from_model(order)
-
 
 @router.get(
     "",
@@ -111,7 +104,6 @@ async def get_orders(
     )
     return OrderListResponse(Total=total, Skip=skip, Limit=limit, Items=[OrderResponse.from_model(o) for o in orders])
 
-
 @router.get(
     "/{id}",
     response_model=OrderResponse,
@@ -124,7 +116,6 @@ async def get_order(id: int, db: AsyncSession = Depends(get_db)):
     if order is None:
         raise _not_found(id)
     return OrderResponse.from_model(order)
-
 
 @router.put(
     "/{id}/status",

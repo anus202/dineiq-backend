@@ -7,18 +7,15 @@ from pydantic import BaseModel, Field
 from app.schemas.common import MoneyTotal
 from app.schemas.order_schema import OrderResponse
 
-
 class ChannelMixEntry(BaseModel):
     Channel: str
     OrderCount: int
     Revenue: MoneyTotal
     SharePercentage: Decimal
 
-
 class ChannelMixResponse(BaseModel):
     BranchId: Optional[int]
     Channels: List[ChannelMixEntry]
-
 
 class MenuQuadrantItem(BaseModel):
     MenuItemId: int
@@ -28,8 +25,7 @@ class MenuQuadrantItem(BaseModel):
     Revenue: MoneyTotal
     Margin: MoneyTotal
     MarginPercentage: Decimal
-    Quadrant: str  # Profit Driver | Volume Driver | Hidden Opportunity | Low Performer
-
+    Quadrant: str
 
 class MenuQuadrantResponse(BaseModel):
     BranchId: Optional[int]
@@ -37,13 +33,11 @@ class MenuQuadrantResponse(BaseModel):
     MedianMarginPercentage: Decimal
     Items: List[MenuQuadrantItem]
 
-
 class BusinessRecommendation(BaseModel):
     Title: str
-    Priority: str  # LOW | MEDIUM | HIGH | CRITICAL
+    Priority: str
     Evidence: str
     SuggestedAction: str
-
 
 class WastageByItem(BaseModel):
     InventoryItemId: int
@@ -53,13 +47,11 @@ class WastageByItem(BaseModel):
     WastageCost: MoneyTotal
     IncidentCount: int
 
-
 class WastageByReason(BaseModel):
     Reason: str
     TotalWasted: Decimal
     WastageCost: MoneyTotal
     IncidentCount: int
-
 
 class WastageSummaryResponse(BaseModel):
     BranchId: Optional[int]
@@ -67,11 +59,9 @@ class WastageSummaryResponse(BaseModel):
     ByItem: List[WastageByItem]
     ByReason: List[WastageByReason]
 
-
 class DemandForecastHour(BaseModel):
     Hour: int
     AverageQuantityConsumed: Decimal
-
 
 class StockingRecommendation(BaseModel):
     ItemName: str
@@ -80,30 +70,22 @@ class StockingRecommendation(BaseModel):
     Unit: str
     Reasoning: str
 
-
 class DemandModelAccuracy(BaseModel):
     mae: Optional[float] = None
     rmse: Optional[float] = None
     mape_percent: Optional[float] = None
     improvement_over_baseline_percent: Optional[float] = None
 
-
 class DemandForecastResponse(BaseModel):
     BranchId: Optional[int]
     HourlyPattern: List[DemandForecastHour]
     PeakHour: Optional[int]
     Recommendations: List[StockingRecommendation]
-    # True when Recommendations were derived from the trained XGBoost demand model via the
-    # recipe ingredient mapping; False only if the model/report was unavailable and the
-    # response fell back to a plain historical-average calculation.
+
     IsMLPowered: bool = False
     ModelAccuracy: Optional[DemandModelAccuracy] = None
-    # Set when this branch had too little recent order history to trust on its own, so the
-    # figures shown are the system-wide trained model's predictions instead -- lets the
-    # frontend show a small, honest note instead of either an empty state or silently
-    # passing off system-wide numbers as branch-specific.
-    UsedSystemWideFallback: bool = False
 
+    UsedSystemWideFallback: bool = False
 
 class BranchComparisonRow(BaseModel):
     BranchId: int
@@ -118,11 +100,9 @@ class BranchComparisonRow(BaseModel):
     AverageRating: Optional[float] = None
     CustomerCount: int
 
-
 class BranchComparisonResponse(BaseModel):
     Period: dict
     Branches: List[BranchComparisonRow]
-
 
 class SalesAnomaly(BaseModel):
     BranchId: int
@@ -131,13 +111,11 @@ class SalesAnomaly(BaseModel):
     Revenue: MoneyTotal
     TrailingAverageRevenue: MoneyTotal
     DeviationPercentage: Decimal
-    Type: str  # SPIKE | DROP
-    Severity: str  # MEDIUM | HIGH | CRITICAL
-
+    Type: str
+    Severity: str
 
 class AnomalyReportResponse(BaseModel):
     SalesAnomalies: List[SalesAnomaly]
-
 
 class BranchSnapshotResponse(BaseModel):
     BranchId: Optional[int]

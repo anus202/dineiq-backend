@@ -16,7 +16,6 @@ interface Props {
   onSaved: () => void
 }
 
-/** Pick a menu item and set how much of each ingredient one serving uses. Full-page, no modal. */
 export function RecipeBuilderBody({ inventory, onSaved }: Props) {
   const toast = useToast()
   const menu = useApi(() => menuApi.all(false), [])

@@ -1,5 +1,4 @@
-// Types mirroring the FastAPI Pydantic schemas (backend/app/schemas). Field names match
-// the JSON exactly (PascalCase); money and quantities arrive as plain numbers.
+
 
 export type RoleName = 'SUPER_ADMIN' | 'ADMIN' | 'RESTAURANT_MANAGER' | 'INVENTORY_MANAGER' | 'CASHIER' | 'CUSTOMER'
 
@@ -9,8 +8,6 @@ export interface Page<T> {
   Limit: number
   Items: T[]
 }
-
-// --- Auth -------------------------------------------------------------------------------
 
 export interface User {
   Id: number
@@ -41,8 +38,6 @@ export interface StaffCreateInput {
   CanAccessMenuManagement?: boolean
   CanAccessBranchAnalytics?: boolean
 }
-
-// --- Restaurant branches -----------------------------------------------------------------
 
 export interface RestaurantBranch {
   Id: number
@@ -84,8 +79,6 @@ export interface SignupRequest {
   Password: string
 }
 
-// --- Catalog ----------------------------------------------------------------------------
-
 export interface Category {
   Id: number
   Name: string
@@ -120,8 +113,6 @@ export interface MenuItemInput {
   Cost: number
   IsAvailable: boolean
 }
-
-// --- Customers --------------------------------------------------------------------------
 
 export interface Customer {
   Id: number
@@ -175,8 +166,6 @@ export interface CustomerRFM {
   LoyaltyPoints: number
 }
 
-// --- Orders -----------------------------------------------------------------------------
-
 export type OrderType = 'Dine-in' | 'Takeaway' | 'Delivery'
 export type PaymentMethod = 'Cash' | 'Card' | 'Loyalty Points'
 export type OrderStatus = 'Pending' | 'Completed' | 'Cancelled'
@@ -215,14 +204,11 @@ export interface OrderCreateInput {
   PaymentMethod: 'Cash' | 'Card'
   Discount: number
   CustomerId?: number
-  /** Required for a CUSTOMER placing their own order (self-checkout has no assigned
-   * branch to fall back on); optional for staff, who default to their own branch. */
+
   BranchId?: number
   GuestCount: number
   items: { MenuItemId: number; Quantity: number }[]
 }
-
-// --- Favorites (Menu Browse heart toggle) ------------------------------------------------
 
 export interface FavoriteListResponse {
   MenuItemIds: number[]
@@ -233,8 +219,6 @@ export interface FavoriteToggleResponse {
   IsFavorite: boolean
 }
 
-// --- Promotions / voucher codes ----------------------------------------------------------
-
 export interface PromoValidateResponse {
   Valid: boolean
   Code: string | null
@@ -242,8 +226,6 @@ export interface PromoValidateResponse {
   DiscountPercent: number | null
   Message: string
 }
-
-// --- Inventory --------------------------------------------------------------------------
 
 export type Unit = 'kg' | 'liters' | 'pcs'
 export type MovementType = 'INITIAL_STOCK' | 'MANUAL_ADDITION' | 'MANUAL_DEDUCTION' | 'ORDER_CONSUMPTION'
@@ -332,8 +314,6 @@ export interface Recipe {
   Lines: RecipeLine[]
 }
 
-// --- Tables & payments ------------------------------------------------------------------
-
 export type TableStatus = 'AVAILABLE' | 'OCCUPIED' | 'RESERVED'
 
 export interface DiningTable {
@@ -399,8 +379,6 @@ export interface Invoice {
   Bill: BillBreakdown
   LowStockAlerts: LowStockAlert[]
 }
-
-// --- Dashboards & analytics -------------------------------------------------------------
 
 export interface AdminSummary {
   BusinessDate: string
@@ -503,8 +481,6 @@ export interface AuditLog {
   Timestamp: string
 }
 
-// --- Customer portal --------------------------------------------------------------------
-
 export interface TierInfo {
   Name: string
   MinPoints: number
@@ -544,8 +520,6 @@ export interface Recommendations {
   FavouriteCategories: string[]
   Items: Recommendation[]
 }
-
-// --- Branch analytics (RBAC Phase 1) -----------------------------------------------------
 
 export interface ChannelMixEntry {
   Channel: string
@@ -688,8 +662,6 @@ export interface SalesAnomaly {
 export interface AnomalyReportResponse {
   SalesAnomalies: SalesAnomaly[]
 }
-
-// --- Ratings -------------------------------------------------------------------------------
 
 export interface Rating {
   Id: number
@@ -932,8 +904,6 @@ export interface DemandForecastItem {
   CurrentMonthQuantity: number
   PredictedNextMonthQuantity: number
 }
-
-// --- Assistant (floating chat widget) ----------------------------------------------------
 
 export interface AssistantMessage {
   Role: 'user' | 'assistant'

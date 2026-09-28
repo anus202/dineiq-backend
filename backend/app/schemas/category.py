@@ -3,7 +3,6 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
 class CategoryBase(BaseModel):
     Name: str = Field(..., min_length=1, max_length=100, examples=["Desserts"])
 
@@ -15,14 +14,11 @@ class CategoryBase(BaseModel):
             raise ValueError("Name cannot be blank")
         return value
 
-
 class CategoryCreate(CategoryBase):
     pass
 
-
 class CategoryUpdate(CategoryBase):
     pass
-
 
 class CategoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

@@ -24,9 +24,7 @@ export function POSOrderPage() {
 
   const state = (location.state as LocationState | null) ?? {}
   const cart: Cart = state.cart ?? {}
-  // The customer's email, auto-filled read-only: prefer what was handed off from Menu
-  // Browse (router state, then the ?email= URL param), and fall back to the logged-in
-  // session -- covers a page refresh, where router state is lost but the session isn't.
+
   const customerEmail = state.email || searchParams.get('email') || user?.Email || ''
 
   const menu = useApi(() => menuApi.all(), [])
@@ -38,8 +36,7 @@ export function POSOrderPage() {
   const [applyingPromo, setApplyingPromo] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null)
-  // Local copy of the cart so items can be adjusted/removed on this page without needing
-  // to navigate back to Menu Browse.
+
   const [lines, setLines] = useState<Cart>(cart)
 
   const itemsById = new Map((menu.data ?? []).map((item) => [item.Id, item]))
@@ -132,7 +129,7 @@ export function POSOrderPage() {
       <PageHeader title="Place your order" subtitle="Review your items, pick a branch, and check out" />
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left: customer + branch + voucher */}
+
         <div className="space-y-4 lg:col-span-1">
           <div className="card space-y-4 p-5">
             <TextField label="Your email" value={customerEmail} readOnly disabled hint="Confirmed from your account" />
@@ -176,7 +173,6 @@ export function POSOrderPage() {
           </div>
         </div>
 
-        {/* Right: cart + summary */}
         <div className="space-y-4 lg:col-span-2">
           <div className="card p-5">
             <h3 className="mb-3 flex items-center gap-2 font-semibold text-ink dark:text-white">

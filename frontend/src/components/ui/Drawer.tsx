@@ -10,7 +10,6 @@ export interface DrawerProps {
   footer?: ReactNode
 }
 
-/** Right-hand slide-over panel. */
 export function Drawer({ open, title, subtitle, onClose, children, footer }: DrawerProps) {
   return (
     <AnimatePresence>

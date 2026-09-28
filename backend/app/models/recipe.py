@@ -10,9 +10,7 @@ if TYPE_CHECKING:
     from app.models.inventory_item import InventoryItem
     from app.models.menu_item import MenuItem
 
-
 class Recipe(CommonFields):
-    """How much of one inventory item a single serving of a menu item uses."""
 
     __tablename__ = "tbl_Recipe"
     __table_args__ = (
@@ -23,7 +21,7 @@ class Recipe(CommonFields):
     Id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     MenuItemId: Mapped[int] = mapped_column(ForeignKey("Menu_Items.Id"), nullable=False, index=True)
     InventoryItemId: Mapped[int] = mapped_column(ForeignKey("Inventory.Id"), nullable=False, index=True)
-    # In the inventory item's unit, e.g. 0.250 kg of rice per plate.
+
     QuantityRequired: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
 
     MenuItem: Mapped["MenuItem"] = relationship()

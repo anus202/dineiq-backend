@@ -25,14 +25,12 @@ router = APIRouter(
     responses={401: {"description": "Missing, invalid or expired token"}, 403: {"description": "Requires ADMIN or CASHIER"}},
 )
 
-
 @router.get("", response_model=TableListResponse, summary="List tables with status and seated order")
 async def list_tables(
     status_filter: Optional[TableStatusEnum] = Query(None, alias="status", description="Only tables with this status"),
     db: AsyncSession = Depends(get_db),
 ):
     return await table_service.list_tables(db, status_filter)
-
 
 @router.post(
     "",
@@ -50,7 +48,6 @@ async def create_table(
         return await table_service.create_table(db, payload, user.Id)
     except TableNumberTaken as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
-
 
 @router.post(
     "/assign",
@@ -80,7 +77,6 @@ async def assign_table(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     except TableUnavailable as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
-
 
 @router.put(
     "/{id}/status",

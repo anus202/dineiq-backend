@@ -13,10 +13,6 @@ NOT_CONFIGURED_REPLY = (
 
 TROUBLE_REPLY = "Sorry, I couldn't reach the AI service just now. Please try again in a moment."
 
-# Longest-prefix match against the route the user is on -- keeps each answer scoped to
-# "this page" instead of the whole app, per the brief (login page explains login, a
-# dashboard only talks about that dashboard, etc). Mirrors frontend/src/utils/roles.ts,
-# kept as an independent copy since the two apps don't share code.
 PAGE_CONTEXT: List[Tuple[str, str, str]] = [
     ("/login", "Login", "Signing in with an email and password to reach the right dashboard for the user's role."),
     ("/register", "Create account", "Signing up for a free DineIQ Rewards customer account (name, email, phone, password) to start earning loyalty points."),
@@ -72,9 +68,6 @@ _CUSTOMER_GUIDANCE = (
     "restaurant staff signed in with a staff account."
 )
 
-# What each role is allowed to be told about. Kept deliberately conservative: a role not
-# listed here (an unrecognized value, or none/logged-out) falls back to the customer
-# guidance, which is the most restrictive -- never the other way around.
 ROLE_GUIDANCE = {
     "CUSTOMER": _CUSTOMER_GUIDANCE,
     "CASHIER": (
@@ -107,7 +100,6 @@ ROLE_GUIDANCE = {
     ),
 }
 
-
 def describe_page(page: str) -> Tuple[str, str]:
     page = (page or "").split("?")[0].rstrip("/") or "/"
     best: Tuple[str, str] | None = None
@@ -118,7 +110,6 @@ def describe_page(page: str) -> Tuple[str, str]:
                 best = (title, description)
                 best_len = len(prefix)
     return best or DEFAULT_CONTEXT
-
 
 def _system_prompt(page: str, role: Optional[str]) -> str:
     title, description = describe_page(page)
@@ -137,7 +128,6 @@ def _system_prompt(page: str, role: Optional[str]) -> str:
         "language/style the user writes in (English or Roman Urdu/Hindi are both fine)."
     )
 
-
 async def chat(message: str, page: str, history: List[AssistantMessage], role: Optional[str] = None) -> Tuple[str, bool]:
     system_prompt = _system_prompt(page, role)
     turns = [(m.Role, m.Text) for m in history]
@@ -148,11 +138,10 @@ async def chat(message: str, page: str, history: List[AssistantMessage], role: O
         return await _chat_anthropic(system_prompt, turns, message)
     return NOT_CONFIGURED_REPLY, False
 
-
 async def _chat_groq(system_prompt: str, turns: List[Tuple[str, str]], message: str) -> Tuple[str, bool]:
     try:
         from groq import AsyncGroq
-    except ImportError:  # pragma: no cover - only hit if the dependency was never installed
+    except ImportError:
         logger.error("GROQ_API_KEY is set but the 'groq' package isn't installed")
         return NOT_CONFIGURED_REPLY, False
 
@@ -167,11 +156,10 @@ async def _chat_groq(system_prompt: str, turns: List[Tuple[str, str]], message: 
         logger.exception("Groq assistant chat call failed")
         return TROUBLE_REPLY, True
 
-
 async def _chat_anthropic(system_prompt: str, turns: List[Tuple[str, str]], message: str) -> Tuple[str, bool]:
     try:
         from anthropic import AsyncAnthropic
-    except ImportError:  # pragma: no cover - only hit if the dependency was never installed
+    except ImportError:
         logger.error("ANTHROPIC_API_KEY is set but the 'anthropic' package isn't installed")
         return NOT_CONFIGURED_REPLY, False
 

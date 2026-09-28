@@ -23,14 +23,12 @@ ERRORS = {
     409: {"description": "Order already settled, completed or cancelled"},
 }
 
-
 def _http_error(exc: Exception) -> HTTPException:
     if isinstance(exc, OrderNotFound):
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     if isinstance(exc, (OrderNotPayable, InvalidStatusTransition)):
         return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
-
 
 @router.post(
     "/preview",
@@ -44,7 +42,6 @@ async def preview(payload: SettleRequest, db: AsyncSession = Depends(get_db)):
         return await payment_service.preview(db, payload)
     except (OrderNotFound, OrderNotPayable, InvalidPayment) as exc:
         raise _http_error(exc)
-
 
 @router.post(
     "/settle",
@@ -68,7 +65,6 @@ async def settle(
         return await payment_service.settle(db, payload, cashier)
     except (OrderNotFound, OrderNotPayable, InvalidPayment, InvalidStatusTransition) as exc:
         raise _http_error(exc)
-
 
 @router.get(
     "/invoices/{invoice_number}",

@@ -49,8 +49,6 @@ import { hasNavAccess, NAV, NAV_GROUPS, roleLabel, type NavGroup } from '../../u
 import { Badge, ShimmerSkeleton } from '../ui'
 import { BranchSelector } from './BranchSelector'
 
-// One distinct lucide icon per sidebar route, keyed by `to` — every child link must carry
-// its own icon rather than reusing a single generic marker.
 const ROUTE_ICONS: Record<string, LucideIcon> = {
   '/admin': LayoutDashboard,
   '/dashboard/restaurant-manager': LayoutDashboard,
@@ -88,14 +86,9 @@ const ROUTE_ICONS: Record<string, LucideIcon> = {
   '/customer/ratings': Star,
 }
 
-
-// Slightly narrower than before (was 340px) per feedback, and collapsible -- see
-// useSidebarCollapsed below.
 const SIDEBAR_WIDTH = 288
 const SIDEBAR_COLLAPSED_KEY = 'dineiq.sidebarCollapsed'
 
-/** Persists the sidebar's collapsed/expanded state across reloads, same pattern as
- * ThemeContext's localStorage use. */
 function useSidebarCollapsed() {
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -108,15 +101,12 @@ function useSidebarCollapsed() {
     try {
       localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0')
     } catch {
-      // localStorage can throw in private-browsing/blocked-storage contexts -- collapsing
-      // still works for the session, it just won't persist across reloads.
+
     }
   }, [collapsed])
   return [collapsed, setCollapsed] as const
 }
 
-/** Small circular tab pinned to the sidebar's right edge -- collapses it to width 0 when
- * expanded, and stays visible as a click-to-reopen tab when collapsed. */
 function SidebarCollapseToggle({ collapsed, onClick }: { collapsed: boolean; onClick: () => void }) {
   return (
     <button
@@ -136,10 +126,7 @@ function SidebarGroup({ group, isExactMatchOnly }: { group: NavGroup; isExactMat
   const isGroupActive = group.items.some((item) =>
     isExactMatchOnly(item.to) ? location.pathname === item.to : location.pathname.startsWith(item.to),
   )
-  // Default-open the section that contains the current route, so the user's location is
-  // always visible; collapsed by default otherwise to keep the list scannable. Re-syncs
-  // whenever navigation moves the active route into this group (it never force-closes a
-  // group the user opened manually).
+
   const [open, setOpen] = useState(isGroupActive)
   useEffect(() => {
     if (isGroupActive) setOpen(true)
@@ -208,8 +195,6 @@ function SidebarGroup({ group, isExactMatchOnly }: { group: NavGroup; isExactMat
   )
 }
 
-/** A dedicated sign-out button in the sidebar itself, in addition to the one inside the
- * navbar's UserMenu dropdown -- same real logout() + redirect, not a second auth path. */
 function SidebarSignOutButton() {
   const { logout } = useAuth()
   const navigate = useNavigate()
@@ -228,9 +213,6 @@ function SidebarSignOutButton() {
   )
 }
 
-// A small, non-blocking presence in the header instead of a full-page loader: pulses
-// while any page's data is being silently refreshed in the background (see the
-// stale-while-revalidate behaviour in useApi), and is otherwise invisible.
 function SyncIndicator() {
   const isRevalidating = useGlobalRevalidating()
   if (!isRevalidating) return null
@@ -245,9 +227,6 @@ function SyncIndicator() {
   )
 }
 
-/** Light/dark toggle. No search or highlighting wired up yet -- see its own comment below --
- * this is deliberately UI-only, same as SearchBox, so nothing here claims to do more than
- * it does. */
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme()
   const isDark = theme === 'dark'
@@ -277,11 +256,6 @@ function ThemeToggle() {
   )
 }
 
-/** UI-only search box: no global search API exists yet in this app, so this renders the
- * input and nothing else -- it deliberately does not call an endpoint or filter anything,
- * per "don't invent fake API functionality". Wire an onSubmit/onChange here once a real
- * search endpoint exists. Width is responsive so it stays usable (icon + a little typing
- * room) down to phone width instead of disappearing entirely. */
 function SearchBox() {
   return (
     <label className="relative flex min-w-0 flex-1 items-center justify-center">
@@ -296,9 +270,6 @@ function SearchBox() {
   )
 }
 
-/** The logged-in user's name/email/role, as a click-to-open profile dropdown instead of a
- * static block + separate sign-out button. Reuses useAuth()'s own logout -- no new auth
- * logic. */
 function UserMenu() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -399,16 +370,14 @@ export function AppLayout() {
       </div>
     )
   }
-  // Not signed in (or the session just expired): back to login, returning here afterwards.
+
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />
   const visibleGroups = NAV_GROUPS.map((group) => ({
     ...group,
     items: group.items.filter((item) => hasNavAccess(user, item)),
   })).filter((group) => group.items.length > 0)
   const links = NAV.filter((item) => hasNavAccess(user, item))
-  // A nav item should only highlight for an exact-path match when some other listed
-  // route sits underneath it (e.g. "/inventory" vs. "/inventory/new-item") — otherwise
-  // both would light up together.
+
   const isExactMatchOnly = (to: string) => !NAV.some((other) => other.to !== to && other.to.startsWith(`${to}/`))
 
   return (
@@ -420,8 +389,7 @@ export function AppLayout() {
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           className="sticky top-0 h-screen shrink-0 overflow-hidden border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
         >
-          {/* Fixed inner width so the header/nav text doesn't wrap or reflow mid-animation
-             while the outer <aside> itself shrinks toward 0. */}
+
           <div className="flex h-full flex-col" style={{ width: SIDEBAR_WIDTH }}>
             <div className="flex items-center gap-2.5 px-5 py-5">
               <img src="/favicon.svg" alt="" className="h-7 w-7" />
@@ -430,9 +398,7 @@ export function AppLayout() {
                 <p className="text-[10.5px] leading-tight text-slate-400 dark:text-slate-500">Dining Intelligence</p>
               </div>
             </div>
-            {/* sidebar-scroll (index.css): a thin, near-invisible scrollbar -- this list gets
-               long (9 groups, several expanded), so it must still scroll, just without a
-               heavy default scrollbar competing with the nav for attention. */}
+
             <nav className="sidebar-scroll flex-1 overflow-y-auto pt-1 pb-2">
               {visibleGroups.map((group) => (
                 <SidebarGroup key={group.title} group={group} isExactMatchOnly={isExactMatchOnly} />
@@ -453,9 +419,7 @@ export function AppLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur sm:gap-4 sm:px-6 dark:border-slate-800 dark:bg-slate-950/80">
-          {/* min-w-0: without it, this row's full (unscrolled) content width wins the
-             flexbox space negotiation against its siblings, squeezing the search box and
-             user menu to 0px on narrow screens even though this nav scrolls internally. */}
+
           <nav className="flex min-w-0 max-w-[38%] shrink gap-1 overflow-x-auto md:hidden">
             {links.map((item) => (
               <NavLink

@@ -1,8 +1,5 @@
 import type { RoleName, User } from '../types/api'
 
-/** One of tbl_Signup's per-account grant flags (the "System permissions" toggles on user
- * creation) -- lets an admin hand one account extra module access without changing their
- * role. */
 export type PermissionFlag = 'CanAccessInventory' | 'CanTriggerPipeline' | 'CanAccessMenuManagement' | 'CanAccessBranchAnalytics'
 
 export interface NavItem {
@@ -10,12 +7,10 @@ export interface NavItem {
   label: string
   icon: string
   roles: RoleName[]
-  /** Visible even to a role outside `roles`, if this flag is set on their account. */
+
   permission?: PermissionFlag
 }
 
-/** True if `user` may see/open this nav item: either their role is listed, or the item's
- * `permission` flag is granted on their account. */
 export const hasNavAccess = (user: Pick<User, 'Role'> & Partial<User>, item: NavItem): boolean =>
   item.roles.includes(user.Role) || Boolean(item.permission && user[item.permission])
 
@@ -24,8 +19,6 @@ export interface NavGroup {
   items: NavItem[]
 }
 
-// Every accessible screen in the app, one sidebar entry each — no page renders its own
-// internal tab bar; navigating between sub-modules is always a sidebar click.
 export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Dashboards & Analytics',
@@ -130,8 +123,6 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ]
 
-// Flat view of every nav item, derived from the groups above — used for the mobile top
-// strip and anywhere a single ordered list (rather than grouped sections) is needed.
 export const NAV: NavItem[] = NAV_GROUPS.flatMap((group) => group.items)
 
 export const homeFor = (role: RoleName): string => {

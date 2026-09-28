@@ -9,23 +9,19 @@ from app.schemas.customer_schema import validate_phone
 if TYPE_CHECKING:
     from app.models import Signup
 
-
 def _strip_full_name(value: str) -> str:
     value = value.strip()
     if not value:
         raise ValueError("FullName cannot be blank")
     return value
 
-
 def _password_fits_bcrypt(value: str) -> str:
-    # bcrypt only accepts up to 72 bytes.
+
     if len(value.encode("utf-8")) > 72:
         raise ValueError("Password must be at most 72 bytes")
     return value
 
-
 class SignupRequest(BaseModel):
-    """Public self-registration. Always creates a CUSTOMER account."""
 
     FullName: str = Field(..., min_length=1, max_length=100, examples=["Anas Khan"])
     Email: EmailStr = Field(..., max_length=150, examples=["anas@example.com"])
@@ -37,19 +33,17 @@ class SignupRequest(BaseModel):
 
     _full_name = field_validator("FullName")(_strip_full_name)
     _password = field_validator("Password")(_password_fits_bcrypt)
-    # Same normalization as customer profiles, so "0300-1234567" matches "03001234567".
+
     _phone = field_validator("PhoneNumber")(validate_phone)
 
-
 class StaffCreateRequest(BaseModel):
-    """An admin creating an account with a specific role, branch scope and permission set."""
 
     FullName: str = Field(..., min_length=1, max_length=100, examples=["Sara Ali"])
     Email: EmailStr = Field(..., max_length=150, examples=["sara@dineiq.pk"])
     PhoneNumber: Optional[str] = Field(None, max_length=20)
     Password: str = Field(..., min_length=8, examples=["StrongPass123"])
     Role: RoleName = Field(..., examples=[RoleName.CASHIER])
-    # NULL = all branches (typically an ADMIN/SUPER_ADMIN); set for a branch-scoped account.
+
     BranchId: Optional[int] = Field(None, description="Restaurant branch this account is scoped to; omit for all branches")
     CanAccessInventory: bool = False
     CanTriggerPipeline: bool = False
@@ -59,15 +53,12 @@ class StaffCreateRequest(BaseModel):
     _full_name = field_validator("FullName")(_strip_full_name)
     _password = field_validator("Password")(_password_fits_bcrypt)
 
-
 class RoleUpdateRequest(BaseModel):
     Role: RoleName = Field(..., examples=[RoleName.INVENTORY_MANAGER])
-
 
 class LoginRequest(BaseModel):
     Email: EmailStr = Field(..., examples=["anas@example.com"])
     Password: str = Field(..., min_length=1, examples=["StrongPass123"])
-
 
 class UserData(BaseModel):
     Id: int
@@ -104,7 +95,6 @@ class UserData(BaseModel):
             CreatedAt=user.CreatedAt,
         )
 
-
 class AuthResponse(BaseModel):
     Success: bool
     Message: str
@@ -112,19 +102,15 @@ class AuthResponse(BaseModel):
     TokenType: Optional[str] = None
     Data: Optional[UserData] = None
 
-
 class TokenResponse(BaseModel):
-    """OAuth2 token response (field names fixed by the OAuth2 spec)."""
 
     access_token: str
     token_type: str = "bearer"
-
 
 class RoleResponse(BaseModel):
     Id: int
     Name: str
     Description: Optional[str] = None
-
 
 class UserListResponse(BaseModel):
     Total: int

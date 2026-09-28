@@ -12,7 +12,6 @@ interface Props {
   onDelete: (item: InventoryItem) => void
 }
 
-/** One tile per raw material, coloured by stock health. */
 export function StockStatusMatrix({ items, loading, onEdit, onAdjust, onDelete }: Props) {
   if (loading && !items.length) {
     return (
@@ -31,7 +30,6 @@ export function StockStatusMatrix({ items, loading, onEdit, onAdjust, onDelete }
     )
   }
 
-  // Worst first: out of stock, then low, then healthy.
   const order = { Out: 0, Low: 1, Healthy: 2 }
   const sorted = [...items].sort((a, b) => order[stockHealth(a.CurrentStock, a.ReorderLevel)] - order[stockHealth(b.CurrentStock, b.ReorderLevel)] || a.ItemName.localeCompare(b.ItemName))
 
@@ -39,7 +37,7 @@ export function StockStatusMatrix({ items, loading, onEdit, onAdjust, onDelete }
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {sorted.map((item, i) => {
         const health = stockHealth(item.CurrentStock, item.ReorderLevel)
-        // Bar: stock against twice the reorder level (so the reorder point sits mid-bar).
+
         const scale = Math.max(item.ReorderLevel * 2, item.CurrentStock, 1)
         const fill = Math.max(0, Math.min(100, (item.CurrentStock / scale) * 100))
         return (

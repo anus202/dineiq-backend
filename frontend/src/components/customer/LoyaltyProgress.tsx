@@ -4,13 +4,10 @@ import { count, money } from '../../utils/format'
 
 const tierEmoji: Record<string, string> = { Silver: '🥈', Gold: '🥇', Platinum: '💎' }
 
-/** Silver → Gold → Platinum progress, styled to match the rest of the dashboard's plain
- * white stat-card look (no tier-colored banner) instead of standing out as its own
- * theme. */
 export function LoyaltyProgress({ me }: { me: CustomerMe }) {
   const tiers = me.Tiers
   const top = tiers[tiers.length - 1]
-  // The bar ends a little past the top tier so Platinum members still see movement.
+
   const scaleMax = Math.max(top.MinPoints * 1.25, me.LoyaltyPoints)
   const fill = Math.min(100, (me.LoyaltyPoints / scaleMax) * 100)
   const emoji = tierEmoji[me.TierStatus.Tier] ?? '🥈'

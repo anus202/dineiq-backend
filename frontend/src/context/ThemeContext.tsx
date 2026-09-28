@@ -16,14 +16,11 @@ function getInitialTheme(): Theme {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored === 'light' || stored === 'dark') return stored
   } catch {
-    /* storage unavailable: fall through to the OS preference */
+
   }
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-/** App-wide light/dark theme. Applies a `dark` class to <html>, the strategy Tailwind's
- * `dark:` variant is registered for in index.css, so any component's `dark:` utility
- * classes react to it automatically -- there is only ever one theme mechanism in the app. */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
 
@@ -32,7 +29,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem(STORAGE_KEY, theme)
     } catch {
-      /* the theme just won't persist across reloads */
+
     }
   }, [theme])
 

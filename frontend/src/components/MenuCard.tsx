@@ -8,17 +8,13 @@ export interface MenuCardProps {
   item: MenuItem
   isFavorite: boolean
   onToggleFavorite: (item: MenuItem) => void | Promise<void>
-  /** How many of this item are already in the cart (0 if none). Omit the whole
-   * add-to-cart control by leaving both this and onAdd undefined. */
+
   quantityInCart?: number
   onAdd?: (item: MenuItem) => void
   onIncrement?: (item: MenuItem) => void
   onDecrement?: (item: MenuItem) => void
 }
 
-/** Plain, no-photography menu card: category label, name, description, price and an Add
- * button/quantity stepper, with a favorite heart in the corner. No color beyond the
- * app's own teal/slate palette, and no icon or emoji standing in for a dish photo. */
 export function MenuCard({ item, isFavorite, onToggleFavorite, quantityInCart = 0, onAdd, onIncrement, onDecrement }: MenuCardProps) {
   const [favoriteBusy, setFavoriteBusy] = useState(false)
   const showCartControl = !!(onAdd || onIncrement || onDecrement)

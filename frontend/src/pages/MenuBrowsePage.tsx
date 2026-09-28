@@ -10,8 +10,6 @@ import { apiErrorMessage } from '../services/api'
 import { categoryApi, favoriteApi, menuApi } from '../services/endpoints'
 import type { MenuItem } from '../types/api'
 
-/** Item id -> quantity. Carried to the checkout page via router state when "Place Your
- * Order" is pressed; it doesn't need to survive a full page reload. */
 export type Cart = Record<number, number>
 
 export function MenuBrowsePage() {
@@ -38,7 +36,7 @@ export function MenuBrowsePage() {
 
   const handleToggleFavorite = async (item: MenuItem) => {
     const wasFavorite = favoriteIds.has(item.Id)
-    // Optimistic: the heart flips instantly, then reconciles with the server's answer.
+
     setFavoriteIds((prev) => {
       const next = new Set(prev)
       wasFavorite ? next.delete(item.Id) : next.add(item.Id)

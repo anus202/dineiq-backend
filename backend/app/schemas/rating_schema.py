@@ -3,13 +3,11 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 class RatingCreate(BaseModel):
     MenuItemId: int
     OrderId: Optional[int] = Field(None, description="Ties the rating to the order it came from, if known")
     Score: int = Field(..., ge=1, le=5)
     Comment: Optional[str] = Field(None, max_length=500)
-
 
 class RatingResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -40,13 +38,11 @@ class RatingResponse(BaseModel):
             CreatedAt=r.CreatedAt,
         )
 
-
 class RatingListResponse(BaseModel):
     Total: int
     Skip: int
     Limit: int
     Items: List[RatingResponse]
-
 
 class MenuItemRatingSummary(BaseModel):
     MenuItemId: int

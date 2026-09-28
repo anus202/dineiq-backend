@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from app.models.category import Category
     from app.models.pricing_history import PricingHistory
 
-
 class MenuItem(CommonFields):
     __tablename__ = "Menu_Items"
 

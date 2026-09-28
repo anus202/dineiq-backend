@@ -5,9 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import CommonFields
 
-
 class Role(CommonFields):
-    """One of app.core.roles.RoleName; rows are seeded at startup."""
 
     __tablename__ = "tbl_Role"
 

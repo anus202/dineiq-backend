@@ -20,41 +20,33 @@ from app.schemas.table_schema import (
 PENDING = OrderStatusEnum.PENDING.value
 AVAILABLE, OCCUPIED, RESERVED = (s.value for s in TableStatusEnum)
 
-
 class TableError(Exception):
-    """Base class for table failures the controller turns into HTTP errors."""
-
+    pass
 
 class TableNumberTaken(TableError):
     def __init__(self, number: str):
         super().__init__(f"Table {number} already exists")
 
-
 class TableNotFound(TableError):
     def __init__(self, table_id: int):
         super().__init__(f"Table {table_id} not found")
 
-
 class OrderNotSeatable(TableError):
     pass
-
 
 class TableUnavailable(TableError):
     pass
 
-
 def _not_deleted():
-    return DiningTable.IsDeleted == False  # noqa: E712
-
+    return DiningTable.IsDeleted == False
 
 async def _seated_orders(db: AsyncSession, table_ids: list[int]) -> dict[int, SeatedOrder]:
     if not table_ids:
         return {}
     orders = await db.scalars(
         select(Order)
-        .where(Order.TableId.in_(table_ids), Order.Status == PENDING, Order.IsDeleted == False)  # noqa: E712
-        # Refresh: assign() changes TableId with a Core UPDATE, and an Order already in the
-        # session (expire_on_commit=False) would otherwise keep its old TableId.
+        .where(Order.TableId.in_(table_ids), Order.Status == PENDING, Order.IsDeleted == False)
+
         .execution_options(populate_existing=True)
     )
     return {
@@ -64,19 +56,16 @@ async def _seated_orders(db: AsyncSession, table_ids: list[int]) -> dict[int, Se
         for o in orders
     }
 
-
 async def _response(db: AsyncSession, table: DiningTable) -> TableResponse:
     seated = await _seated_orders(db, [table.Id])
     return TableResponse(
         Id=table.Id, TableNumber=table.TableNumber, Capacity=table.Capacity, Status=table.Status, CurrentOrder=seated.get(table.Id)
     )
 
-
 async def get_table(db: AsyncSession, table_id: int) -> Optional[DiningTable]:
     return await db.scalar(
         select(DiningTable).where(DiningTable.Id == table_id, _not_deleted()).execution_options(populate_existing=True)
     )
-
 
 async def list_tables(db: AsyncSession, status: Optional[TableStatusEnum]) -> TableListResponse:
     tables = list(await db.scalars(select(DiningTable).where(_not_deleted()).order_by(DiningTable.TableNumber)))
@@ -94,7 +83,6 @@ async def list_tables(db: AsyncSession, status: Optional[TableStatusEnum]) -> Ta
         ],
     )
 
-
 async def create_table(db: AsyncSession, payload: TableCreate, user_id: int) -> TableResponse:
     table = DiningTable(TableNumber=payload.TableNumber, Capacity=payload.Capacity, CreatedBy=user_id, UpdatedBy=user_id)
     db.add(table)
@@ -105,9 +93,7 @@ async def create_table(db: AsyncSession, payload: TableCreate, user_id: int) -> 
         raise TableNumberTaken(payload.TableNumber)
     return await _response(db, table)
 
-
 async def set_status(db: AsyncSession, table_id: int, status: ManualTableStatusEnum, user_id: int) -> TableResponse:
-    """Reserve or free a table. An OCCUPIED table is freed by settling or cancelling its order."""
     updated = await db.scalar(
         update(DiningTable)
         .where(DiningTable.Id == table_id, _not_deleted(), DiningTable.Status != OCCUPIED)
@@ -127,18 +113,12 @@ async def set_status(db: AsyncSession, table_id: int, status: ManualTableStatusE
     await db.commit()
     return await _response(db, await get_table(db, table_id))
 
-
 async def assign(db: AsyncSession, payload: TableAssignRequest, user_id: int) -> TableResponse:
-    """Seat a Pending dine-in order at a table (moving it if it was seated elsewhere).
-
-    Both UPDATEs are conditional, so two cashiers can't seat two parties at one table,
-    and one order can't end up at two tables.
-    """
     table = await get_table(db, payload.TableId)
     if table is None:
         raise TableNotFound(payload.TableId)
     order = await db.scalar(
-        select(Order).where(Order.Id == payload.OrderId, Order.IsDeleted == False)  # noqa: E712
+        select(Order).where(Order.Id == payload.OrderId, Order.IsDeleted == False)
     )
     if order is None:
         raise OrderNotSeatable(f"Order {payload.OrderId} not found")
@@ -150,8 +130,6 @@ async def assign(db: AsyncSession, payload: TableAssignRequest, user_id: int) ->
     if guests > table.Capacity:
         raise TableUnavailable(f"Table {table.TableNumber} seats {table.Capacity}, but the party is {guests}")
 
-    # Plain values for error messages: rollback() expires ORM objects, and reloading an
-    # expired attribute is implicit IO, which async SQLAlchemy doesn't allow.
     table_number, order_number = table.TableNumber, order.OrderNumber
     previous_table = order.TableId
     if previous_table != table.Id:

@@ -1,17 +1,3 @@
-"""Wires the analytics-pipeline's Big-Data outputs into the live operational API.
-
-Market-basket / price-sensitivity / promotion-traps / recommendations reuse the
-analytics-pipeline's own pandas/mlxtend code directly (imported from analytics-pipeline/
-via sys.path) instead of duplicating it -- they read that pipeline's own
-processed_data/clean_parquet/ output, refreshable at any time by re-running its
-ingestion + feature-engineering scripts.
-
-Churn risk, rating-anomaly detection, slow-moving-dish detection and the What-If
-Simulator instead query the live SQL Server database directly (via the normal async
-session), so they always reflect the current, real dataset -- churn risk loads the
-trained XGBoost model and scores real customers' live RFM features computed from
-tbl_Orders.
-"""
 from __future__ import annotations
 
 import json
@@ -35,8 +21,8 @@ if str(ANALYTICS_PIPELINE_DIR) not in sys.path:
 
 _PIPELINE_IMPORT_ERROR: Optional[str] = None
 try:
-    from config import settings as pipeline_settings  # noqa: E402
-    from src.analytics.advanced_analytics import (  # noqa: E402
+    from config import settings as pipeline_settings
+    from src.analytics.advanced_analytics import (
         analyze_price_sensitivity,
         basket_rules_to_dicts,
         detect_promotion_traps,
@@ -44,8 +30,8 @@ try:
         promotion_traps_to_dicts,
         run_market_basket_analysis,
     )
-    from src.analytics.recommendation_engine import generate_recommendations, recommendations_to_dicts  # noqa: E402
-except Exception as exc:  # pragma: no cover - environment-dependent (pipeline not yet run)
+    from src.analytics.recommendation_engine import generate_recommendations, recommendations_to_dicts
+except Exception as exc:
     _PIPELINE_IMPORT_ERROR = str(exc)
 
 CHURN_MODEL_PATH = ANALYTICS_PIPELINE_DIR / "models" / "python_models" / "churn_risk_classifier.pkl"
@@ -55,8 +41,6 @@ MAX_ASSUMED_ELASTICITY = 2.0
 
 _churn_bundle_cache: Optional[dict] = None
 
-# TTL caches for the pipeline-backed (parquet/pandas) analytics and the live SQL/model
-# scoring endpoints. Keyed on actual request filters; never on the db session.
 _ML_CACHE_TTL_SECONDS = 300
 _market_basket_cache = TTLCache()
 _dual_pipeline_cache = TTLCache()
@@ -70,13 +54,8 @@ _slow_moving_dishes_cache = TTLCache()
 
 _wastage_bundle_cache: Optional[dict] = None
 
-# Scoring every customer against the model is expensive (full RFM aggregation over
-# every order, then XGBoost inference over every scored customer) and the underlying
-# RFM features barely change minute-to-minute, so cache the *full* scored+sorted
-# DataFrame for a short window and just re-slice it per request's `limit`.
 _CHURN_CACHE_TTL_SECONDS = 300
-_churn_scored_cache: Optional[tuple[float, "pd.DataFrame", int]] = None  # noqa: F821
-
+_churn_scored_cache: Optional[tuple[float, "pd.DataFrame", int]] = None
 
 def _require_pipeline() -> None:
     if _PIPELINE_IMPORT_ERROR:
@@ -86,45 +65,33 @@ def _require_pipeline() -> None:
             "feature-engineering scripts first."
         )
 
-
 def get_market_basket_rules() -> list[dict]:
     return _market_basket_cache.get_or_set_sync((), _ML_CACHE_TTL_SECONDS, _get_market_basket_rules_uncached)
-
 
 def _get_market_basket_rules_uncached() -> list[dict]:
     _require_pipeline()
     return basket_rules_to_dicts(run_market_basket_analysis())
 
-
 def get_price_sensitivity() -> list[dict]:
     return _price_sensitivity_cache.get_or_set_sync((), _ML_CACHE_TTL_SECONDS, _get_price_sensitivity_uncached)
-
 
 def _get_price_sensitivity_uncached() -> list[dict]:
     _require_pipeline()
     return price_sensitivity_to_dicts(analyze_price_sensitivity())
 
-
 def get_promotion_traps() -> list[dict]:
     return _promotion_traps_cache.get_or_set_sync((), _ML_CACHE_TTL_SECONDS, _get_promotion_traps_uncached)
-
 
 def _get_promotion_traps_uncached() -> list[dict]:
     _require_pipeline()
     return promotion_traps_to_dicts(detect_promotion_traps())
 
-
 def get_ml_recommendations() -> list[dict]:
     return _ml_recommendations_cache.get_or_set_sync((), _ML_CACHE_TTL_SECONDS, _get_ml_recommendations_uncached)
-
 
 def _get_ml_recommendations_uncached() -> list[dict]:
     _require_pipeline()
     return recommendations_to_dicts(generate_recommendations())
-
-
-# --- Churn risk: scored live, from the real SQL Server database -------------------------
-
 
 def _load_churn_bundle() -> dict:
     global _churn_bundle_cache
@@ -135,11 +102,7 @@ def _load_churn_bundle() -> dict:
             _churn_bundle_cache = pickle.load(f)
     return _churn_bundle_cache
 
-
 async def _scored_customers_df(db: AsyncSession):
-    """Full RFM-scored, sorted DataFrame (all customers), cached for
-    _CHURN_CACHE_TTL_SECONDS since scoring every customer is expensive and this data
-    barely changes minute-to-minute."""
     global _churn_scored_cache
     now = time.monotonic()
     if _churn_scored_cache is not None:
@@ -160,7 +123,7 @@ async def _scored_customers_df(db: AsyncSession):
             func.sum(Order.NetAmount).label("Monetary"),
             func.avg(Order.NetAmount).label("AvgOrderValue"),
         )
-        .where(Order.CustomerId.is_not(None), Order.IsDeleted == False, Order.Status != "Cancelled")  # noqa: E712
+        .where(Order.CustomerId.is_not(None), Order.IsDeleted == False, Order.Status != "Cancelled")
         .group_by(Order.CustomerId)
         .subquery("per_customer")
     )
@@ -180,7 +143,7 @@ async def _scored_customers_df(db: AsyncSession):
 
     rows = (await db.execute(stmt)).all()
 
-    import pandas as pd  # local import: heavy dependency only needed for this endpoint
+    import pandas as pd
 
     if not rows:
         df = pd.DataFrame(columns=["CustomerId", "Name", "RecencyDays", "Frequency", "Monetary", "AvgOrderValue", "TenureDays", "ChurnProbability", "RiskLabel"])
@@ -197,7 +160,6 @@ async def _scored_customers_df(db: AsyncSession):
     df = df.sort_values("ChurnProbability", ascending=False)
     _churn_scored_cache = (now, df, scored_count)
     return df, scored_count
-
 
 async def get_churn_risk(db: AsyncSession, limit: int = 50) -> dict:
     df, scored_count = await _scored_customers_df(db)
@@ -219,10 +181,6 @@ async def get_churn_risk(db: AsyncSession, limit: int = 50) -> dict:
     ]
     return {"ScoredCustomers": scored_count, "Customers": customers}
 
-
-# --- Wastage-risk prediction: trained XGBoost regressor, scored live against real items --
-
-
 def _load_wastage_bundle() -> dict:
     global _wastage_bundle_cache
     if _wastage_bundle_cache is None:
@@ -232,15 +190,10 @@ def _load_wastage_bundle() -> dict:
             _wastage_bundle_cache = pickle.load(f)
     return _wastage_bundle_cache
 
-
 async def get_wastage_risk(db: AsyncSession, limit: int = 50) -> list[dict]:
     return await _wastage_risk_cache.get_or_set(limit, _ML_CACHE_TTL_SECONDS, lambda: _get_wastage_risk_uncached(db, limit))
 
-
 async def _get_wastage_risk_uncached(db: AsyncSession, limit: int = 50) -> list[dict]:
-    """Scores every real menu item's predicted wastage % using the trained Python
-    wastage_predictor.pkl (features: quantity sold, revenue, margin, price, rating,
-    rating count, promoted-order count), computed live from real order/rating data."""
     bundle = _load_wastage_bundle()
     model = bundle["model"]
     features: list[str] = bundle["features"]
@@ -259,7 +212,7 @@ async def _get_wastage_risk_uncached(db: AsyncSession, limit: int = 50) -> list[
             .select_from(MenuItem)
             .join(OrderDetail, OrderDetail.MenuItemId == MenuItem.Id)
             .join(Order, Order.Id == OrderDetail.OrderId)
-            .where(OrderDetail.IsDeleted == False, Order.Status != "Cancelled", Order.IsDeleted == False)  # noqa: E712
+            .where(OrderDetail.IsDeleted == False, Order.Status != "Cancelled", Order.IsDeleted == False)
             .group_by(MenuItem.Id, MenuItem.Name)
         )
     ).all()
@@ -269,15 +222,12 @@ async def _get_wastage_risk_uncached(db: AsyncSession, limit: int = 50) -> list[
     rating_rows = (
         await db.execute(
             select(Rating.MenuItemId, func.avg(Rating.Score), func.count())
-            .where(Rating.IsDeleted == False)  # noqa: E712
+            .where(Rating.IsDeleted == False)
             .group_by(Rating.MenuItemId)
         )
     ).all()
     ratings_by_item = {r[0]: (float(r[1]), int(r[2])) for r in rating_rows}
 
-    # The operational Order model does not yet link orders to tbl_Promotion, so there is
-    # no real per-item promoted-order count to query -- default to 0 for every item
-    # rather than fabricate one.
     promoted_by_item: dict[int, int] = {}
 
     import pandas as pd
@@ -321,33 +271,14 @@ async def _get_wastage_risk_uncached(db: AsyncSession, limit: int = 50) -> list[
         for r in df.itertuples(index=False)
     ]
 
-
-# --- Demand forecast: trained Spark/XGBoost next-month-quantity regressor, live scoring --
-
-
 async def get_demand_forecast_ml(db: AsyncSession, limit: int = 50, branch_id: Optional[int] = None) -> list[dict]:
     return await _demand_forecast_ml_cache.get_or_set(
         (limit, branch_id), _ML_CACHE_TTL_SECONDS, lambda: _get_demand_forecast_ml_uncached(db, limit, branch_id)
     )
 
-
-# Below this many distinct menu items with current-month orders, a branch's own features
-# are too thin to trust (the model would effectively be extrapolating from 1-2 points) --
-# fall back to the system-wide prediction instead of returning a near-empty result.
 _MIN_MENU_ITEMS_FOR_BRANCH_FORECAST = 3
 
-
 async def _get_demand_forecast_ml_uncached(db: AsyncSession, limit: int = 50, branch_id: Optional[int] = None) -> list[dict]:
-    """Scores each real menu item's CURRENT month features through the trained Python
-    demand_forecast_regressor.pkl (trained with a chronological split on the analytics
-    pipeline's monthly item-demand series) to project next month's quantity sold.
-
-    branch_id, when given, scores that branch's own current-month sales mix through the
-    same system-wide-trained model (the model itself is trained on combined data across
-    all branches -- there isn't a separate per-branch model). If that branch has too few
-    menu items with recent orders to trust, this transparently falls back to the
-    system-wide aggregation rather than returning a sparse, misleading result.
-    """
     bundle = _load_demand_bundle()
     model = bundle["model"]
     features: list[str] = bundle["features"]
@@ -357,9 +288,9 @@ async def _get_demand_forecast_ml_uncached(db: AsyncSession, limit: int = 50, br
 
     unit_cost = func.coalesce(OrderDetail.UnitCost, MenuItem.Cost)
     filters = [
-        OrderDetail.IsDeleted == False,  # noqa: E712
+        OrderDetail.IsDeleted == False,
         Order.Status != "Cancelled",
-        Order.IsDeleted == False,  # noqa: E712
+        Order.IsDeleted == False,
         cast(Order.OrderDate, Date) >= month_start,
     ]
     if branch_id is not None:
@@ -391,7 +322,7 @@ async def _get_demand_forecast_ml_uncached(db: AsyncSession, limit: int = 50, br
     rating_rows = (
         await db.execute(
             select(Rating.MenuItemId, func.avg(Rating.Score), func.count())
-            .where(Rating.IsDeleted == False)  # noqa: E712
+            .where(Rating.IsDeleted == False)
             .group_by(Rating.MenuItemId)
         )
     ).all()
@@ -433,10 +364,8 @@ async def _get_demand_forecast_ml_uncached(db: AsyncSession, limit: int = 50, br
         for r in df.itertuples(index=False)
     ]
 
-
 DEMAND_MODEL_PATH = ANALYTICS_PIPELINE_DIR / "models" / "python_models" / "demand_forecast_regressor.pkl"
 _demand_bundle_cache: Optional[dict] = None
-
 
 def _load_demand_bundle() -> dict:
     global _demand_bundle_cache
@@ -447,14 +376,9 @@ def _load_demand_bundle() -> dict:
             _demand_bundle_cache = pickle.load(f)
     return _demand_bundle_cache
 
-
 _demand_accuracy_cache: Optional[dict] = None
 
-
 def get_demand_model_accuracy() -> Optional[dict]:
-    """Real accuracy metrics for demand_forecast_regressor.pkl, from the training run's own
-    saved report -- never fabricated, and None (not a fake perfect score) if the report is
-    missing so callers can render 'accuracy unavailable' honestly."""
     global _demand_accuracy_cache
     if _demand_accuracy_cache is None:
         metrics_path = ANALYTICS_PIPELINE_DIR / "reports" / "python_model_metrics.json"
@@ -473,23 +397,12 @@ def get_demand_model_accuracy() -> Optional[dict]:
         }
     return _demand_accuracy_cache
 
-
-# --- Rating Anomaly Detection: sudden spikes/drops, unusual volume, identical clusters ---
-
-
 async def get_rating_anomalies(db: AsyncSession, lookback_days: int = 180, trailing_window: int = 30) -> list[dict]:
     return await _rating_anomalies_cache.get_or_set(
         (lookback_days, trailing_window), _ML_CACHE_TTL_SECONDS, lambda: _get_rating_anomalies_uncached(db, lookback_days, trailing_window)
     )
 
-
 async def _get_rating_anomalies_uncached(db: AsyncSession, lookback_days: int = 180, trailing_window: int = 30) -> list[dict]:
-    """Flags per-item, per-day rating patterns that look unusual: a sudden jump or drop
-    in average score versus that item's own trailing average, a day with far more
-    ratings than usual, or a cluster of suspiciously identical scores on one day.
-    Same trailing-window statistical approach as detect_sales_anomalies -- explainable,
-    not a black-box model.
-    """
     since = date.today() - timedelta(days=lookback_days + trailing_window)
     local_date = cast(Rating.CreatedAt, Date)
 
@@ -502,7 +415,7 @@ async def _get_rating_anomalies_uncached(db: AsyncSession, lookback_days: int = 
                 func.count(),
                 func.stdev(Rating.Score),
             )
-            .where(Rating.CreatedAt >= since, Rating.IsDeleted == False)  # noqa: E712
+            .where(Rating.CreatedAt >= since, Rating.IsDeleted == False)
             .group_by(Rating.MenuItemId, local_date)
             .order_by(Rating.MenuItemId, local_date)
         )
@@ -576,24 +489,14 @@ async def _get_rating_anomalies_uncached(db: AsyncSession, lookback_days: int = 
     anomalies.sort(key=lambda a: a["date"], reverse=True)
     return anomalies[:200]
 
-
-# --- Slow-Moving Dish Detection: multi-signal combination, not a single hard-coded field --
-
-
 async def get_slow_moving_dishes(db: AsyncSession, branch_id: Optional[int] = None, min_signals: int = 2) -> list[dict]:
     return await _slow_moving_dishes_cache.get_or_set(
         (branch_id, min_signals), _ML_CACHE_TTL_SECONDS, lambda: _get_slow_moving_dishes_uncached(db, branch_id, min_signals)
     )
 
-
 async def _get_slow_moving_dishes_uncached(db: AsyncSession, branch_id: Optional[int] = None, min_signals: int = 2) -> list[dict]:
-    """Combines five independent signals (low volume, low order frequency, long recency
-    gap, weak margin, declining trend) rather than any single hard-coded threshold, per
-    the SRS's explicit requirement that slow-moving detection use a combination of
-    indicators. An item is reported once at least `min_signals` of the five fire.
-    """
     unit_cost = func.coalesce(OrderDetail.UnitCost, MenuItem.Cost)
-    base_filters = [OrderDetail.IsDeleted == False, Order.Status != "Cancelled", Order.IsDeleted == False]  # noqa: E712
+    base_filters = [OrderDetail.IsDeleted == False, Order.Status != "Cancelled", Order.IsDeleted == False]
     if branch_id is not None:
         base_filters.append(Order.BranchId == branch_id)
 
@@ -677,10 +580,6 @@ async def _get_slow_moving_dishes_uncached(db: AsyncSession, branch_id: Optional
     results.sort(key=lambda r: (-r["signal_count"], r["total_quantity_sold"]))
     return results
 
-
-# --- What-If Simulator: live menu/order data + the pipeline's own elasticity estimate ----
-
-
 def _pipeline_elasticity_for(menu_item_id: int) -> Optional[float]:
     if _PIPELINE_IMPORT_ERROR:
         return None
@@ -701,7 +600,6 @@ def _pipeline_elasticity_for(menu_item_id: int) -> Optional[float]:
     except Exception:
         return None
 
-
 async def simulate_what_if(
     db: AsyncSession,
     menu_item_id: int,
@@ -719,7 +617,7 @@ async def simulate_what_if(
         await db.execute(
             select(func.coalesce(func.sum(OrderDetail.Quantity), 0), func.coalesce(func.sum(OrderDetail.TotalPrice), 0))
             .join(Order, Order.Id == OrderDetail.OrderId)
-            .where(OrderDetail.MenuItemId == menu_item_id, Order.Status != "Cancelled", Order.IsDeleted == False)  # noqa: E712
+            .where(OrderDetail.MenuItemId == menu_item_id, Order.Status != "Cancelled", Order.IsDeleted == False)
         )
     ).one()
     current_quantity, current_revenue = float(agg[0]), float(agg[1])
@@ -733,7 +631,7 @@ async def simulate_what_if(
         return round((new - old) / abs(old) * 100, 2) if old else 0.0
 
     if remove_item:
-        # Removing the item entirely: no future sales, no future revenue or profit from it.
+
         result = {
             "menu_item_id": menu_item_id,
             "menu_item_name": menu_item.Name,
@@ -767,7 +665,6 @@ async def simulate_what_if(
     projected_price = round(current_price * (1 + net_price_change_percent / 100), 2)
     projected_quantity = max(0.0, current_quantity * (1 + elasticity * net_price_change_percent / 100))
 
-    # Reducing prep quantity caps how much can actually be sold, regardless of demand.
     if prep_quantity_change_percent:
         supply_cap = max(0.0, current_quantity * (1 + prep_quantity_change_percent / 100))
         projected_quantity = min(projected_quantity, supply_cap)
@@ -776,8 +673,6 @@ async def simulate_what_if(
     projected_unit_margin = projected_price - current_cost
     projected_profit = round(projected_unit_margin * projected_quantity, 2)
 
-    # A higher assumed wastage rate eats into profit as extra cost of unsold prepared
-    # units; a lower assumed rate is a saving. Applied as a percentage of cost basis.
     if wastage_assumption_change_percent:
         wastage_cost_delta = round(current_cost * projected_quantity * (wastage_assumption_change_percent / 100), 2)
         projected_profit -= wastage_cost_delta
@@ -808,16 +703,8 @@ async def simulate_what_if(
         "volume_delta_percent": pct_delta(projected_quantity, current_quantity),
     }
 
-
-# --- Dual-pipeline comparison: Spark MLlib vs Python/XGBoost, run as separate offline
-# batch jobs (spark_jobs/spark_mllib_models.py, python_pipeline/train_python_models.py,
-# src/analytics/dual_pipeline_verifier.py) -- this endpoint only reads their JSON
-# output, it never starts a Spark JVM inside the API process.
-
-
 def get_dual_pipeline_comparison() -> dict:
     return _dual_pipeline_cache.get_or_set_sync((), _ML_CACHE_TTL_SECONDS, _get_dual_pipeline_comparison_uncached)
-
 
 def _get_dual_pipeline_comparison_uncached() -> dict:
     spark_path = ANALYTICS_PIPELINE_DIR / "reports" / "spark_model_metrics.json"

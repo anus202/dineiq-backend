@@ -11,11 +11,7 @@ if TYPE_CHECKING:
     from app.models.order import Order
     from app.models.restaurant_branch import RestaurantBranch
 
-
 class Rating(CommonFields):
-    """A customer's 1-5 rating (optionally with a comment) for a menu item, tied to the
-    order it came from and the branch it was ordered at (for branch-level rating rollups).
-    """
 
     __tablename__ = "Ratings"
     __table_args__ = (

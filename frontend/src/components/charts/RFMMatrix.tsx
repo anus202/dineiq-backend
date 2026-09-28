@@ -7,7 +7,7 @@ type Axis = 'Frequency' | 'Monetary'
 
 const shade = (value: number, max: number): string => {
   if (!max || !value) return 'rgb(248 250 252)'
-  const t = Math.sqrt(value / max) // sqrt: small cells stay visible next to one huge cell
+  const t = Math.sqrt(value / max)
   return `rgba(13, 148, 136, ${0.08 + t * 0.85})`
 }
 

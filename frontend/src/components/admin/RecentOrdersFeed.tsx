@@ -2,9 +2,6 @@ import { OrdersFeedList } from '../orders/OrdersFeedList'
 import { useApi } from '../../hooks/useApi'
 import { orderApi } from '../../services/endpoints'
 
-/** The real 6 most-recent orders (order_service.get_all_orders returns newest first),
- * polled every 15s -- no synthetic/simulated activity, just the same data the Orders
- * list itself shows, narrowed and refreshed. */
 export function RecentOrdersFeed() {
   const recent = useApi(() => orderApi.list({ skip: 0, limit: 6 }), [], 15_000)
   const orders = recent.data?.Items ?? []

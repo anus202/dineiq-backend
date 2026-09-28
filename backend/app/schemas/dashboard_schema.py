@@ -7,9 +7,6 @@ from app.schemas.analytics_schema import SegmentSummary, TopItem
 from app.schemas.common import Money, MoneyTotal
 from app.schemas.order_schema import OrderResponse
 
-# --- Admin -----------------------------------------------------------------------------
-
-
 class AdminSummaryResponse(BaseModel):
     BusinessDate: date = Field(..., description="Today in the business time zone")
     SalesToday: MoneyTotal = Field(..., description="NetAmount of orders completed today")
@@ -24,27 +21,20 @@ class AdminSummaryResponse(BaseModel):
     LowStockItems: int = Field(..., description="Inventory items at or below reorder level (including out of stock)")
     OutOfStockItems: int
 
-
 class RevenuePoint(BaseModel):
     Period: str = Field(..., examples=["2026-09-24", "2026-09"])
     Revenue: MoneyTotal
     Orders: int
-
 
 class RevenueChartResponse(BaseModel):
     TimeZoneOffsetMinutes: int
     Daily: List[RevenuePoint] = Field(..., description="One point per day, oldest first, zero-filled")
     Monthly: List[RevenuePoint] = Field(..., description="One point per month, oldest first, zero-filled")
 
-
 class AdminTopPerformingResponse(BaseModel):
     PeriodDays: int
     TopItems: List[TopItem]
     TopSpendingSegments: List[SegmentSummary] = Field(..., description="Customer segments by revenue, highest first")
-
-
-# --- Customer portal -------------------------------------------------------------------
-
 
 class TierStatus(BaseModel):
     Tier: str = Field(..., examples=["Gold"])
@@ -52,12 +42,10 @@ class TierStatus(BaseModel):
     NextTier: Optional[str] = None
     PointsToNextTier: Optional[int] = None
 
-
 class TierInfo(BaseModel):
     Name: str
     MinPoints: int
     DiscountPercentage: int
-
 
 class CustomerMeResponse(BaseModel):
     CustomerId: int
@@ -74,11 +62,9 @@ class CustomerMeResponse(BaseModel):
     TotalSpent: MoneyTotal
     LastOrderDate: Optional[datetime] = None
 
-
 class MyOrder(OrderResponse):
     TrackingStatus: str = Field(..., examples=["Being served at table T-04", "Completed & paid"])
     IsOpen: bool = Field(..., description="Still Pending (being prepared or served)")
-
 
 class MyOrdersResponse(BaseModel):
     Total: int
@@ -86,14 +72,12 @@ class MyOrdersResponse(BaseModel):
     Limit: int
     Items: List[MyOrder]
 
-
 class Recommendation(BaseModel):
     MenuItemId: int
     Name: str
     CategoryName: str
     Price: Money
     Reason: str = Field(..., examples=["You've ordered this 3 times", "Popular in Desserts, which you like"])
-
 
 class RecommendationsResponse(BaseModel):
     BasedOnOrders: int = Field(..., description="Completed orders used to learn preferences (0 = new customer)")

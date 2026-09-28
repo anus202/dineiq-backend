@@ -14,13 +14,12 @@ if TYPE_CHECKING:
     from app.models.payment import Payment
     from app.models.restaurant_branch import RestaurantBranch
 
-
 class Order(CommonFields):
     __tablename__ = "Orders"
-    # Constraint and index names match app/db/migrations.py, which adds them to existing databases.
+
     __table_args__ = (
         CheckConstraint("GuestCount > 0", name="CK_tbl_Orders_GuestCount"),
-        # Covers analytics, which filter on Status and a date range and sum these columns.
+
         Index(
             "ix_tbl_Orders_Status_OrderDate",
             "Status",
@@ -30,19 +29,19 @@ class Order(CommonFields):
     )
 
     Id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    # NULL for walk-in customers. For a group, the primary (paying) customer.
+
     CustomerId: Mapped[Optional[int]] = mapped_column(
         ForeignKey("Customers.Id", name="FK_tbl_Orders_CustomerId"), nullable=True, index=True
     )
-    # Dine-in orders seated at a table (set by POST /api/v1/tables/assign).
+
     TableId: Mapped[Optional[int]] = mapped_column(
         ForeignKey("tbl_DiningTable.Id", name="FK_tbl_Orders_TableId"), nullable=True, index=True
     )
-    # Which branch this order belongs to. NULL for orders placed before branch tracking existed.
+
     BranchId: Mapped[Optional[int]] = mapped_column(
         ForeignKey("Restaurants.Id", name="FK_tbl_Orders_BranchId"), nullable=True, index=True
     )
-    # Party size, for Average Spend Per Guest.
+
     GuestCount: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default=text("1"))
     OrderNumber: Mapped[str] = mapped_column(Unicode(50), unique=True, nullable=False)
     OrderDate: Mapped[datetime] = mapped_column(
@@ -60,7 +59,7 @@ class Order(CommonFields):
     Customer: Mapped[Optional["Customer"]] = relationship(back_populates="Orders")
     Table: Mapped[Optional["DiningTable"]] = relationship()
     Branch: Mapped[Optional["RestaurantBranch"]] = relationship()
-    # Set once the bill is settled (tbl_Payment.OrderId is unique).
+
     Payment: Mapped[Optional["Payment"]] = relationship(uselist=False, viewonly=True)
     items: Mapped[List["OrderDetail"]] = relationship(
         back_populates="Order", cascade="all, delete-orphan", order_by="OrderDetail.Id"

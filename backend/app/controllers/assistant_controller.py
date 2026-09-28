@@ -3,10 +3,7 @@ from fastapi import APIRouter
 from app.schemas.assistant_schema import AssistantChatRequest, AssistantChatResponse
 from app.services import assistant_service
 
-# Public and stateless on purpose: the floating assistant widget appears on every page,
-# including /login and /register before a token exists, so it can't require auth.
 router = APIRouter(prefix="/api/v1/assistant", tags=["Assistant"])
-
 
 @router.post(
     "/chat",

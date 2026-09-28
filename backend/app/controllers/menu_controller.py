@@ -11,7 +11,6 @@ from app.schemas.menu_item import MenuItemCreate, MenuItemListResponse, MenuItem
 from app.services import menu_service
 from app.services.menu_service import CategoryNotFound
 
-# Every route here requires a valid token and one of the EVERYONE roles.
 router = APIRouter(
     prefix="/api/v1/menu-items",
     tags=["Menu Management"],
@@ -22,14 +21,11 @@ router = APIRouter(
 NOT_FOUND = {404: {"description": "Menu item not found"}}
 BAD_CATEGORY = {400: {"description": "CategoryId does not exist"}}
 
-
 def _not_found(item_id: int) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Menu item {item_id} not found")
 
-
 def _bad_category(exc: CategoryNotFound) -> HTTPException:
     return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
-
 
 @router.post(
     "",
@@ -50,7 +46,6 @@ async def create_menu_item(
         raise _bad_category(exc)
     return MenuItemResponse.from_model(item)
 
-
 @router.get("", response_model=MenuItemListResponse, summary="Get menu items (paginated, filterable)")
 async def get_menu_items(
     skip: int = Query(0, ge=0, description="Number of items to skip"),
@@ -65,14 +60,12 @@ async def get_menu_items(
         Total=total, Skip=skip, Limit=limit, Items=[MenuItemResponse.from_model(i) for i in items]
     )
 
-
 @router.get("/{id}", response_model=MenuItemResponse, summary="Get menu item by ID", responses=NOT_FOUND)
 async def get_menu_item(id: int, db: AsyncSession = Depends(get_db)):
     item = await menu_service.get_menu_item_by_id(db, id)
     if item is None:
         raise _not_found(id)
     return MenuItemResponse.from_model(item)
-
 
 @router.put(
     "/{id}",
@@ -94,7 +87,6 @@ async def update_menu_item(
     if item is None:
         raise _not_found(id)
     return MenuItemResponse.from_model(item)
-
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete menu item (soft)", responses=NOT_FOUND)
 async def delete_menu_item(

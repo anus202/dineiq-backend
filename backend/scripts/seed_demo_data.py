@@ -1,14 +1,3 @@
-"""Create demo accounts, dining tables, inventory and recipes for reviewing the UI.
-
-Safe to run repeatedly: anything that already exists is left alone.
-
-    cd backend
-    .venv\\Scripts\\python scripts\\seed_demo_data.py            # API at http://localhost:8000
-
-The first ADMIN has to be bootstrapped in SQL (a fresh system has no admin to create
-one through the API); everything else goes through the API, so it is validated,
-audited and stock-logged like real use.
-"""
 import os
 import sys
 from pathlib import Path
@@ -27,14 +16,11 @@ STAFF = [
     {"FullName": "Demo Inventory Manager", "Email": "inventory@dineiq.demo", "Role": "INVENTORY_MANAGER"},
     {"FullName": "Demo Cashier", "Email": "cashier@dineiq.demo", "Role": "CASHIER"},
 ]
-# A customer from the dataset with order history; signing up with the same phone and
-# email links the login to that profile.
+
 CUSTOMER_ID = 36542
 
 TABLES = [(f"T-{n:02d}", cap) for n, cap in enumerate([2, 2, 4, 4, 4, 4, 6, 6, 8, 2, 4, 10], start=1)]
 
-# (name, unit, current stock, reorder level, unit cost PKR). A few start low / out of
-# stock so every stock-health colour appears on the dashboard.
 INVENTORY = [
     ("Basmati Rice", "kg", 120, 30, 320),
     ("Chicken (boneless)", "kg", 60, 20, 950),
@@ -49,7 +35,7 @@ INVENTORY = [
     ("Mozzarella Cheese", "kg", 0, 5, 2100),
     ("Biryani Masala", "kg", 3, 2, 1600),
 ]
-# menu item id -> [(inventory item name, quantity per serving)]
+
 RECIPES = {
     27: [("Basmati Rice", 0.25), ("Chicken (boneless)", 0.2), ("Cooking Oil", 0.03), ("Yogurt", 0.05), ("Onions", 0.06), ("Biryani Masala", 0.01)],
     31: [("Basmati Rice", 0.25), ("Mutton", 0.22), ("Cooking Oil", 0.03), ("Yogurt", 0.05), ("Onions", 0.06), ("Biryani Masala", 0.012)],
@@ -59,7 +45,6 @@ RECIPES = {
     6: [("Garlic Bread Loaf", 1), ("Mozzarella Cheese", 0.05)],
 }
 
-
 def sql():
     return pyodbc.connect(
         f"Driver={{{os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server')}}};Server={os.getenv('DB_SERVER', '.')};"
@@ -68,12 +53,10 @@ def sql():
         autocommit=True,
     )
 
-
 def login(client: httpx.Client, email: str) -> dict:
     r = client.post(f"{API}/auth/login", json={"Email": email, "Password": PASSWORD})
     r.raise_for_status()
     return {"Authorization": f"Bearer {r.json()['Token']}"}
-
 
 def ok(r: httpx.Response, *expected_errors: int) -> bool:
     if r.status_code < 300:
@@ -82,12 +65,10 @@ def ok(r: httpx.Response, *expected_errors: int) -> bool:
         return False
     sys.exit(f"{r.request.method} {r.request.url} -> {r.status_code} {r.text}")
 
-
 def main() -> None:
     client = httpx.Client(timeout=300)
     db = sql()
 
-    # 1. Admin (bootstrap: sign up, then promote in SQL once).
     ok(client.post(f"{API}/auth/signup", json={**ADMIN, "Password": PASSWORD}), 400)
     db.execute(
         "UPDATE tbl_Signup SET RoleId = (SELECT Id FROM tbl_Role WHERE Name = 'ADMIN') "
@@ -97,15 +78,10 @@ def main() -> None:
     admin = login(client, ADMIN["Email"])
     print("admin ready:", ADMIN["Email"])
 
-    # 2. Staff, created by the admin through the API.
     for member in STAFF:
         created = ok(client.post(f"{API}/users", headers=admin, json={**member, "Password": PASSWORD}), 400)
         print(f"{'created' if created else 'exists '} {member['Role']:18} {member['Email']}")
 
-    # RESTAURANT_MANAGER and INVENTORY_MANAGER are branch-scoped roles (see
-    # BRANCH_SCOPED_ROLES) -- without an assigned branch, every branch-scoped endpoint
-    # they call 400s. Assign the first active branch so the demo accounts actually work,
-    # whether they were just created above or already existed without one.
     demo_branch = db.execute("SELECT TOP 1 Id, BranchName FROM Restaurants WHERE IsActive = 1 ORDER BY Id").fetchone()
     if demo_branch:
         for member in STAFF:
@@ -113,7 +89,6 @@ def main() -> None:
                 db.execute("UPDATE tbl_Signup SET BranchId = ? WHERE Email = ? AND BranchId IS NULL", demo_branch.Id, member["Email"])
         print(f"branch-scoped demo staff assigned to: {demo_branch.BranchName} (#{demo_branch.Id})")
 
-    # 3. Customer login linked to a dataset customer (same phone + email).
     customer = db.execute("SELECT Name, Phone, Email FROM Customers WHERE Id = ?", CUSTOMER_ID).fetchone()
     created = ok(
         client.post(
@@ -124,12 +99,10 @@ def main() -> None:
     )
     print(f"{'created' if created else 'exists '} CUSTOMER           {customer.Email} (customer #{CUSTOMER_ID})")
 
-    # 4. Dining tables.
     for number, capacity in TABLES:
         ok(client.post(f"{API}/tables", headers=admin, json={"TableNumber": number, "Capacity": capacity}), 409)
     print(f"tables: {len(TABLES)} ensured")
 
-    # 5. Inventory and recipes (as the inventory manager).
     inventory = login(client, "inventory@dineiq.demo")
     existing = {i["ItemName"]: i["Id"] for i in client.get(f"{API}/inventory/items?limit=200", headers=inventory).json()["Items"]}
     for name, unit, stock, reorder, cost in INVENTORY:
@@ -154,7 +127,6 @@ def main() -> None:
             )
     print(f"recipes: {len(RECIPES)} ensured")
     print(f"\nAll demo accounts use the password: {PASSWORD}")
-
 
 if __name__ == "__main__":
     main()

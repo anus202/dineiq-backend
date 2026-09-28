@@ -8,12 +8,10 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validat
 from app.schemas.common import Money, MoneyTotal
 from app.schemas.common import Quantity as Qty
 
-
 class UnitEnum(str, Enum):
     KG = "kg"
     LITERS = "liters"
     PCS = "pcs"
-
 
 def _strip_name(value: Optional[str]) -> Optional[str]:
     if value is None:
@@ -22,7 +20,6 @@ def _strip_name(value: Optional[str]) -> Optional[str]:
     if not value:
         raise ValueError("ItemName cannot be blank")
     return value
-
 
 class InventoryItemCreate(BaseModel):
     ItemName: str = Field(..., min_length=1, max_length=150, examples=["Basmati Rice"])
@@ -33,9 +30,7 @@ class InventoryItemCreate(BaseModel):
 
     _name = field_validator("ItemName")(_strip_name)
 
-
 class InventoryItemUpdate(BaseModel):
-    """Send only the fields to change. Stock itself changes via /inventory/adjust or completed orders."""
 
     ItemName: Optional[str] = Field(None, min_length=1, max_length=150)
     Unit: Optional[UnitEnum] = None
@@ -51,13 +46,11 @@ class InventoryItemUpdate(BaseModel):
             raise ValueError("Field cannot be null; omit it to keep the current value")
         return value
 
-
 class MovementTypeEnum(str, Enum):
     INITIAL_STOCK = "INITIAL_STOCK"
     MANUAL_ADDITION = "MANUAL_ADDITION"
     MANUAL_DEDUCTION = "MANUAL_DEDUCTION"
     ORDER_CONSUMPTION = "ORDER_CONSUMPTION"
-
 
 class StockAdjustment(BaseModel):
     InventoryItemId: int = Field(..., gt=0, examples=[1])
@@ -81,7 +74,6 @@ class StockAdjustment(BaseModel):
             raise ValueError("Quantity cannot be 0")
         return value
 
-
 class InventoryItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -102,13 +94,11 @@ class InventoryItemResponse(BaseModel):
     def IsLowStock(self) -> bool:
         return self.CurrentStock <= self.ReorderLevel
 
-
 class InventoryItemListResponse(BaseModel):
     Total: int
     Skip: int
     Limit: int
     Items: List[InventoryItemResponse]
-
 
 class LowStockAlert(BaseModel):
     InventoryItemId: int
@@ -122,11 +112,9 @@ class LowStockAlert(BaseModel):
     def Shortfall(self) -> Qty:
         return self.ReorderLevel - self.CurrentStock
 
-
 class RecipeLineIn(BaseModel):
     InventoryItemId: int = Field(..., gt=0, examples=[1])
     QuantityRequired: Qty = Field(..., gt=0, description="Per serving, in the item's unit", examples=[0.25])
-
 
 class RecipeSet(BaseModel):
     Lines: List[RecipeLineIn] = Field(..., max_length=50, description="Replaces the whole recipe; [] clears it")
@@ -139,19 +127,16 @@ class RecipeSet(BaseModel):
             raise ValueError("Each inventory item can appear only once in a recipe")
         return lines
 
-
 class RecipeLineResponse(BaseModel):
     InventoryItemId: int
     ItemName: str
     Unit: str
     QuantityRequired: Qty
 
-
 class RecipeResponse(BaseModel):
     MenuItemId: int
     MenuItemName: str
     Lines: List[RecipeLineResponse]
-
 
 class StockMovementResponse(BaseModel):
     Id: int
@@ -168,23 +153,18 @@ class StockMovementResponse(BaseModel):
     ChangedByName: Optional[str] = None
     ChangedAt: datetime
 
-
-# Alias: a field named LowStockAlert below can't also use LowStockAlert as its type.
 _Alert = LowStockAlert
-
 
 class StockAdjustmentResponse(BaseModel):
     Item: InventoryItemResponse
     Movement: StockMovementResponse
     LowStockAlert: Optional[_Alert] = Field(None, description="Set if the item is now at or below its reorder level")
 
-
 class StockMovementListResponse(BaseModel):
     Total: int
     Skip: int
     Limit: int
     Items: List[StockMovementResponse]
-
 
 class StockItemStatus(BaseModel):
     InventoryItemId: int
@@ -194,7 +174,6 @@ class StockItemStatus(BaseModel):
     ReorderLevel: Qty
     UnitCost: Money
     StockValue: MoneyTotal = Field(..., description="max(CurrentStock, 0) x UnitCost")
-
 
 class StockStatusResponse(BaseModel):
     TotalItems: int

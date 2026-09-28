@@ -25,7 +25,6 @@ router = APIRouter(
     responses={401: {"description": "Missing, invalid or expired token"}},
 )
 
-
 @router.get(
     "/market-basket",
     response_model=list[MarketBasketRule],
@@ -37,7 +36,6 @@ async def market_basket():
         return ml_analytics_service.get_market_basket_rules()
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-
 
 @router.get(
     "/price-sensitivity",
@@ -51,7 +49,6 @@ async def price_sensitivity():
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
-
 @router.get(
     "/promotion-traps",
     response_model=list[PromotionTrapItem],
@@ -63,7 +60,6 @@ async def promotion_traps():
         return ml_analytics_service.get_promotion_traps()
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-
 
 @router.get(
     "/recommendations",
@@ -77,7 +73,6 @@ async def ml_recommendations():
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
-
 @router.get(
     "/dual-pipeline-comparison",
     dependencies=[Depends(require_roles(BRANCH_MANAGERS, extra_permission="CanAccessBranchAnalytics"))],
@@ -88,7 +83,6 @@ async def dual_pipeline_comparison():
         return ml_analytics_service.get_dual_pipeline_comparison()
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-
 
 @router.get(
     "/churn-risk",
@@ -101,7 +95,6 @@ async def churn_risk(limit: int = Query(50, ge=1, le=1000), db: AsyncSession = D
         return await ml_analytics_service.get_churn_risk(db, limit)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-
 
 @router.post(
     "/what-if",
@@ -132,7 +125,6 @@ async def what_if(payload: WhatIfRequest, db: AsyncSession = Depends(get_db)):
 async def rating_anomalies(db: AsyncSession = Depends(get_db)):
     return await ml_analytics_service.get_rating_anomalies(db)
 
-
 @router.get(
     "/slow-moving-dishes",
     response_model=list[SlowMovingDish],
@@ -141,7 +133,6 @@ async def rating_anomalies(db: AsyncSession = Depends(get_db)):
 )
 async def slow_moving_dishes(db: AsyncSession = Depends(get_db)):
     return await ml_analytics_service.get_slow_moving_dishes(db)
-
 
 @router.get(
     "/wastage-risk",
@@ -154,7 +145,6 @@ async def wastage_risk(limit: int = Query(50, ge=1, le=500), db: AsyncSession = 
         return await ml_analytics_service.get_wastage_risk(db, limit)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-
 
 @router.get(
     "/demand-forecast",

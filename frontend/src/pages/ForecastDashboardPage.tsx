@@ -40,7 +40,7 @@ const wastageColumns: Column<WastageRiskItem>[] = [
 ]
 
 export function ForecastDashboardPage() {
-  // Fetches up to 200 (up from 50) — safe now that each table paginates client-side.
+
   const demand = useApi(() => mlAnalyticsApi.demandForecastMl(200), [])
   const wastage = useApi(() => mlAnalyticsApi.wastageRisk(200), [])
 

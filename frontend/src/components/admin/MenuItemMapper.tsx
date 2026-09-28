@@ -9,7 +9,6 @@ import { MenuItemFormModal } from './MenuItemFormModal'
 
 const PAGE_SIZE = 15
 
-/** Menu items mapped to categories, with price, cost and margin. */
 export function MenuItemMapper() {
   const toast = useToast()
   const [page, setPage] = useState(1)

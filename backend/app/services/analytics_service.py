@@ -1,9 +1,3 @@
-"""Sales analytics. Every figure is aggregated inside SQL Server; Python only formats results.
-
-Only Completed orders count as sales. Order dates are stored in UTC and grouped in the
-business time zone (BUSINESS_UTC_OFFSET_MINUTES). The analytics index on
-tbl_Orders (Status, OrderDate) INCLUDE (...) covers the order-level queries.
-"""
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Optional
@@ -38,8 +32,6 @@ COMPLETED = OrderStatusEnum.COMPLETED.value
 LUNCH_HOURS = range(11, 16)
 DINNER_HOURS = range(18, 24)
 
-# Evaluated top to bottom; the first match wins. Scores: 5 = best (most recent / most
-# frequent / highest spend), relative to all customers with a completed order.
 SEGMENT_RULES = {
     "VIP High Spenders": "M = 5 and R >= 3: top 20% by spend and still active",
     "Loyal Regulars": "F >= 4 and R >= 3: repeat customers who are still active",
@@ -49,35 +41,26 @@ SEGMENT_RULES = {
     "Needs Attention": "everyone else: average recency, frequency and spend",
 }
 
-
-# TTL caches for the heaviest dashboard aggregations. Keyed on the actual filter
-# values (never the db session -- see app/core/cache.py). 5 minutes balances
-# freshness against the cost of re-scanning 1M+ order-line rows on every request.
 _OVERVIEW_TTL_SECONDS = 300
-_RFM_TTL_SECONDS = 600  # RFM segments/matrix change slowly; cache a bit longer.
+_RFM_TTL_SECONDS = 600
 _overview_cache = TTLCache()
 _rfm_segmentation_cache = TTLCache()
 _rfm_matrix_cache = TTLCache()
 
-
 def _money(value) -> Decimal:
     return Decimal(value or 0).quantize(TWO_PLACES)
-
 
 def _pct(part, whole) -> Decimal:
     return (Decimal(part) * 100 / Decimal(whole)).quantize(TWO_PLACES) if whole else ZERO.quantize(TWO_PLACES)
 
-
 def _period(start: Optional[date], end: Optional[date]) -> DateRange:
     return DateRange(StartDate=start, EndDate=end, TimeZoneOffsetMinutes=BUSINESS_UTC_OFFSET_MINUTES)
-
 
 def _order_filters(
     start: Optional[date], end: Optional[date], status: Optional[str] = COMPLETED, branch_id: Optional[int] = None
 ) -> list:
-    """Order filters for a local-date range (inclusive), converted to UTC bounds."""
     offset = timedelta(minutes=BUSINESS_UTC_OFFSET_MINUTES)
-    filters = [Order.IsDeleted == False]  # noqa: E712
+    filters = [Order.IsDeleted == False]
     if status is not None:
         filters.append(Order.Status == status)
     if start is not None:
@@ -87,10 +70,6 @@ def _order_filters(
     if branch_id is not None:
         filters.append(Order.BranchId == branch_id)
     return filters
-
-
-# --- Overview --------------------------------------------------------------------------
-
 
 async def _get_overview_uncached(
     db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int] = None
@@ -125,7 +104,7 @@ async def _get_overview_uncached(
             .select_from(OrderDetail)
             .join(Order, Order.Id == OrderDetail.OrderId)
             .join(MenuItem, MenuItem.Id == OrderDetail.MenuItemId)
-            .where(*_order_filters(start, end, branch_id=branch_id), OrderDetail.IsDeleted == False)  # noqa: E712
+            .where(*_order_filters(start, end, branch_id=branch_id), OrderDetail.IsDeleted == False)
         )
     )
     profit = revenue - cogs
@@ -146,17 +125,12 @@ async def _get_overview_uncached(
         AverageSpendPerGuest=_money(gross / guests) if guests else _money(0),
     )
 
-
 async def get_overview(
     db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int] = None
 ) -> OverviewResponse:
     return await _overview_cache.get_or_set(
         (start, end, branch_id), _OVERVIEW_TTL_SECONDS, lambda: _get_overview_uncached(db, start, end, branch_id)
     )
-
-
-# --- Peak hours ------------------------------------------------------------------------
-
 
 def _bucket(hour: int, orders: int, revenue: Decimal, guests: int, total_orders: int) -> HourlyBucket:
     return HourlyBucket(
@@ -169,10 +143,8 @@ def _bucket(hour: int, orders: int, revenue: Decimal, guests: int, total_orders:
         ShareOfOrdersPercentage=_pct(orders, total_orders),
     )
 
-
 async def get_peak_hours(db: AsyncSession, start: Optional[date], end: Optional[date]) -> PeakHoursResponse:
-    # The offset is a trusted int from config, inlined so SELECT and GROUP BY render the
-    # identical expression (SQL Server rejects GROUP BY on two separate parameters).
+
     local_time = func.dateadd(
         literal_column("minute"), literal_column(str(int(BUSINESS_UTC_OFFSET_MINUTES))), Order.OrderDate
     )
@@ -200,20 +172,14 @@ async def get_peak_hours(db: AsyncSession, start: Optional[date], end: Optional[
         DinnerPeak=busiest(DINNER_HOURS),
     )
 
-
-# --- Top items -------------------------------------------------------------------------
-
-
 async def get_top_items(
     db: AsyncSession, start: Optional[date], end: Optional[date], limit: int, branch_id: Optional[int] = None
 ) -> TopItemsResponse:
     quantity = func.sum(OrderDetail.Quantity).label("QuantitySold")
     revenue = func.sum(OrderDetail.TotalPrice).label("Revenue")
-    # Each order has at most one line per dish (create_order merges repeats), so counting lines
-    # counts orders. COUNT(DISTINCT) gave the same number but needed an extra sort-memory
-    # grant, which on a memory-constrained SQL Server queued for tens of seconds.
+
     orders = func.count().label("OrdersContaining")
-    completed_lines = [*_order_filters(start, end, branch_id=branch_id), OrderDetail.IsDeleted == False]  # noqa: E712
+    completed_lines = [*_order_filters(start, end, branch_id=branch_id), OrderDetail.IsDeleted == False]
 
     base = (
         select(OrderDetail.MenuItemId, MenuItem.Name, Category.Name, quantity, revenue, orders)
@@ -255,19 +221,12 @@ async def get_top_items(
         TopByRevenue=await ranked(desc(revenue), desc(quantity)),
     )
 
-
-# --- RFM -------------------------------------------------------------------------------
-
-
 def _score(column, descending: bool = False):
-    """1-5 score from PERCENT_RANK: ties share a score, and the lowest group always gets 1."""
     order = column.desc() if descending else column.asc()
     rank = func.percent_rank().over(order_by=order)
     return cast(func.least(5, 1 + func.floor(rank * 5)), Integer)
 
-
 def _scored_customers(as_of: datetime):
-    """Subquery: one row per customer with completed orders, with R/F/M values, scores and segment."""
     per_customer = (
         select(
             Order.CustomerId.label("CustomerId"),
@@ -280,14 +239,14 @@ def _scored_customers(as_of: datetime):
         .subquery("per_customer")
     )
     days = func.datediff(literal_column("day"), per_customer.c.LastOrderDate, as_of)
-    recency = case((days < 0, 0), else_=days)  # imported future-dated orders count as today
+    recency = case((days < 0, 0), else_=days)
     scores = select(
         per_customer.c.CustomerId,
         per_customer.c.LastOrderDate,
         recency.label("RecencyDays"),
         per_customer.c.Frequency,
         per_customer.c.Monetary,
-        _score(recency, descending=True).label("R"),  # oldest first, so most recent scores 5
+        _score(recency, descending=True).label("R"),
         _score(per_customer.c.Frequency).label("F"),
         _score(per_customer.c.Monetary).label("M"),
     ).subquery("scores")
@@ -301,7 +260,6 @@ def _scored_customers(as_of: datetime):
         else_="Needs Attention",
     )
     return select(scores, segment.label("Segment")).subquery("scored")
-
 
 async def _get_rfm_segmentation_uncached(db: AsyncSession, as_of: Optional[datetime]) -> RFMSegmentationResponse:
     as_of = as_of or utc_now()
@@ -349,7 +307,7 @@ async def _get_rfm_segmentation_uncached(db: AsyncSession, as_of: Optional[datet
     ).one()
     registered_orders, walk_in_orders = split[0] or 0, split[2] or 0
     registered_customers = await db.scalar(
-        select(func.count()).select_from(Customer).where(Customer.IsDeleted == False)  # noqa: E712
+        select(func.count()).select_from(Customer).where(Customer.IsDeleted == False)
     )
 
     return RFMSegmentationResponse(
@@ -368,12 +326,10 @@ async def _get_rfm_segmentation_uncached(db: AsyncSession, as_of: Optional[datet
         WalkInShareOfOrdersPercentage=_pct(walk_in_orders, registered_orders + walk_in_orders),
     )
 
-
 async def get_rfm_segmentation(db: AsyncSession, as_of: Optional[datetime]) -> RFMSegmentationResponse:
     return await _rfm_segmentation_cache.get_or_set(
         as_of or "latest", _RFM_TTL_SECONDS, lambda: _get_rfm_segmentation_uncached(db, as_of)
     )
-
 
 async def get_customer_rfm(
     db: AsyncSession, customer: Customer, as_of: Optional[datetime]
@@ -398,20 +354,13 @@ async def get_customer_rfm(
         Segment=row["Segment"],
     )
 
-
-# --- Heatmap and RFM matrix (admin dashboard) ------------------------------------------
-
 DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-
 
 async def get_hourly_heatmap(db: AsyncSession, start: Optional[date], end: Optional[date]) -> HourlyHeatmapResponse:
     local_time = func.dateadd(
         literal_column("minute"), literal_column(str(int(BUSINESS_UTC_OFFSET_MINUTES))), Order.OrderDate
     )
-    # Days since Monday 1900-01-01, mod 7: independent of the server's DATEFIRST setting.
-    # literal_column("7"), not a bound param: SQL Server validates GROUP BY by matching
-    # expression text before parameters are bound, so "% 7" and "% :param" wouldn't be
-    # recognized as the same expression between the SELECT list and the GROUP BY clause.
+
     weekday = func.datediff(literal_column("day"), literal_column("'19000101'"), local_time) % literal_column("7")
     hour = func.datepart(literal_column("hour"), local_time)
     rows = (
@@ -430,14 +379,7 @@ async def get_hourly_heatmap(db: AsyncSession, start: Optional[date], end: Optio
     busiest = max(cells, key=lambda c: (c.Orders, c.Revenue)) if any(c.Orders for c in cells) else None
     return HourlyHeatmapResponse(Period=_period(start, end), Cells=cells, MaxOrders=busiest.Orders if busiest else 0, BusiestSlot=busiest)
 
-
 async def _get_rfm_matrix_uncached(db: AsyncSession, as_of: Optional[datetime]) -> RFMMatrixResponse:
-    """Single pass over the scored-customers subquery (grouped by R, F, and M together),
-    not two separate passes. The old version re-ran the whole triple-PERCENT_RANK window
-    computation over every customer a second time just to get the monetary matrix instead
-    of the frequency matrix -- doubling the cost of the single most expensive query in the
-    app for no reason, since both matrices can be built from one (R, F, M) grouping.
-    """
     as_of = as_of or utc_now()
     scored = _scored_customers(as_of)
 
@@ -475,7 +417,6 @@ async def _get_rfm_matrix_uncached(db: AsyncSession, as_of: Optional[datetime]) 
         FrequencyMatrix=frequency,
         MonetaryMatrix=monetary,
     )
-
 
 async def get_rfm_matrix(db: AsyncSession, as_of: Optional[datetime]) -> RFMMatrixResponse:
     return await _rfm_matrix_cache.get_or_set(as_of or "latest", _RFM_TTL_SECONDS, lambda: _get_rfm_matrix_uncached(db, as_of))

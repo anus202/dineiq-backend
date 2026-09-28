@@ -9,7 +9,6 @@ from app.models.base import CommonFields, utc_now
 if TYPE_CHECKING:
     from app.models.signup import Signup
 
-
 class Login(CommonFields):
     __tablename__ = "tbl_Login"
 

@@ -11,8 +11,6 @@ const variants: Record<Variant, string> = {
   ghost: 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800',
 }
 
-// A soft light sweep across primary/danger buttons on hover -- only on solid-colored
-// variants, where it reads clearly instead of looking like a rendering glitch.
 const shineVariants: Partial<Record<Variant, boolean>> = { primary: true, danger: true }
 
 const sizes: Record<Size, string> = {

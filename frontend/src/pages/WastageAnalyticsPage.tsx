@@ -11,9 +11,7 @@ import { money, quantity } from '../utils/format'
 
 function WastageAnalyticsContent() {
   const { selectedBranchId } = useBranch()
-  // Set to true for exactly one in-flight call (by the Refresh button below), then reset --
-  // the backend cache TTL is 20 minutes, so every other page visit is served instantly from
-  // cache instead of re-running the underlying aggregation.
+
   const forceRefreshRef = useRef(false)
   const wastage = useApi(
     () => branchAnalyticsApi.wastage({ branch_id: selectedBranchId, refresh: forceRefreshRef.current }),

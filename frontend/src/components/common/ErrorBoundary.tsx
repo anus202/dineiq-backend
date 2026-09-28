@@ -2,8 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 interface Props {
   children: ReactNode
-  /** Shown above the retry button; defaults to a generic message so this stays reusable
-   * across pages without every caller having to write its own copy. */
+
   title?: string
 }
 
@@ -11,12 +10,6 @@ interface State {
   error: Error | null
 }
 
-/**
- * Catches render-time errors in the wrapped subtree (a malformed analytics payload, a bad
- * chart value, etc.) so one page's data glitch shows a clean fallback instead of unmounting
- * the whole app. Class component because React only supports error boundaries this way —
- * there is no hook equivalent for getDerivedStateFromError/componentDidCatch.
- */
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null }
 

@@ -8,9 +8,7 @@ from app.models.base import CommonFields
 if TYPE_CHECKING:
     from app.models.signup import Signup
 
-
 class RestaurantBranch(CommonFields):
-    """A physical restaurant location (FR 1.6-ii: branch/location management)."""
 
     __tablename__ = "Restaurants"
 

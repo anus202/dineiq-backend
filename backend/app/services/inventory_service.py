@@ -26,15 +26,12 @@ from app.schemas.inventory_schema import (
     StockStatusResponse,
 )
 
-
 class InventoryError(Exception):
-    """Base class for inventory failures the controller turns into HTTP errors."""
-
+    pass
 
 class DuplicateItemName(InventoryError):
     def __init__(self, name: str):
         super().__init__(f"An inventory item named '{name}' already exists")
-
 
 class InsufficientStock(InventoryError):
     def __init__(self, item: InventoryItem, change):
@@ -43,25 +40,20 @@ class InsufficientStock(InventoryError):
             f"(current stock {item.CurrentStock})"
         )
 
-
 class UnknownInventoryItems(InventoryError):
     def __init__(self, item_ids: list[int]):
         super().__init__(f"Inventory items not found: {item_ids}")
-
 
 class ItemInUse(InventoryError):
     def __init__(self, item_name: str, menu_items: list[str]):
         super().__init__(f"'{item_name}' is used in recipes for: {', '.join(menu_items)}. Remove it from those recipes first.")
 
-
 class MenuItemNotFound(InventoryError):
     def __init__(self, menu_item_id: int):
         super().__init__(f"Menu item {menu_item_id} not found")
 
-
 def _not_deleted():
-    return InventoryItem.IsDeleted == False  # noqa: E712
-
+    return InventoryItem.IsDeleted == False
 
 def _alert(item: InventoryItem) -> LowStockAlert:
     return LowStockAlert(
@@ -72,16 +64,11 @@ def _alert(item: InventoryItem) -> LowStockAlert:
         ReorderLevel=item.ReorderLevel,
     )
 
-
-# --- Inventory items -------------------------------------------------------------------
-
-
 async def _name_taken(db: AsyncSession, name: str, exclude_id: Optional[int] = None) -> bool:
     query = select(InventoryItem.Id).where(InventoryItem.ItemName == name, _not_deleted())
     if exclude_id is not None:
         query = query.where(InventoryItem.Id != exclude_id)
     return await db.scalar(query) is not None
-
 
 async def create_item(db: AsyncSession, payload: InventoryItemCreate, user_id: int) -> InventoryItem:
     if await _name_taken(db, payload.ItemName):
@@ -97,7 +84,7 @@ async def create_item(db: AsyncSession, payload: InventoryItemCreate, user_id: i
     )
     db.add(item)
     if payload.CurrentStock > 0:
-        await db.flush()  # assigns item.Id
+        await db.flush()
         db.add(
             StockMovementLog(
                 InventoryItemId=item.Id,
@@ -112,14 +99,12 @@ async def create_item(db: AsyncSession, payload: InventoryItemCreate, user_id: i
     await db.commit()
     return item
 
-
 async def get_item(db: AsyncSession, item_id: int) -> Optional[InventoryItem]:
     return await db.scalar(
         select(InventoryItem)
         .where(InventoryItem.Id == item_id, _not_deleted())
         .execution_options(populate_existing=True)
     )
-
 
 async def get_items(
     db: AsyncSession, skip: int, limit: int, search: Optional[str], low_stock_only: bool
@@ -135,7 +120,6 @@ async def get_items(
     )
     return total or 0, list(items)
 
-
 async def update_item(
     db: AsyncSession, item_id: int, payload: InventoryItemUpdate, user_id: int
 ) -> Optional[InventoryItem]:
@@ -144,7 +128,7 @@ async def update_item(
         return None
     changes = payload.model_dump(exclude_unset=True)
     if not changes:
-        return item  # nothing sent: leave UpdatedBy / UpdatedAt untouched
+        return item
     if "ItemName" in changes and await _name_taken(db, changes["ItemName"], exclude_id=item_id):
         raise DuplicateItemName(changes["ItemName"])
     if "Unit" in changes:
@@ -155,23 +139,16 @@ async def update_item(
     await db.commit()
     return await get_item(db, item_id)
 
-
 async def adjust_stock(
     db: AsyncSession, payload: StockAdjustment, user_id: int, branch_id: Optional[int] = None
 ) -> Optional[StockAdjustmentResponse]:
-    """Add or remove stock and log it, in one transaction.
-
-    The UPDATE is atomic (CurrentStock = CurrentStock + change) and returns the new
-    stock via OUTPUT, so concurrent adjustments never overwrite each other and the log's
-    StockAfter is exact. Returns None if the item doesn't exist.
-    """
     change = payload.Quantity
     new_stock = await db.scalar(
         update(InventoryItem)
         .where(
             InventoryItem.Id == payload.InventoryItemId,
             _not_deleted(),
-            # A manual removal may not push stock below zero.
+
             (InventoryItem.CurrentStock + change) >= 0,
         )
         .values(CurrentStock=InventoryItem.CurrentStock + change, UpdatedBy=user_id)
@@ -185,9 +162,6 @@ async def adjust_stock(
             return None
         raise InsufficientStock(item, change)
 
-    # Additions are genuine stock movements; removals are always spoilage, overproduction,
-    # or a correction -- i.e. wastage -- so they go into the dedicated Wastage table
-    # instead of the general movement log (see app/models/wastage.py).
     log = wastage = None
     if change > 0:
         log = StockMovementLog(
@@ -241,9 +215,7 @@ async def adjust_stock(
         LowStockAlert=_alert(item) if item.CurrentStock <= item.ReorderLevel else None,
     )
 
-
 async def delete_item(db: AsyncSession, item_id: int, user_id: int) -> bool:
-    """Soft delete (keeps its movement history). Refused while a recipe still uses the item."""
     item = await get_item(db, item_id)
     if item is None:
         return False
@@ -251,7 +223,7 @@ async def delete_item(db: AsyncSession, item_id: int, user_id: int) -> bool:
         await db.scalars(
             select(MenuItem.Name)
             .join(Recipe, Recipe.MenuItemId == MenuItem.Id)
-            .where(Recipe.InventoryItemId == item_id, MenuItem.IsDeleted == False)  # noqa: E712
+            .where(Recipe.InventoryItemId == item_id, MenuItem.IsDeleted == False)
             .order_by(MenuItem.Name)
         )
     )
@@ -263,23 +235,18 @@ async def delete_item(db: AsyncSession, item_id: int, user_id: int) -> bool:
     await db.commit()
     return True
 
-
 async def get_low_stock(db: AsyncSession) -> list[LowStockAlert]:
     items = await db.scalars(
         select(InventoryItem)
         .where(_not_deleted(), InventoryItem.CurrentStock <= InventoryItem.ReorderLevel)
-        # Worst first: furthest below the reorder level.
+
         .order_by((InventoryItem.CurrentStock - InventoryItem.ReorderLevel), InventoryItem.ItemName)
     )
     return [_alert(i) for i in items]
 
-
-# --- Recipes ---------------------------------------------------------------------------
-
-
 async def get_recipe(db: AsyncSession, menu_item_id: int) -> Optional[RecipeResponse]:
     menu_item = await db.scalar(
-        select(MenuItem).where(MenuItem.Id == menu_item_id, MenuItem.IsDeleted == False)  # noqa: E712
+        select(MenuItem).where(MenuItem.Id == menu_item_id, MenuItem.IsDeleted == False)
     )
     if menu_item is None:
         return None
@@ -304,11 +271,9 @@ async def get_recipe(db: AsyncSession, menu_item_id: int) -> Optional[RecipeResp
         ],
     )
 
-
 async def set_recipe(db: AsyncSession, menu_item_id: int, payload: RecipeSet, user_id: int) -> RecipeResponse:
-    """Replace a menu item's whole recipe in one transaction."""
     exists = await db.scalar(
-        select(MenuItem.Id).where(MenuItem.Id == menu_item_id, MenuItem.IsDeleted == False)  # noqa: E712
+        select(MenuItem.Id).where(MenuItem.Id == menu_item_id, MenuItem.IsDeleted == False)
     )
     if exists is None:
         raise MenuItemNotFound(menu_item_id)
@@ -333,26 +298,14 @@ async def set_recipe(db: AsyncSession, menu_item_id: int, payload: RecipeSet, us
     await db.commit()
     return await get_recipe(db, menu_item_id)
 
-
-# --- Order consumption -----------------------------------------------------------------
-
-
 async def consume_stock_for_order(db: AsyncSession, order_id: int, user_id: int) -> list[LowStockAlert]:
-    """Deduct every ingredient the order used and log it, inside the caller's transaction (no commit).
-
-    One set-based UPDATE: each ingredient's total (recipe quantity x ordered quantity,
-    summed over all lines) is subtracted atomically, so orders completing at the same
-    time can't lose each other's deductions. Its OUTPUT returns each item's deduction
-    and new stock, which become ORDER_CONSUMPTION log rows. Menu items without a recipe
-    use nothing. Returns alerts for touched ingredients now at or below reorder level.
-    """
     needed = (
         select(
             Recipe.InventoryItemId.label("InventoryItemId"),
             func.sum(Recipe.QuantityRequired * OrderDetail.Quantity).label("Needed"),
         )
         .join(OrderDetail, OrderDetail.MenuItemId == Recipe.MenuItemId)
-        .where(OrderDetail.OrderId == order_id, OrderDetail.IsDeleted == False)  # noqa: E712
+        .where(OrderDetail.OrderId == order_id, OrderDetail.IsDeleted == False)
         .group_by(Recipe.InventoryItemId)
         .subquery()
     )
@@ -400,10 +353,6 @@ async def consume_stock_for_order(db: AsyncSession, order_id: int, user_id: int)
     )
     return [_alert(i) for i in low]
 
-
-# --- Dashboard: stock status and movement log ------------------------------------------
-
-
 def _item_status(item: InventoryItem) -> StockItemStatus:
     on_hand = max(item.CurrentStock, Decimal("0"))
     return StockItemStatus(
@@ -415,7 +364,6 @@ def _item_status(item: InventoryItem) -> StockItemStatus:
         UnitCost=item.UnitCost,
         StockValue=(on_hand * item.UnitCost).quantize(Decimal("0.01")),
     )
-
 
 async def get_stock_status(db: AsyncSession) -> StockStatusResponse:
     totals = (
@@ -446,7 +394,6 @@ async def get_stock_status(db: AsyncSession) -> StockStatusResponse:
         OutOfStock=out,
     )
 
-
 async def get_movement_logs(
     db: AsyncSession,
     skip: int,
@@ -458,7 +405,6 @@ async def get_movement_logs(
     end_date: Optional[date] = None,
     movement_id: Optional[int] = None,
 ) -> tuple[int, list[StockMovementResponse]]:
-    """Newest first. Dates are local business dates (inclusive)."""
     offset = timedelta(minutes=BUSINESS_UTC_OFFSET_MINUTES)
     filters = []
     if movement_id is not None:

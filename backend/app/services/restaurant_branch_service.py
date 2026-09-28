@@ -6,15 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Order, RestaurantBranch
 from app.schemas.restaurant_branch_schema import RestaurantBranchCreate, RestaurantBranchResponse, RestaurantBranchUpdate
 
-
 async def _total_revenue(db: AsyncSession, branch_id: int) -> float:
     total = await db.scalar(
         select(func.coalesce(func.sum(Order.NetAmount), 0)).where(
-            Order.BranchId == branch_id, Order.IsDeleted == False  # noqa: E712
+            Order.BranchId == branch_id, Order.IsDeleted == False
         )
     )
     return float(total or 0)
-
 
 async def _to_response(db: AsyncSession, branch: RestaurantBranch) -> RestaurantBranchResponse:
     revenue = await _total_revenue(db, branch.Id)
@@ -33,11 +31,10 @@ async def _to_response(db: AsyncSession, branch: RestaurantBranch) -> Restaurant
         UpdatedAt=branch.UpdatedAt,
     )
 
-
 async def get_all(
     db: AsyncSession, search: Optional[str], is_active: Optional[bool]
 ) -> list[RestaurantBranchResponse]:
-    filters = [RestaurantBranch.IsDeleted == False]  # noqa: E712
+    filters = [RestaurantBranch.IsDeleted == False]
     if is_active is not None:
         filters.append(RestaurantBranch.IsActive == is_active)
     if search and search.strip():
@@ -48,17 +45,14 @@ async def get_all(
     )
     return [await _to_response(db, b) for b in branches]
 
-
 async def get_by_id(db: AsyncSession, branch_id: int) -> Optional[RestaurantBranch]:
     return await db.scalar(
-        select(RestaurantBranch).where(RestaurantBranch.Id == branch_id, RestaurantBranch.IsDeleted == False)  # noqa: E712
+        select(RestaurantBranch).where(RestaurantBranch.Id == branch_id, RestaurantBranch.IsDeleted == False)
     )
-
 
 async def get_response_by_id(db: AsyncSession, branch_id: int) -> Optional[RestaurantBranchResponse]:
     branch = await get_by_id(db, branch_id)
     return await _to_response(db, branch) if branch else None
-
 
 async def create(db: AsyncSession, payload: RestaurantBranchCreate, user_id: int) -> RestaurantBranchResponse:
     branch = RestaurantBranch(
@@ -76,7 +70,6 @@ async def create(db: AsyncSession, payload: RestaurantBranchCreate, user_id: int
     await db.commit()
     await db.refresh(branch, attribute_names=["Manager"])
     return await _to_response(db, branch)
-
 
 async def update(
     db: AsyncSession, branch_id: int, payload: RestaurantBranchUpdate, user_id: int
@@ -96,10 +89,7 @@ async def update(
     await db.refresh(branch, attribute_names=["Manager"])
     return await _to_response(db, branch)
 
-
 async def deactivate(db: AsyncSession, branch_id: int, user_id: int) -> bool:
-    """Soft deactivate: sets IsActive=False but keeps the row (and its history) visible in
-    the "Inactive" filter, unlike a hard/soft-delete which would hide it entirely."""
     branch = await get_by_id(db, branch_id)
     if branch is None:
         return False

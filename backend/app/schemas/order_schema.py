@@ -11,30 +11,25 @@ from app.schemas.inventory_schema import LowStockAlert
 if TYPE_CHECKING:
     from app.models import Order
 
-
 class OrderTypeEnum(str, Enum):
     DINE_IN = "Dine-in"
     TAKEAWAY = "Takeaway"
     DELIVERY = "Delivery"
 
-
 class PaymentMethodEnum(str, Enum):
     CASH = "Cash"
     CARD = "Card"
-    # Set by settlement when points cover the whole bill.
-    LOYALTY_POINTS = "Loyalty Points"
 
+    LOYALTY_POINTS = "Loyalty Points"
 
 class OrderStatusEnum(str, Enum):
     PENDING = "Pending"
     COMPLETED = "Completed"
     CANCELLED = "Cancelled"
 
-
 class OrderDetailCreate(BaseModel):
     MenuItemId: int = Field(..., gt=0, examples=[1])
     Quantity: int = Field(..., gt=0, le=1000, examples=[2])
-
 
 class OrderCreate(BaseModel):
     OrderType: OrderTypeEnum = Field(..., examples=[OrderTypeEnum.DINE_IN])
@@ -60,10 +55,8 @@ class OrderCreate(BaseModel):
     GuestCount: int = Field(1, ge=1, le=100, description="Party size", examples=[1])
     items: List[OrderDetailCreate] = Field(..., min_length=1, max_length=100)
 
-
 class OrderStatusUpdate(BaseModel):
     Status: OrderStatusEnum = Field(..., examples=[OrderStatusEnum.COMPLETED])
-
 
 class OrderDetailResponse(BaseModel):
     Id: int
@@ -73,11 +66,9 @@ class OrderDetailResponse(BaseModel):
     UnitPrice: Money
     TotalPrice: Money
 
-
 class OrderCustomerSummary(BaseModel):
     CustomerName: str
     Phone: str
-
 
 class OrderResponse(BaseModel):
     Id: int
@@ -109,7 +100,6 @@ class OrderResponse(BaseModel):
 
     @classmethod
     def from_model(cls, order: "Order") -> "OrderResponse":
-        """Build from an ORM Order whose Customer, Table, Payment, items and items' MenuItem are loaded."""
         return cls(
             Id=order.Id,
             OrderNumber=order.OrderNumber,
@@ -148,13 +138,11 @@ class OrderResponse(BaseModel):
             UpdatedAt=order.UpdatedAt,
         )
 
-
 class OrderStatusResponse(OrderResponse):
     LowStockAlerts: List[LowStockAlert] = Field(
         default_factory=list,
         description="Ingredients at or below their reorder level after this order's stock was deducted",
     )
-
 
 class OrderListResponse(BaseModel):
     Total: int = Field(..., description="Orders matching the filters, before pagination")

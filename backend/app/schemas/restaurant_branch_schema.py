@@ -3,13 +3,11 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
 def _strip_required(value: str, field_name: str) -> str:
     value = value.strip()
     if not value:
         raise ValueError(f"{field_name} cannot be blank")
     return value
-
 
 class RestaurantBranchBase(BaseModel):
     BranchName: str = Field(..., min_length=1, max_length=150, examples=["Gulberg Branch"])
@@ -43,16 +41,13 @@ class RestaurantBranchBase(BaseModel):
     def _hours(cls, value: str) -> str:
         return _strip_required(value, "OperatingHours")
 
-
 class RestaurantBranchCreate(RestaurantBranchBase):
     ManagerId: Optional[int] = Field(None, description="Signup.Id of the assigned branch manager")
     IsActive: bool = True
 
-
 class RestaurantBranchUpdate(RestaurantBranchBase):
     ManagerId: Optional[int] = None
     IsActive: bool = True
-
 
 class RestaurantBranchResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

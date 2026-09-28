@@ -12,25 +12,20 @@ from app.schemas.order_schema import OrderStatusEnum
 
 RECENT_ORDERS_LIMIT = 50
 
-# Digits, optionally starting with +, after removing spaces and dashes.
 _PHONE_LIKE = re.compile(r"^\+?\d+$")
-
 
 class PhoneAlreadyRegistered(Exception):
     def __init__(self, phone: str):
         super().__init__(f"A customer with phone {phone} already exists")
 
-
 def _active():
-    return Customer.IsDeleted == False  # noqa: E712
-
+    return Customer.IsDeleted == False
 
 async def _phone_taken(db: AsyncSession, phone: str, exclude_id: Optional[int] = None) -> bool:
     query = select(Customer.Id).where(Customer.Phone == phone)
     if exclude_id is not None:
         query = query.where(Customer.Id != exclude_id)
     return await db.scalar(query) is not None
-
 
 async def create_customer(db: AsyncSession, payload: CustomerCreate, user_id: int) -> Customer:
     if await _phone_taken(db, payload.Phone):
@@ -41,11 +36,10 @@ async def create_customer(db: AsyncSession, payload: CustomerCreate, user_id: in
     try:
         await db.commit()
     except IntegrityError:
-        # Registered by another request between the check and the insert.
+
         await db.rollback()
         raise PhoneAlreadyRegistered(payload.Phone)
     return customer
-
 
 async def update_customer(
     db: AsyncSession, customer_id: int, payload: CustomerUpdate, user_id: int
@@ -56,7 +50,7 @@ async def update_customer(
 
     changes = payload.model_dump(exclude_unset=True)
     if not changes:
-        return customer  # nothing sent: leave UpdatedBy / UpdatedAt untouched
+        return customer
     if "Phone" in changes and await _phone_taken(db, changes["Phone"], exclude_id=customer_id):
         raise PhoneAlreadyRegistered(changes["Phone"])
 
@@ -71,17 +65,9 @@ async def update_customer(
     await db.refresh(customer)
     return customer
 
-
 async def get_customers(
     db: AsyncSession, skip: int = 0, limit: int = 20, search: Optional[str] = None
 ) -> tuple[int, list[Customer]]:
-    """Return (total matching, one page), newest customers first.
-
-    A search that looks like a phone number ("0300-12", "+92300") matches part of the
-    phone; anything else matches part of the name. Searching one column instead of
-    "Name OR Phone" lets SQL Server scan only the narrow phone index for phone searches,
-    rather than the whole 500k-row table.
-    """
     filters = [_active()]
     if search and search.strip():
         term = search.strip()
@@ -101,16 +87,13 @@ async def get_customers(
     )
     return total or 0, list(customers)
 
-
 async def get_customer_by_id(db: AsyncSession, customer_id: int) -> Optional[Customer]:
     return await db.scalar(select(Customer).where(Customer.Id == customer_id, _active()))
 
-
 async def get_customer_history(db: AsyncSession, customer_id: int) -> tuple[CustomerStats, list[Order]]:
-    """Lifetime stats over Completed orders (money actually spent) and the most recent orders (all statuses)."""
     counted = [
         Order.CustomerId == customer_id,
-        Order.IsDeleted == False,  # noqa: E712
+        Order.IsDeleted == False,
         Order.Status == OrderStatusEnum.COMPLETED.value,
     ]
     row = (
@@ -129,7 +112,7 @@ async def get_customer_history(db: AsyncSession, customer_id: int) -> tuple[Cust
 
     recent = await db.scalars(
         select(Order)
-        .where(Order.CustomerId == customer_id, Order.IsDeleted == False)  # noqa: E712
+        .where(Order.CustomerId == customer_id, Order.IsDeleted == False)
         .order_by(Order.OrderDate.desc(), Order.Id.desc())
         .limit(RECENT_ORDERS_LIMIT)
     )

@@ -7,7 +7,6 @@ from app.schemas.common import Money
 from app.schemas.inventory_schema import LowStockAlert
 from app.schemas.order_schema import PaymentMethodEnum
 
-
 class SettleRequest(BaseModel):
     OrderId: int = Field(..., gt=0, examples=[1])
     PaymentMethod: PaymentMethodEnum = Field(
@@ -20,7 +19,6 @@ class SettleRequest(BaseModel):
     )
     RedeemPoints: int = Field(0, ge=0, description="Points to put towards a Cash / Card bill (registered customers)")
     AmountTendered: Optional[Money] = Field(None, ge=0, description="Cash handed over (required for Cash)", examples=[5000])
-
 
 class BillBreakdown(BaseModel):
     SubTotal: Money = Field(..., description="Order total before any discount")
@@ -38,20 +36,17 @@ class BillBreakdown(BaseModel):
     PointsBalanceBefore: Optional[int] = None
     PointsBalanceAfter: Optional[int] = None
 
-
 class PaymentPreviewResponse(BaseModel):
     OrderId: int
     OrderNumber: str
     PaymentMethod: str
     Bill: BillBreakdown
 
-
 class InvoiceLine(BaseModel):
     MenuItemName: str
     Quantity: int
     UnitPrice: Money
     TotalPrice: Money
-
 
 class InvoiceResponse(BaseModel):
     InvoiceNumber: str

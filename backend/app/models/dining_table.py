@@ -3,9 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import CommonFields
 
-
 class DiningTable(CommonFields):
-    """A physical table. The order seated at it is the Pending order with this TableId."""
 
     __tablename__ = "tbl_DiningTable"
     __table_args__ = (CheckConstraint("Capacity > 0", name="CK_tbl_DiningTable_Capacity"),)
@@ -13,7 +11,7 @@ class DiningTable(CommonFields):
     Id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     TableNumber: Mapped[str] = mapped_column(Unicode(20), unique=True, nullable=False)
     Capacity: Mapped[int] = mapped_column(Integer, nullable=False)
-    # AVAILABLE, OCCUPIED or RESERVED
+
     Status: Mapped[str] = mapped_column(
         Unicode(20), nullable=False, default="AVAILABLE", server_default=text("'AVAILABLE'"), index=True
     )

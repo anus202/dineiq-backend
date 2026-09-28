@@ -3,7 +3,6 @@ from typing import Any, List, Optional
 
 from pydantic import BaseModel
 
-
 class AuditLogResponse(BaseModel):
     Id: int
     UserId: Optional[int] = None
@@ -16,7 +15,6 @@ class AuditLogResponse(BaseModel):
     NewValues: Optional[dict[str, Any]] = None
     IPAddress: Optional[str] = None
     Timestamp: datetime
-
 
 class AuditLogListResponse(BaseModel):
     Total: int

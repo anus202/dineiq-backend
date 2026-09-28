@@ -2,7 +2,6 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-
 class MarketBasketRule(BaseModel):
     antecedent: List[str]
     consequent: List[str]
@@ -10,14 +9,12 @@ class MarketBasketRule(BaseModel):
     confidence: float
     lift: float
 
-
 class PriceSensitivityItem(BaseModel):
     menu_item_id: int
     menu_item_name: str
     price_quantity_correlation: Optional[float]
     elasticity_label: str
     interpretation: str
-
 
 class PromotionTrapItem(BaseModel):
     promotion_id: int
@@ -29,7 +26,6 @@ class PromotionTrapItem(BaseModel):
     volume_lift_percent: float
     severity: str
 
-
 class MLRecommendation(BaseModel):
     priority: str
     category: str
@@ -39,7 +35,6 @@ class MLRecommendation(BaseModel):
     justification: str
     metrics: dict
     action: str
-
 
 class ChurnRiskCustomer(BaseModel):
     CustomerId: int
@@ -52,11 +47,9 @@ class ChurnRiskCustomer(BaseModel):
     ChurnProbability: float
     RiskLabel: str
 
-
 class ChurnRiskResponse(BaseModel):
     ScoredCustomers: int
     Customers: List[ChurnRiskCustomer]
-
 
 class WhatIfRequest(BaseModel):
     menu_item_id: int
@@ -65,7 +58,6 @@ class WhatIfRequest(BaseModel):
     remove_item: bool = False
     prep_quantity_change_percent: float = 0.0
     wastage_assumption_change_percent: float = 0.0
-
 
 class WhatIfResponse(BaseModel):
     menu_item_id: int
@@ -90,7 +82,6 @@ class WhatIfResponse(BaseModel):
     profit_delta_percent: float
     volume_delta_percent: float
 
-
 class RatingAnomalyItem(BaseModel):
     menu_item_id: int
     menu_item_name: str
@@ -100,7 +91,6 @@ class RatingAnomalyItem(BaseModel):
     average_score: float
     trailing_average_score: float
     reason: str
-
 
 class SlowMovingDish(BaseModel):
     menu_item_id: int
@@ -114,7 +104,6 @@ class SlowMovingDish(BaseModel):
     signal_count: int
     signals: List[str]
 
-
 class WastageRiskItem(BaseModel):
     MenuItemId: int
     MenuItemName: str
@@ -122,7 +111,6 @@ class WastageRiskItem(BaseModel):
     RiskLabel: str
     TotalQuantitySold: float
     AvgRating: float
-
 
 class DemandForecastItem(BaseModel):
     MenuItemId: int

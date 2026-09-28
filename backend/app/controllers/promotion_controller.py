@@ -9,15 +9,12 @@ from app.models import Signup
 from app.schemas.promotion_schema import PromoValidateResponse
 from app.services import promotion_service
 
-# Any logged-in user (staff placing an order, or a customer checking out) can check a
-# voucher code -- there's nothing role-sensitive about it.
 router = APIRouter(
     prefix="/api/v1/promotions",
     tags=["Promotions"],
     dependencies=[Depends(get_current_user)],
     responses={401: {"description": "Missing, invalid or expired token"}},
 )
-
 
 @router.get(
     "/validate/{code}",

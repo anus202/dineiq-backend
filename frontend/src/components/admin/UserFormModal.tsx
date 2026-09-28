@@ -27,13 +27,6 @@ const EMPTY: StaffCreateInput = {
   CanAccessBranchAnalytics: false,
 }
 
-/** Create-user + role-assignment modal.
- *
- * Note: the requested role list (Admin/Restaurant Manager/Inventory Manager/Data
- * Engineer/Analyst) doesn't match this system's actual RBAC roles (SUPER_ADMIN, ADMIN,
- * INVENTORY_MANAGER, CASHIER, CUSTOMER — see app/core/roles.py). Using the real roles
- * here so accounts created actually work; only a SUPER_ADMIN can grant ADMIN.
- */
 export function UserFormModal({ open, onClose, onSaved }: Props) {
   const toast = useToast()
   const branches = useApi(() => branchApi.list({ is_active: true }), [])

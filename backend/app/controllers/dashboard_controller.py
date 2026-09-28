@@ -29,8 +29,6 @@ from app.services.inventory_service import InsufficientStock
 
 UNAUTHORIZED = {401: {"description": "Missing, invalid or expired token"}}
 
-# --- A. Executive admin dashboard ------------------------------------------------------
-
 admin_router = APIRouter(
     prefix="/api/v1/dashboard/admin",
     tags=["Admin Dashboard"],
@@ -38,11 +36,9 @@ admin_router = APIRouter(
     responses={**UNAUTHORIZED, 403: {"description": "Requires ADMIN or SUPER_ADMIN"}},
 )
 
-
 @admin_router.get("/summary", response_model=AdminSummaryResponse, summary="Today at a glance")
 async def admin_summary(db: AsyncSession = Depends(get_db)):
     return await dashboard_service.admin_summary(db)
-
 
 @admin_router.get("/revenue-chart", response_model=RevenueChartResponse, summary="Daily and monthly revenue trends")
 async def revenue_chart(
@@ -51,7 +47,6 @@ async def revenue_chart(
     db: AsyncSession = Depends(get_db),
 ):
     return await dashboard_service.revenue_chart(db, days, months)
-
 
 @admin_router.get(
     "/top-performing",
@@ -65,15 +60,11 @@ async def top_performing(
 ):
     return await dashboard_service.admin_top_performing(db, days, segments)
 
-
-# --- B. Inventory manager dashboard ----------------------------------------------------
-
 inventory_router = APIRouter(
     tags=["Inventory Dashboard"],
     dependencies=[Depends(require_roles(STOCK_MANAGERS, extra_permission="CanAccessInventory"))],
     responses={**UNAUTHORIZED, 403: {"description": "Requires INVENTORY_MANAGER or ADMIN"}},
 )
-
 
 @inventory_router.get(
     "/api/v1/dashboard/inventory/stock-status",
@@ -82,7 +73,6 @@ inventory_router = APIRouter(
 )
 async def stock_status(db: AsyncSession = Depends(get_db)):
     return await inventory_service.get_stock_status(db)
-
 
 @inventory_router.get(
     "/api/v1/dashboard/inventory/movement-logs",
@@ -107,7 +97,6 @@ async def movement_logs(
     )
     return StockMovementListResponse(Total=total, Skip=skip, Limit=limit, Items=items)
 
-
 @inventory_router.post(
     "/api/v1/inventory/adjust",
     response_model=StockAdjustmentResponse,
@@ -131,10 +120,6 @@ async def adjust_stock(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Inventory item {payload.InventoryItemId} not found")
     return result
 
-
-# --- C. Customer portal ----------------------------------------------------------------
-
-# CUSTOMER only: the portal shows the caller's own profile, which staff accounts don't have.
 customer_only = require_roles([RoleName.CUSTOMER], allow_super_admin=False)
 
 customer_router = APIRouter(
@@ -147,12 +132,11 @@ customer_router = APIRouter(
     },
 )
 
-
 async def current_customer(user: Signup = Depends(customer_only), db: AsyncSession = Depends(get_db)) -> Customer:
     customer = None
     if user.CustomerId is not None:
         customer = await db.scalar(
-            select(Customer).where(Customer.Id == user.CustomerId, Customer.IsDeleted == False)  # noqa: E712
+            select(Customer).where(Customer.Id == user.CustomerId, Customer.IsDeleted == False)
         )
     if customer is None:
         raise HTTPException(
@@ -161,11 +145,9 @@ async def current_customer(user: Signup = Depends(customer_only), db: AsyncSessi
         )
     return customer
 
-
 @customer_router.get("/me", response_model=CustomerMeResponse, summary="My profile, points and tier")
 async def me(customer: Customer = Depends(current_customer), db: AsyncSession = Depends(get_db)):
     return await dashboard_service.customer_me(db, customer)
-
 
 @customer_router.get("/my-orders", response_model=MyOrdersResponse, summary="My orders with live status")
 async def my_orders(
@@ -176,7 +158,6 @@ async def my_orders(
     db: AsyncSession = Depends(get_db),
 ):
     return await dashboard_service.my_orders(db, customer.Id, skip, limit, open_only)
-
 
 @customer_router.get(
     "/recommendations", response_model=RecommendationsResponse, summary="Dishes recommended for me"

@@ -1,11 +1,3 @@
-"""Branch-scoped business intelligence: channel mix, menu-quadrant classification, wastage
-analytics, demand forecasting, multi-branch comparison, sales-anomaly detection and
-rule-based recommendations — computed with real SQL aggregations against the actual
-31-branch dataset. Demand forecasting additionally calls into ml_analytics_service's
-trained XGBoost regressor (see _get_demand_forecast_uncached) and translates its per-menu-
-item predictions into ingredient-level stocking needs via the recipe mapping; every other
-function here is deliberately plain SQL, not ML.
-"""
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from statistics import median
@@ -45,15 +37,8 @@ from app.services.rating_service import branch_average_rating
 
 ZERO = Decimal("0")
 
-# TTL caches for branch-scoped dashboard aggregations, each keyed on its actual
-# filter values (never the db session). 5 minutes: fresh enough for a dashboard,
-# far cheaper than re-scanning 1M+ order-line rows on every page view.
 _DASHBOARD_TTL_SECONDS = 300
-# Wastage and menu-quadrant ('good vs. bad items') analysis is materially heavier than
-# the other dashboard aggregations and doesn't need to reflect every new order within
-# minutes -- a longer TTL plus an explicit refresh=true bypass (see the controller) keeps
-# the /inventory-manager/wastage and /restaurant-manager/menu-quadrants pages instant on
-# every visit instead of re-running a heavy scan each time.
+
 _WASTAGE_MENU_TTL_SECONDS = 1200
 _channel_mix_cache = TTLCache()
 _menu_quadrants_cache = TTLCache()
@@ -63,19 +48,13 @@ _branch_comparison_cache = TTLCache()
 _sales_anomalies_cache = TTLCache()
 WASTAGE_THRESHOLD_PERCENT = Decimal("15")
 
-
 def _pct2(part, whole) -> Decimal:
     return (Decimal(part) * 100 / Decimal(whole)).quantize(Decimal("0.01")) if whole else Decimal("0.00")
-
-
-# --- Channel mix -------------------------------------------------------------------------
-
 
 async def get_channel_mix(db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int]) -> ChannelMixResponse:
     return await _channel_mix_cache.get_or_set(
         (start, end, branch_id), _DASHBOARD_TTL_SECONDS, lambda: _get_channel_mix_uncached(db, start, end, branch_id)
     )
-
 
 async def _get_channel_mix_uncached(
     db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int]
@@ -94,10 +73,6 @@ async def _get_channel_mix_uncached(
     ]
     return ChannelMixResponse(BranchId=branch_id, Channels=sorted(channels, key=lambda c: c.OrderCount, reverse=True))
 
-
-# --- Menu performance quadrants ----------------------------------------------------------
-
-
 async def get_menu_quadrants(
     db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int], refresh: bool = False
 ) -> MenuQuadrantResponse:
@@ -107,7 +82,6 @@ async def get_menu_quadrants(
     return await _menu_quadrants_cache.get_or_set(
         key, _WASTAGE_MENU_TTL_SECONDS, lambda: _get_menu_quadrants_uncached(db, start, end, branch_id)
     )
-
 
 async def _get_menu_quadrants_uncached(
     db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int]
@@ -125,12 +99,12 @@ async def _get_menu_quadrants_uncached(
             .select_from(OrderDetail)
             .join(Order, Order.Id == OrderDetail.OrderId)
             .join(MenuItem, MenuItem.Id == OrderDetail.MenuItemId)
-            .where(*_order_filters(start, end, branch_id=branch_id), OrderDetail.IsDeleted == False)  # noqa: E712
+            .where(*_order_filters(start, end, branch_id=branch_id), OrderDetail.IsDeleted == False)
             .group_by(MenuItem.Id, MenuItem.Name)
         )
     ).all()
 
-    from app.models import Category  # local import: avoids a cycle at module load time
+    from app.models import Category
 
     categories: dict[int, str] = {}
     if rows:
@@ -185,7 +159,6 @@ async def _get_menu_quadrants_uncached(
     items.sort(key=lambda i: i.Revenue, reverse=True)
     return MenuQuadrantResponse(BranchId=branch_id, MedianQuantity=median_qty, MedianMarginPercentage=median_margin_pct, Items=items)
 
-
 async def get_recommendations(
     db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int]
 ) -> list[BusinessRecommendation]:
@@ -220,10 +193,6 @@ async def get_recommendations(
         )
     return recs
 
-
-# --- Wastage -------------------------------------------------------------------------------
-
-
 async def get_wastage_summary(
     db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int], refresh: bool = False
 ) -> WastageSummaryResponse:
@@ -234,16 +203,11 @@ async def get_wastage_summary(
         key, _WASTAGE_MENU_TTL_SECONDS, lambda: _get_wastage_summary_uncached(db, start, end, branch_id)
     )
 
-
 async def _get_wastage_summary_uncached(
     db: AsyncSession, start: Optional[date], end: Optional[date], branch_id: Optional[int]
 ) -> WastageSummaryResponse:
-    """Reported at the ingredient level (what's actually recorded) — this schema has no
-    dish-level wastage attribution, and recipes are many-to-many, so inferring "which dish
-    wasted this ingredient" would be a guess dressed up as data.
-    """
     offset = timedelta(minutes=BUSINESS_UTC_OFFSET_MINUTES)
-    filters = [Wastage.IsDeleted == False]  # noqa: E712
+    filters = [Wastage.IsDeleted == False]
     if branch_id is not None:
         filters.append(Wastage.BranchId == branch_id)
     if start is not None:
@@ -283,18 +247,12 @@ async def _get_wastage_summary_uncached(
         ByReason=[WastageByReason(Reason=r[0] or "Unspecified", TotalWasted=r[1], WastageCost=_money(r[2]), IncidentCount=r[3]) for r in by_reason_rows],
     )
 
-
-# --- Demand forecast (simple rolling pattern, no ML) ---------------------------------------
-
-
 async def get_demand_forecast(db: AsyncSession, branch_id: Optional[int], days: int = 30) -> DemandForecastResponse:
     return await _branch_demand_forecast_cache.get_or_set(
         (branch_id, days), _DASHBOARD_TTL_SECONDS, lambda: _get_demand_forecast_uncached(db, branch_id, days)
     )
 
-
 _MIN_HOURS_WITH_DATA_FOR_BRANCH_PATTERN = 5
-
 
 async def _hourly_consumption_pattern(db: AsyncSession, scope_branch_id: Optional[int], since: datetime) -> dict[int, float]:
     local_time = func.dateadd(literal_column("minute"), literal_column(str(int(BUSINESS_UTC_OFFSET_MINUTES))), Order.OrderDate)
@@ -310,15 +268,9 @@ async def _hourly_consumption_pattern(db: AsyncSession, scope_branch_id: Optiona
     ).all()
     return {int(h): float(avg) for h, avg in rows}
 
-
 async def _ml_stocking_recommendations(
     db: AsyncSession, branch_id: Optional[int], peak_hour: Optional[int]
 ) -> tuple[list[StockingRecommendation], Optional[DemandModelAccuracy]]:
-    """Translates the trained XGBoost demand model's per-menu-item next-month predictions
-    into ingredient-level stocking needs via the recipe mapping (predicted menu-item qty x
-    recipe QuantityRequired, summed per ingredient) -- real ML output, not a rolling average.
-    Returns ([], None) if the model/predictions aren't usable, so the caller can fall back.
-    """
     predictions = await ml_analytics_service.get_demand_forecast_ml(db, limit=1000, branch_id=branch_id)
     predicted_by_menu_item = {p["MenuItemId"]: p["PredictedNextMonthQuantity"] for p in predictions}
     if not predicted_by_menu_item:
@@ -328,7 +280,7 @@ async def _ml_stocking_recommendations(
         await db.execute(
             select(Recipe.MenuItemId, InventoryItem.Id, InventoryItem.ItemName, InventoryItem.Unit, Recipe.QuantityRequired)
             .join(InventoryItem, InventoryItem.Id == Recipe.InventoryItemId)
-            .where(Recipe.IsDeleted == False, InventoryItem.IsDeleted == False)  # noqa: E712
+            .where(Recipe.IsDeleted == False, InventoryItem.IsDeleted == False)
         )
     ).all()
 
@@ -364,12 +316,9 @@ async def _ml_stocking_recommendations(
     ]
     return recommendations, accuracy
 
-
 async def _historical_average_recommendations(
     db: AsyncSession, branch_id: Optional[int], days: int, since: datetime, peak_hour: Optional[int]
 ) -> list[StockingRecommendation]:
-    """Fallback used only if the trained model/report is unavailable (e.g. the analytics
-    pipeline hasn't been run yet) -- a plain historical average, not fabricated ML output."""
     consumed = -StockMovementLog.QuantityChange
     filters = [StockMovementLog.MovementType == "ORDER_CONSUMPTION", StockMovementLog.CreatedAt >= since]
     if branch_id is not None:
@@ -401,7 +350,6 @@ async def _historical_average_recommendations(
         for name, unit, avg_daily in top_items
     ]
 
-
 async def _get_demand_forecast_uncached(db: AsyncSession, branch_id: Optional[int], days: int = 30) -> DemandForecastResponse:
     since = datetime.utcnow() - timedelta(days=days)
 
@@ -419,8 +367,7 @@ async def _get_demand_forecast_uncached(db: AsyncSession, branch_id: Optional[in
     try:
         recommendations, model_accuracy = await _ml_stocking_recommendations(db, branch_id, peak_hour)
     except RuntimeError:
-        # Trained model/report not available (e.g. pipeline not yet run) -- degrade to the
-        # historical average below instead of failing the whole dashboard.
+
         pass
 
     is_ml_powered = bool(recommendations)
@@ -437,18 +384,13 @@ async def _get_demand_forecast_uncached(db: AsyncSession, branch_id: Optional[in
         UsedSystemWideFallback=used_system_wide_fallback,
     )
 
-
-# --- Multi-branch comparison (Admin) --------------------------------------------------------
-
-
 async def get_branch_comparison(db: AsyncSession, start: Optional[date], end: Optional[date]) -> BranchComparisonResponse:
     return await _branch_comparison_cache.get_or_set(
         (start, end), _DASHBOARD_TTL_SECONDS, lambda: _get_branch_comparison_uncached(db, start, end)
     )
 
-
 async def _get_branch_comparison_uncached(db: AsyncSession, start: Optional[date], end: Optional[date]) -> BranchComparisonResponse:
-    branches = list(await db.scalars(select(RestaurantBranch).where(RestaurantBranch.IsDeleted == False)))  # noqa: E712
+    branches = list(await db.scalars(select(RestaurantBranch).where(RestaurantBranch.IsDeleted == False)))
     unit_cost = func.coalesce(OrderDetail.UnitCost, MenuItem.Cost)
 
     revenue_rows = dict(
@@ -467,7 +409,7 @@ async def _get_branch_comparison_uncached(db: AsyncSession, start: Optional[date
                 .select_from(OrderDetail)
                 .join(Order, Order.Id == OrderDetail.OrderId)
                 .join(MenuItem, MenuItem.Id == OrderDetail.MenuItemId)
-                .where(*_order_filters(start, end), OrderDetail.IsDeleted == False)  # noqa: E712
+                .where(*_order_filters(start, end), OrderDetail.IsDeleted == False)
                 .group_by(Order.BranchId)
             )
         ).all()
@@ -479,7 +421,7 @@ async def _get_branch_comparison_uncached(db: AsyncSession, start: Optional[date
                 select(Wastage.BranchId, func.sum(Wastage.Quantity * InventoryItem.UnitCost))
                 .select_from(Wastage)
                 .join(InventoryItem, InventoryItem.Id == Wastage.InventoryItemId)
-                .where(Wastage.IsDeleted == False)  # noqa: E712
+                .where(Wastage.IsDeleted == False)
                 .group_by(Wastage.BranchId)
             )
         ).all()
@@ -519,20 +461,12 @@ async def _get_branch_comparison_uncached(db: AsyncSession, start: Optional[date
     rows.sort(key=lambda r: r.Revenue, reverse=True)
     return BranchComparisonResponse(Period={"StartDate": start, "EndDate": end}, Branches=rows)
 
-
-# --- Sales anomaly detection (Admin) ---------------------------------------------------------
-
-
 async def detect_sales_anomalies(db: AsyncSession, lookback_days: int = 30, trailing_window: int = 7) -> AnomalyReportResponse:
     return await _sales_anomalies_cache.get_or_set(
         (lookback_days, trailing_window), _DASHBOARD_TTL_SECONDS, lambda: _detect_sales_anomalies_uncached(db, lookback_days, trailing_window)
     )
 
-
 async def _detect_sales_anomalies_uncached(db: AsyncSession, lookback_days: int = 30, trailing_window: int = 7) -> AnomalyReportResponse:
-    """Flags a branch-day whose revenue deviates >50% from its own trailing 7-day average.
-    Simple, explainable statistics — not an ML model — run against real daily branch revenue.
-    """
     since = date.today() - timedelta(days=lookback_days + trailing_window)
     local_date = cast(func.dateadd(literal_column("minute"), literal_column(str(int(BUSINESS_UTC_OFFSET_MINUTES))), Order.OrderDate), Date)
 
@@ -550,7 +484,7 @@ async def _detect_sales_anomalies_uncached(db: AsyncSession, lookback_days: int 
         by_branch.setdefault(branch_id, []).append((d, Decimal(revenue or 0)))
 
     branch_names = dict(
-        (b.Id, b.BranchName) for b in await db.scalars(select(RestaurantBranch).where(RestaurantBranch.IsDeleted == False))  # noqa: E712
+        (b.Id, b.BranchName) for b in await db.scalars(select(RestaurantBranch).where(RestaurantBranch.IsDeleted == False))
     )
 
     anomalies: list[SalesAnomaly] = []
@@ -580,21 +514,10 @@ async def _detect_sales_anomalies_uncached(db: AsyncSession, lookback_days: int 
     anomalies.sort(key=lambda a: abs(a.DeviationPercentage), reverse=True)
     return AnomalyReportResponse(SalesAnomalies=anomalies[:50])
 
-
-# --- Branch snapshot ("everything about my branch, right now") --------------------------
-
-
 async def get_branch_snapshot(db: AsyncSession, branch_id: Optional[int]) -> BranchSnapshotResponse:
-    """"Right now" detail for a branch manager's own branch: today's sales/orders and the
-    branch's most recent order (cashier) activity are genuinely filtered by Order.BranchId,
-    and wastage cost reuses get_wastage_summary's own branch filter. Table occupancy and
-    inventory stock levels stay restaurant-wide -- DiningTable has no BranchId and every
-    seeded InventoryItem is BranchId=NULL (shared) in this schema, so filtering those to
-    "this branch" would just produce a number that looks branch-specific without being one.
-    """
     today = _local_today()
     start, end = _utc_start_of(today), _utc_start_of(today + timedelta(days=1))
-    not_deleted = Order.IsDeleted == False  # noqa: E712
+    not_deleted = Order.IsDeleted == False
     branch_filter = () if branch_id is None else (Order.BranchId == branch_id,)
 
     today_row = (
@@ -629,7 +552,7 @@ async def get_branch_snapshot(db: AsyncSession, branch_id: Optional[int]) -> Bra
     tables = dict(
         (
             await db.execute(
-                select(DiningTable.Status, func.count()).where(DiningTable.IsDeleted == False).group_by(DiningTable.Status)  # noqa: E712
+                select(DiningTable.Status, func.count()).where(DiningTable.IsDeleted == False).group_by(DiningTable.Status)
             )
         ).all()
     )
@@ -638,7 +561,7 @@ async def get_branch_snapshot(db: AsyncSession, branch_id: Optional[int]) -> Bra
             select(
                 func.sum(case((InventoryItem.CurrentStock <= InventoryItem.ReorderLevel, 1), else_=0)),
                 func.sum(case((InventoryItem.CurrentStock <= 0, 1), else_=0)),
-            ).where(InventoryItem.IsDeleted == False)  # noqa: E712
+            ).where(InventoryItem.IsDeleted == False)
         )
     ).one()
 

@@ -10,9 +10,7 @@ from app.models.base import CommonFields, utc_now
 if TYPE_CHECKING:
     from app.models.menu_item import MenuItem
 
-
 class PricingHistory(CommonFields):
-    """One row per price a menu item has had. OldPrice is NULL for the initial price."""
 
     __tablename__ = "Pricing_History"
 

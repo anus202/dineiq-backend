@@ -8,7 +8,6 @@ import { Badge, EmptyState, ErrorBanner, ShimmerSkeleton, statusTone } from '../
 
 const PAGE_SIZE = 8
 
-/** Step index for the progress stepper: received → being prepared/served → done. */
 const stepOf = (o: MyOrder): number => (o.Status === 'Completed' ? 2 : o.IsOpen ? 1 : 0)
 
 export function OrderTracker() {

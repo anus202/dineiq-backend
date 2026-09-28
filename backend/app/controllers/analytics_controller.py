@@ -17,7 +17,6 @@ from app.schemas.analytics_schema import (
 )
 from app.services import analytics_service
 
-# Every route here requires a valid token and one of the ADMIN_ONLY roles.
 router = APIRouter(
     prefix="/api/v1/analytics",
     tags=["Sales Analytics"],
@@ -25,9 +24,7 @@ router = APIRouter(
     responses={401: {"description": "Missing, invalid or expired token"}, 403: {"description": "Your role can't use this endpoint"}},
 )
 
-
 class DateFilter:
-    """Optional inclusive local-date range shared by the analytics endpoints."""
 
     def __init__(
         self,
@@ -39,7 +36,6 @@ class DateFilter:
         self.start = start_date
         self.end = end_date
 
-
 @router.get(
     "/overview",
     response_model=OverviewResponse,
@@ -49,7 +45,6 @@ class DateFilter:
 async def get_overview(dates: DateFilter = Depends(), db: AsyncSession = Depends(get_db)):
     return await analytics_service.get_overview(db, dates.start, dates.end)
 
-
 @router.get(
     "/peak-hours",
     response_model=PeakHoursResponse,
@@ -58,7 +53,6 @@ async def get_overview(dates: DateFilter = Depends(), db: AsyncSession = Depends
 )
 async def get_peak_hours(dates: DateFilter = Depends(), db: AsyncSession = Depends(get_db)):
     return await analytics_service.get_peak_hours(db, dates.start, dates.end)
-
 
 @router.get(
     "/top-performing-items",
@@ -72,7 +66,6 @@ async def get_top_items(
     db: AsyncSession = Depends(get_db),
 ):
     return await analytics_service.get_top_items(db, dates.start, dates.end, limit)
-
 
 @router.get(
     "/rfm-segmentation",
@@ -90,7 +83,6 @@ async def get_rfm_segmentation(
 ):
     return await analytics_service.get_rfm_segmentation(db, as_of)
 
-
 @router.get(
     "/hourly-heatmap",
     response_model=HourlyHeatmapResponse,
@@ -99,7 +91,6 @@ async def get_rfm_segmentation(
 )
 async def get_hourly_heatmap(dates: DateFilter = Depends(), db: AsyncSession = Depends(get_db)):
     return await analytics_service.get_hourly_heatmap(db, dates.start, dates.end)
-
 
 @router.get(
     "/rfm-matrix",

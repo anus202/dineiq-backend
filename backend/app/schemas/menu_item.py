@@ -9,7 +9,6 @@ from app.schemas.common import TWO_PLACES, Money
 if TYPE_CHECKING:
     from app.models import MenuItem
 
-
 def _strip_required(value: Optional[str]) -> Optional[str]:
     if value is None:
         return value
@@ -18,12 +17,10 @@ def _strip_required(value: Optional[str]) -> Optional[str]:
         raise ValueError("Name cannot be blank")
     return value
 
-
 def _strip_optional(value: Optional[str]) -> Optional[str]:
     if value is None:
         return value
     return value.strip() or None
-
 
 class MenuItemCreate(BaseModel):
     CategoryId: int = Field(..., gt=0, examples=[1])
@@ -36,9 +33,7 @@ class MenuItemCreate(BaseModel):
     _name = field_validator("Name")(_strip_required)
     _description = field_validator("Description")(_strip_optional)
 
-
 class MenuItemUpdate(BaseModel):
-    """Send only the fields to change (partial update) or all of them (full update)."""
 
     CategoryId: Optional[int] = Field(None, gt=0, examples=[1])
     Name: Optional[str] = Field(None, min_length=1, max_length=150, examples=["Chicken Biryani (Large)"])
@@ -53,16 +48,14 @@ class MenuItemUpdate(BaseModel):
     @field_validator("CategoryId", "Name", "Price", "Cost", "IsAvailable")
     @classmethod
     def not_null(cls, value):
-        # Omit a field to leave it unchanged; an explicit null would violate NOT NULL.
+
         if value is None:
             raise ValueError("Field cannot be null; omit it to keep the current value")
         return value
 
-
 class CategorySummary(BaseModel):
     CategoryId: int
     CategoryName: str
-
 
 class MenuItemResponse(BaseModel):
     Id: int
@@ -87,12 +80,10 @@ class MenuItemResponse(BaseModel):
     @computed_field
     @property
     def ProfitMarginPercentage(self) -> Money:
-        """Contribution margin as a percentage of price."""
         return ((self.Price - self.Cost) / self.Price * 100).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
 
     @classmethod
     def from_model(cls, item: "MenuItem") -> "MenuItemResponse":
-        """Build from an ORM MenuItem whose Category relationship is loaded."""
         return cls(
             Id=item.Id,
             CategoryId=item.CategoryId,
@@ -108,7 +99,6 @@ class MenuItemResponse(BaseModel):
             CreatedAt=item.CreatedAt,
             UpdatedAt=item.UpdatedAt,
         )
-
 
 class MenuItemListResponse(BaseModel):
     Total: int = Field(..., description="Items matching the filters, before pagination")

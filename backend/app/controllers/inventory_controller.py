@@ -24,7 +24,6 @@ from app.services.inventory_service import (
     UnknownInventoryItems,
 )
 
-# Every route here requires a valid token and one of the STOCK_MANAGERS roles.
 router = APIRouter(
     prefix="/api/v1/inventory",
     tags=["Inventory"],
@@ -35,10 +34,8 @@ router = APIRouter(
 ITEM_NOT_FOUND = {404: {"description": "Inventory item not found"}}
 NAME_TAKEN = {409: {"description": "Item name already exists"}}
 
-
 def _item_not_found(item_id: int) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Inventory item {item_id} not found")
-
 
 @router.post(
     "/items",
@@ -57,7 +54,6 @@ async def create_item(
     except DuplicateItemName as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
 
-
 @router.get("/items", response_model=InventoryItemListResponse, summary="List inventory items")
 async def get_items(
     search: Optional[str] = Query(None, max_length=150, description="Part of the item name"),
@@ -71,7 +67,6 @@ async def get_items(
         Total=total, Skip=skip, Limit=limit, Items=[InventoryItemResponse.model_validate(i) for i in items]
     )
 
-
 @router.get(
     "/alerts/low-stock",
     response_model=List[LowStockAlert],
@@ -81,14 +76,12 @@ async def get_items(
 async def get_low_stock(db: AsyncSession = Depends(get_db)):
     return await inventory_service.get_low_stock(db)
 
-
 @router.get("/items/{id}", response_model=InventoryItemResponse, summary="Get inventory item", responses=ITEM_NOT_FOUND)
 async def get_item(id: int, db: AsyncSession = Depends(get_db)):
     item = await inventory_service.get_item(db, id)
     if item is None:
         raise _item_not_found(id)
     return item
-
 
 @router.put(
     "/items/{id}",
@@ -111,7 +104,6 @@ async def update_item(
         raise _item_not_found(id)
     return item
 
-
 @router.delete(
     "/items/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -132,7 +124,6 @@ async def delete_item(
         raise _item_not_found(id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-
 @router.get(
     "/recipes/{menu_item_id}",
     response_model=RecipeResponse,
@@ -144,7 +135,6 @@ async def get_recipe(menu_item_id: int, db: AsyncSession = Depends(get_db)):
     if recipe is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Menu item {menu_item_id} not found")
     return recipe
-
 
 @router.put(
     "/recipes/{menu_item_id}",

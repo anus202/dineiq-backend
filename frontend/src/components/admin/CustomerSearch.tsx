@@ -7,7 +7,6 @@ import { Badge, DataTable, ErrorBanner, Modal, ShimmerSkeleton, statusTone, type
 
 const PAGE_SIZE = 20
 
-/** Server-side paged search over the full customer base (500k+ rows). */
 export function CustomerSearch() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')

@@ -16,9 +16,7 @@ router = APIRouter(
     responses={401: {"description": "Missing, invalid or expired token"}},
 )
 
-# Only a CUSTOMER submits ratings — staff accounts have no customer profile to rate as.
 customer_only = require_roles([RoleName.CUSTOMER], allow_super_admin=False)
-
 
 @router.post("", response_model=RatingResponse, status_code=status.HTTP_201_CREATED, summary="Rate a menu item")
 async def create_rating(
@@ -36,7 +34,6 @@ async def create_rating(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="That order doesn't belong to you")
     return RatingResponse.from_model(rating)
 
-
 @router.get("/menu-item/{id}", response_model=RatingListResponse, summary="Ratings for a menu item")
 async def ratings_for_menu_item(
     id: int,
@@ -46,7 +43,6 @@ async def ratings_for_menu_item(
 ):
     total, rows = await rating_service.list_for_menu_item(db, id, skip, limit)
     return RatingListResponse(Total=total, Skip=skip, Limit=limit, Items=[RatingResponse.from_model(r) for r in rows])
-
 
 @router.get("/me", response_model=RatingListResponse, summary="My submitted ratings")
 async def my_ratings(

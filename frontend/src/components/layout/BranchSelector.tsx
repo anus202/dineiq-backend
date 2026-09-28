@@ -4,11 +4,6 @@ import { useApi } from '../../hooks/useApi'
 import { branchApi } from '../../services/endpoints'
 import { Badge } from '../ui'
 
-/** Global branch switcher: a free dropdown (any branch, or "All Branches") for
- * ADMIN/SUPER_ADMIN, and a locked read-only badge showing their own branch for
- * RESTAURANT_MANAGER / INVENTORY_MANAGER. Hidden entirely for roles with no branch
- * concept (CASHIER, CUSTOMER).
- */
 export function BranchSelector() {
   const { user } = useAuth()
   const { selectedBranchId, canSelectBranch, setSelectedBranchId } = useBranch()

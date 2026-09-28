@@ -8,7 +8,6 @@ from app.models import Signup
 from app.schemas.category import CategoryCreate, CategoryResponse, CategoryUpdate
 from app.services import category_service
 
-# Every route here requires a valid token and one of the EVERYONE roles.
 router = APIRouter(
     prefix="/api/v1/categories",
     tags=["Categories"],
@@ -18,10 +17,8 @@ router = APIRouter(
 
 NOT_FOUND = {404: {"description": "Category not found"}}
 
-
 def _not_found(category_id: int) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Category {category_id} not found")
-
 
 @router.post("", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED, summary="Create category")
 async def create_category(
@@ -31,11 +28,9 @@ async def create_category(
 ):
     return await category_service.create(db, payload, current_user.Id)
 
-
 @router.get("", response_model=list[CategoryResponse], summary="Get all categories")
 async def get_categories(db: AsyncSession = Depends(get_db)):
     return await category_service.get_all(db)
-
 
 @router.get("/{id}", response_model=CategoryResponse, summary="Get category by ID", responses=NOT_FOUND)
 async def get_category(id: int, db: AsyncSession = Depends(get_db)):
@@ -43,7 +38,6 @@ async def get_category(id: int, db: AsyncSession = Depends(get_db)):
     if category is None:
         raise _not_found(id)
     return category
-
 
 @router.put("/{id}", response_model=CategoryResponse, summary="Update category", responses=NOT_FOUND)
 async def update_category(
@@ -56,7 +50,6 @@ async def update_category(
     if category is None:
         raise _not_found(id)
     return category
-
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete category", responses=NOT_FOUND)
 async def delete_category(

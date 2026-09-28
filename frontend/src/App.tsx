@@ -12,7 +12,6 @@ import { RegisterPage } from './pages/RegisterPage'
 import type { RoleName } from './types/api'
 import { homeFor, type PermissionFlag } from './utils/roles'
 
-// Each page is its own chunk: a cashier never downloads the admin charts.
 const AdminOverviewPage = lazy(() => import('./pages/AdminOverviewPage').then((m) => ({ default: m.AdminOverviewPage })))
 const CategoryManagementPage = lazy(() => import('./pages/CategoryManagementPage').then((m) => ({ default: m.CategoryManagementPage })))
 const MenuItemMapperPage = lazy(() => import('./pages/MenuItemMapperPage').then((m) => ({ default: m.MenuItemMapperPage })))

@@ -38,17 +38,14 @@ users_router = APIRouter(
     responses={401: {"description": "Not logged in"}, 403: {"description": "Requires ADMIN or SUPER_ADMIN"}},
 )
 
-
 def error_response(status_code: int, message: str) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
         content=AuthResponse(Success=False, Message=message).model_dump(mode="json"),
     )
 
-
 def _client_ip(request: Request) -> Optional[str]:
     return request.client.host if request.client else None
-
 
 @router.post(
     "/signup",
@@ -77,7 +74,6 @@ async def signup(payload: SignupRequest, db: AsyncSession = Depends(get_db)):
         )
     return AuthResponse(Success=True, Message="Signup successful", Data=UserData.from_user(user))
 
-
 @router.post(
     "/login",
     response_model=AuthResponse,
@@ -97,7 +93,6 @@ async def login(payload: LoginRequest, request: Request, db: AsyncSession = Depe
     return AuthResponse(
         Success=True, Message="Login successful", Token=token, TokenType="bearer", Data=UserData.from_user(user)
     )
-
 
 @router.post(
     "/token",
@@ -123,11 +118,9 @@ async def token(request: Request, form: OAuth2PasswordRequestForm = Depends(), d
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is inactive")
     return TokenResponse(access_token=access_token)
 
-
 @router.get("/me", response_model=UserData, summary="The logged-in account and its role")
 async def me(user: Signup = Depends(get_current_user)):
     return UserData.from_user(user)
-
 
 @router.get(
     "/roles",
@@ -137,10 +130,6 @@ async def me(user: Signup = Depends(get_current_user)):
 )
 async def roles(db: AsyncSession = Depends(get_db)):
     return [RoleResponse(Id=r.Id, Name=r.Name, Description=r.Description) for r in await auth_service.get_roles(db)]
-
-
-# --- User management (ADMIN / SUPER_ADMIN) ---------------------------------------------
-
 
 @users_router.get("", response_model=UserListResponse, summary="List accounts")
 async def list_users(
@@ -154,7 +143,6 @@ async def list_users(
 ):
     total, users = await auth_service.get_users(db, skip, limit, role, search, branch_id)
     return UserListResponse(Total=total, Skip=skip, Limit=limit, Items=[UserData.from_user(u) for u in users])
-
 
 @users_router.post(
     "",
@@ -176,7 +164,6 @@ async def create_user(
     except RoleChangeNotAllowed as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc))
 
-
 @users_router.put(
     "/{id}/role",
     response_model=UserData,
@@ -196,7 +183,6 @@ async def change_role(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User {id} not found")
     except RoleChangeNotAllowed as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc))
-
 
 @users_router.delete(
     "/{id}",

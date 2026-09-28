@@ -17,7 +17,6 @@ router = APIRouter(
     responses={401: {"description": "Missing, invalid or expired token"}, 403: {"description": "Requires ADMIN or SUPER_ADMIN"}},
 )
 
-
 @router.get(
     "",
     response_model=AuditLogListResponse,
@@ -42,7 +41,6 @@ async def list_audit_logs(
         db, skip, limit, user_id, action, entity_name, entity_id, start_date, end_date
     )
     return AuditLogListResponse(Total=total, Skip=skip, Limit=limit, Items=items)
-
 
 @router.get("/filters", response_model=dict[str, list[str]], summary="Actions and entity names present in the log")
 async def filter_options(db: AsyncSession = Depends(get_db)):

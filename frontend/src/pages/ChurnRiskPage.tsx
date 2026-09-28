@@ -17,8 +17,7 @@ const columns: Column<ChurnRiskCustomer>[] = [
 ]
 
 export function ChurnRiskPage() {
-  // Fetches the top 500 by risk (up from 100) — safe now that DataTable paginates
-  // client-side at 20 rows/page instead of rendering every row as a DOM node at once.
+
   const churn = useApi(() => mlAnalyticsApi.churnRisk(500), [])
 
   return (

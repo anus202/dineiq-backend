@@ -20,8 +20,7 @@ const QUADRANTS: (MenuQuadrant | 'All')[] = ['All', 'Profit Driver', 'Volume Dri
 
 function MenuPerformanceContent() {
   const { selectedBranchId } = useBranch()
-  // Set to true for exactly one in-flight call (the Refresh button), then reset -- the
-  // backend cache TTL is 20 minutes, so every other visit is served instantly from cache.
+
   const forceRefreshRef = useRef(false)
   const quadrants = useApi(
     () => branchAnalyticsApi.menuQuadrants({ branch_id: selectedBranchId, refresh: forceRefreshRef.current }),
@@ -36,8 +35,6 @@ function MenuPerformanceContent() {
     })
   }
 
-  // Recomputed only when the underlying data or the filter actually changes, not on every
-  // render (e.g. while the sync indicator is pulsing during a background revalidation).
   const rows = useMemo(
     () => (quadrants.data?.Items ?? []).filter((i) => filter === 'All' || i.Quadrant === filter),
     [quadrants.data, filter],

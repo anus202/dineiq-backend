@@ -6,7 +6,6 @@ import { apiErrorMessage } from '../services/api'
 import { authApi } from '../services/endpoints'
 import { AuthCardShell, GlassField } from './LoginPage'
 
-/** Public self-registration (always a CUSTOMER account, per the backend). */
 export function RegisterPage() {
   const { login } = useAuth()
   const navigate = useNavigate()

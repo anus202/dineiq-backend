@@ -12,10 +12,6 @@ interface ChatMessage {
 
 const QUICK_PROMPTS = ['What is this page for?', 'How do I get started here?', 'What do these numbers mean?']
 
-/** A short, friendly label for the current route, purely for the assistant's own
- * greeting line -- the real per-page context (used to scope its actual answers) lives
- * server-side in assistant_service.PAGE_CONTEXT, which this deliberately doesn't
- * duplicate in full. */
 function pageLabel(pathname: string): string {
   if (pathname === '/login') return 'the login page'
   if (pathname === '/register') return 'the sign-up page'
@@ -28,10 +24,6 @@ function pageLabel(pathname: string): string {
   return 'this page'
 }
 
-/** Floating "3D toy" mascot badge -- a radial-gradient sphere with a soft inner
- * highlight and drop shadow standing in for a real 3D model, plus a gentle bob/rotate
- * so it reads as alive. Mounted once at the app root (see App.tsx) so it persists,
- * unclosed, across every route including /login and /register. */
 export function MascotChat() {
   const location = useLocation()
   const { user } = useAuth()
@@ -46,7 +38,7 @@ export function MascotChat() {
     if (open && messages.length === 0) {
       setMessages([{ role: 'assistant', text: `Hi! I'm your DineIQ assistant 👋 Ask me anything about ${pageLabel(location.pathname)}.` }])
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [open])
 
   useEffect(() => {

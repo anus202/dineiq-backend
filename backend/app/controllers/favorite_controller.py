@@ -9,14 +9,12 @@ from app.schemas.favorite_schema import FavoriteListResponse, FavoriteToggleResp
 from app.services import favorite_service
 from app.services.favorite_service import MenuItemNotFound
 
-# Favoriting is a customer-portal feature: the heart icon on the Menu Browse page.
 router = APIRouter(
     prefix="/api/v1/favorites",
     tags=["Favorites"],
     dependencies=[Depends(require_roles([RoleName.CUSTOMER]))],
     responses={401: {"description": "Missing, invalid or expired token"}, 403: {"description": "Your role can't use this endpoint"}},
 )
-
 
 def _require_customer_profile(user: Signup) -> int:
     if user.CustomerId is None:
@@ -26,7 +24,6 @@ def _require_customer_profile(user: Signup) -> int:
         )
     return user.CustomerId
 
-
 @router.get("", response_model=FavoriteListResponse, summary="My favorited menu items")
 async def list_my_favorites(
     db: AsyncSession = Depends(get_db),
@@ -34,7 +31,6 @@ async def list_my_favorites(
 ):
     customer_id = _require_customer_profile(current_user)
     return FavoriteListResponse(MenuItemIds=await favorite_service.list_favorite_ids(db, customer_id))
-
 
 @router.post(
     "/{menu_item_id}/toggle",

@@ -20,7 +20,6 @@ from app.schemas.customer_schema import (
 from app.services import analytics_service, customer_service
 from app.services.customer_service import PhoneAlreadyRegistered
 
-# Every route here requires a valid token and one of the FRONT_OF_HOUSE roles.
 router = APIRouter(
     prefix="/api/v1/customers",
     tags=["Customers"],
@@ -31,14 +30,11 @@ router = APIRouter(
 NOT_FOUND = {404: {"description": "Customer not found"}}
 PHONE_TAKEN = {409: {"description": "Phone number already registered"}}
 
-
 def _not_found(customer_id: int) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Customer {customer_id} not found")
 
-
 def _phone_taken(exc: PhoneAlreadyRegistered) -> HTTPException:
     return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
-
 
 @router.post(
     "",
@@ -58,7 +54,6 @@ async def create_customer(
     except PhoneAlreadyRegistered as exc:
         raise _phone_taken(exc)
 
-
 @router.get("", response_model=CustomerListResponse, summary="Search / list customers (newest first)")
 async def get_customers(
     search: Optional[str] = Query(
@@ -72,7 +67,6 @@ async def get_customers(
     return CustomerListResponse(
         Total=total, Skip=skip, Limit=limit, Items=[CustomerResponse.model_validate(c) for c in customers]
     )
-
 
 @router.get(
     "/{id}",
@@ -91,7 +85,6 @@ async def get_customer(id: int, db: AsyncSession = Depends(get_db)):
         Stats=stats,
         RecentOrders=[CustomerOrderSummary.model_validate(o) for o in recent],
     )
-
 
 @router.get(
     "/{id}/analytics",
@@ -113,7 +106,6 @@ async def get_customer_analytics(
     if customer is None:
         raise _not_found(id)
     return await analytics_service.get_customer_rfm(db, customer, as_of)
-
 
 @router.put(
     "/{id}",

@@ -14,7 +14,6 @@ interface Props {
 
 type Direction = 'add' | 'remove'
 
-/** Manual stock change; the reason is mandatory and stored in tbl_StockMovementLog. Full-page, no modal. */
 export function StockAdjustmentFormBody({ items, initialItemId, onDone, onCancel }: Props) {
   const toast = useToast()
   const [itemId, setItemId] = useState<number>(initialItemId ?? items[0]?.Id ?? 0)

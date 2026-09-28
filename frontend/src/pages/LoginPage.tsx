@@ -40,9 +40,6 @@ function EyeIcon({ open }: { open: boolean }) {
   )
 }
 
-/** Light labeled field with an optional leading icon and trailing slot (used for the
- * password show/hide toggle). Shares visual language with `GlassField` below but
- * carries the icon gutter that the plain text fields (full name, phone, ...) don't need. */
 function IconField({
   icon,
   trailing,
@@ -60,7 +57,6 @@ function IconField({
   )
 }
 
-/** Light labeled field with no icon gutter, for plain text inputs (register form). */
 export function GlassField({
   label,
   hint,
@@ -84,8 +80,6 @@ export function GlassField({
   )
 }
 
-/** Seeded demo accounts (backend/scripts/seed_demo_data.py) -- lets a judge/reviewer
- * try every role without needing real credentials. Password is the same for all four. */
 const DEMO_PASSWORD = 'Demo@12345'
 const DEMO_ROLES: { role: RoleName; label: string; icon: LucideIcon; email: string }[] = [
   { role: 'ADMIN', label: 'Admin', icon: Shield, email: 'admin@dineiq.demo' },
@@ -98,7 +92,7 @@ export function LoginPage() {
   const { user, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  // Admin is prefilled by default so a reviewer can land here and just press Sign in.
+
   const [email, setEmail] = useState(DEMO_ROLES[0].email)
   const [password, setPassword] = useState(DEMO_PASSWORD)
   const [demoRole, setDemoRole] = useState<RoleName | null>(DEMO_ROLES[0].role)
@@ -226,8 +220,6 @@ export function LoginPage() {
   )
 }
 
-// A fixed, deterministic set of drifting-particle positions for the auth backdrop below
-// (not randomized per render, so the layout is stable and reviewable).
 const PARTICLES: { top: string; left: string; size: number; delay: number; gold?: boolean }[] = [
   { top: '12%', left: '15%', size: 7, delay: 0 },
   { top: '32%', left: '10%', size: 5, delay: 2 },
@@ -247,18 +239,11 @@ const PARTICLES: { top: string; left: string; size: number; delay: number; gold?
   { top: '80%', left: '30%', size: 6, delay: 2.6 },
 ]
 
-/** Ambient "living" backdrop shared by the login/register cards: a deep teal gradient
- * with slowly drifting glow blobs, a small constellation of floating particles, and a
- * soft double wave along the bottom -- stands in for an eye-catching video background
- * (no video-generation tool is available here, and no video asset exists in the
- * project), while staying cheap enough to run everywhere. */
 function AuthBackdrop() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden bg-ink" aria-hidden>
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(15,118,110,0.9),transparent_55%),radial-gradient(circle_at_85%_15%,rgba(19,78,74,0.8),transparent_50%),radial-gradient(circle_at_55%_90%,rgba(12,74,68,0.85),transparent_55%)]" />
 
-      {/* Slowly rotating conic "aurora" sweep -- the biggest driver of the video-like
-          feel, since it's continuous full-field motion rather than a few local blobs. */}
       <motion.div
         className="absolute top-1/2 left-1/2 h-[140vmax] w-[140vmax] -translate-x-1/2 -translate-y-1/2 opacity-40"
         style={{
@@ -318,9 +303,6 @@ function AuthBackdrop() {
   )
 }
 
-/** Shared centered "glass card" shell for the login and register pages: the ambient
- * backdrop above, plus two faint offset panels behind the real card for a stacked,
- * layered-screens depth effect. */
 export function AuthCardShell({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
     <div className="relative flex min-h-full items-center justify-center overflow-hidden px-4 py-10 sm:px-6">

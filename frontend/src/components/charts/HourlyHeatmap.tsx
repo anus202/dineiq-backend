@@ -6,7 +6,6 @@ import { ShimmerSkeleton } from '../ui'
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const HOURS = Array.from({ length: 24 }, (_, h) => h)
 
-/** Teal ramp by share of the busiest cell. */
 const cellColor = (orders: number, max: number): string => {
   if (!max || !orders) return 'rgb(241 245 249)'
   const t = orders / max

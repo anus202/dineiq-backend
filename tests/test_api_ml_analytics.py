@@ -1,24 +1,15 @@
-"""Integration tests for /api/v1/ml-analytics/*: live endpoints backed by trained models and
-real SQL Server data. Assertions check business invariants (ordering, ranges, labels
-consistent with thresholds, arithmetic) rather than exact values, which change as data
-changes."""
 import math
 
 import pytest
 
-MENU_ITEM_ID = 5  # Crispy Chicken Wings — a long-standing item with sales history
+MENU_ITEM_ID = 5
 BASE = "/api/v1/ml-analytics"
-
 
 def what_if(client, headers, **overrides):
     body = {"menu_item_id": MENU_ITEM_ID, **overrides}
     response = client.post(f"{BASE}/what-if", json=body, headers=headers)
     assert response.status_code == 200, response.text
     return response.json()
-
-
-# --- What-If simulator ---------------------------------------------------------------
-
 
 def test_what_if_no_change_projects_current_values(client, admin_headers):
     r = what_if(client, admin_headers)
@@ -27,26 +18,21 @@ def test_what_if_no_change_projects_current_values(client, admin_headers):
     assert r["projected_revenue"] == pytest.approx(r["current_revenue"], rel=0.01)
     assert r["revenue_delta_percent"] == pytest.approx(0.0, abs=1.0)
 
-
 def test_what_if_price_increase_raises_price(client, admin_headers):
     r = what_if(client, admin_headers, price_change_percent=10)
     assert r["projected_price"] == pytest.approx(r["current_price"] * 1.10, abs=0.01)
 
-
 def test_what_if_prep_quantity_cut_caps_volume(client, admin_headers):
-    # Regression test: the controller previously dropped this field, so a -30% prep cut
-    # silently produced an unchanged projection.
+
     r = what_if(client, admin_headers, prep_quantity_change_percent=-30)
     assert r["prep_quantity_change_percent"] == -30
     assert r["projected_quantity"] == pytest.approx(r["current_quantity"] * 0.70, abs=0.1)
     assert r["projected_revenue"] < r["current_revenue"]
     assert r["volume_delta_percent"] == pytest.approx(-30.0, abs=0.1)
 
-
 def test_what_if_prep_quantity_increase_does_not_create_demand(client, admin_headers):
     r = what_if(client, admin_headers, prep_quantity_change_percent=50)
     assert r["projected_quantity"] == r["current_quantity"]
-
 
 def test_what_if_higher_wastage_assumption_reduces_profit_only(client, admin_headers):
     r = what_if(client, admin_headers, wastage_assumption_change_percent=10)
@@ -56,25 +42,19 @@ def test_what_if_higher_wastage_assumption_reduces_profit_only(client, admin_hea
     expected_extra_cost = unit_cost * r["projected_quantity"] * 0.10
     assert r["current_profit"] - r["projected_profit"] == pytest.approx(expected_extra_cost, rel=0.01)
 
-
 def test_what_if_remove_item_zeroes_everything(client, admin_headers):
     r = what_if(client, admin_headers, remove_item=True)
     assert r["remove_item"] is True
     assert r["projected_quantity"] == r["projected_revenue"] == r["projected_profit"] == 0
     assert r["revenue_delta_percent"] == -100.0
 
-
 def test_what_if_unknown_item_returns_404(client, admin_headers):
     response = client.post(f"{BASE}/what-if", json={"menu_item_id": 999_999}, headers=admin_headers)
     assert response.status_code == 404
 
-
 def test_what_if_rejects_malformed_payload(client, admin_headers):
     response = client.post(f"{BASE}/what-if", json={"menu_item_id": "not-a-number"}, headers=admin_headers)
     assert response.status_code == 422
-
-
-# --- Anomalies and slow movers -------------------------------------------------------
 
 RATING_ANOMALY_TYPES = {"RATING_SPIKE", "RATING_DROP", "VOLUME_SPIKE", "IDENTICAL_CLUSTER"}
 SLOW_MOVER_SIGNALS = {
@@ -84,7 +64,6 @@ SLOW_MOVER_SIGNALS = {
     "Weak profitability",
     "Declining trend",
 }
-
 
 def test_rating_anomalies_are_well_formed(client, admin_headers):
     response = client.get(f"{BASE}/rating-anomalies", headers=admin_headers)
@@ -99,17 +78,12 @@ def test_rating_anomalies_are_well_formed(client, admin_headers):
     dates = [a["date"] for a in anomalies]
     assert dates == sorted(dates, reverse=True)
 
-
 def test_slow_moving_dishes_combine_multiple_signals(client, admin_headers):
     response = client.get(f"{BASE}/slow-moving-dishes", headers=admin_headers)
     assert response.status_code == 200
     for dish in response.json():
         assert set(dish["signals"]) <= SLOW_MOVER_SIGNALS
         assert dish["signal_count"] == len(dish["signals"]) >= 2
-
-
-# --- Model-backed predictions --------------------------------------------------------
-
 
 def test_churn_risk_is_sorted_and_consistent(client, admin_headers):
     response = client.get(f"{BASE}/churn-risk", params={"limit": 25}, headers=admin_headers)
@@ -125,7 +99,6 @@ def test_churn_risk_is_sorted_and_consistent(client, admin_headers):
         assert c["RiskLabel"] == ("At Risk" if c["ChurnProbability"] >= 0.5 else "Retained")
         assert c["Frequency"] >= 1
 
-
 def test_wastage_risk_labels_match_thresholds(client, admin_headers):
     response = client.get(f"{BASE}/wastage-risk", params={"limit": 20}, headers=admin_headers)
     assert response.status_code == 200
@@ -138,7 +111,6 @@ def test_wastage_risk_labels_match_thresholds(client, admin_headers):
         expected = "Critical" if p >= 30 else "High" if p >= 15 else "Moderate" if p >= 5 else "Low"
         assert i["RiskLabel"] == expected
 
-
 def test_demand_forecast_returns_finite_sorted_predictions(client, admin_headers):
     response = client.get(f"{BASE}/demand-forecast", params={"limit": 15}, headers=admin_headers)
     assert response.status_code == 200
@@ -148,7 +120,6 @@ def test_demand_forecast_returns_finite_sorted_predictions(client, admin_headers
     assert predicted == sorted(predicted, reverse=True)
     assert all(math.isfinite(p) for p in predicted)
 
-
 PRICE_LABELS = {
     "Highly Elastic",
     "Moderately Elastic",
@@ -156,7 +127,6 @@ PRICE_LABELS = {
     "Positively Correlated (anomalous)",
     "Unknown",
 }
-
 
 def test_price_sensitivity_uses_known_labels(client, admin_headers):
     response = client.get(f"{BASE}/price-sensitivity", headers=admin_headers)
@@ -168,7 +138,6 @@ def test_price_sensitivity_uses_known_labels(client, admin_headers):
         corr = item["price_quantity_correlation"]
         assert corr is None or -1.0 <= corr <= 1.0
 
-
 def test_market_basket_rules_have_valid_metrics(client, admin_headers):
     response = client.get(f"{BASE}/market-basket", headers=admin_headers)
     assert response.status_code == 200
@@ -179,7 +148,6 @@ def test_market_basket_rules_have_valid_metrics(client, admin_headers):
         assert rule["antecedent"] and rule["consequent"]
         assert not set(rule["antecedent"]) & set(rule["consequent"])
 
-
 @pytest.mark.xfail(
     strict=False,
     reason="Known limitation (see AI_USAGE.md §7): the synthetic order generator draws "
@@ -188,10 +156,8 @@ def test_market_basket_rules_have_valid_metrics(client, admin_headers):
     "(biasing a second line toward a 'combo companion' of the first), not a scale fix.",
 )
 def test_market_basket_finds_rules_at_full_scale(client, admin_headers):
-    """SRS Step 17: association rules must actually be discovered, not just computable."""
     rules = client.get(f"{BASE}/market-basket", headers=admin_headers).json()
     assert len(rules) > 0, "no association rules found"
-
 
 def test_recommendations_carry_evidence_and_priority(client, admin_headers):
     response = client.get(f"{BASE}/recommendations", headers=admin_headers)

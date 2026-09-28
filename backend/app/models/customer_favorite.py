@@ -9,14 +9,7 @@ if TYPE_CHECKING:
     from app.models.customer import Customer
     from app.models.menu_item import MenuItem
 
-
 class CustomerFavorite(CommonFields):
-    """A customer's saved/"favorited" menu item (the heart toggle on the Menu Browse page).
-
-    One row per (CustomerId, MenuItemId); toggling off deletes the row rather than
-    soft-deleting it -- there is nothing worth auditing about an unfavorite, and it keeps
-    "is this favorited" a plain existence check.
-    """
 
     __tablename__ = "Customer_Favorites"
     __table_args__ = (

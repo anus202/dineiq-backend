@@ -14,9 +14,6 @@ from app.schemas.restaurant_branch_schema import (
 )
 from app.services import restaurant_branch_service
 
-# Reading the branch list/detail is open to any logged-in user (staff and customers alike
-# need it -- e.g. the branch picker on customer self-checkout). Creating, editing or
-# deactivating a branch (FR 1.6-ii) stays ADMIN/SUPER_ADMIN-only, applied per-route below.
 router = APIRouter(
     prefix="/api/v1/restaurants",
     tags=["Restaurant Branches"],
@@ -25,10 +22,8 @@ router = APIRouter(
 
 NOT_FOUND = {404: {"description": "Branch not found"}}
 
-
 def _not_found(branch_id: int) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Branch {branch_id} not found")
-
 
 @router.get(
     "/branches",
@@ -43,7 +38,6 @@ async def list_branches(
 ):
     return await restaurant_branch_service.get_all(db, search, is_active)
 
-
 @router.get(
     "/branch/{id}",
     response_model=RestaurantBranchResponse,
@@ -56,7 +50,6 @@ async def get_branch(id: int, db: AsyncSession = Depends(get_db)):
     if branch is None:
         raise _not_found(id)
     return branch
-
 
 @router.post(
     "/branch",
@@ -72,7 +65,6 @@ async def create_branch(
 ):
     return await restaurant_branch_service.create(db, payload, current_user.Id)
 
-
 @router.put("/branch/{id}", response_model=RestaurantBranchResponse, summary="Update a restaurant branch", responses=NOT_FOUND)
 async def update_branch(
     id: int,
@@ -84,7 +76,6 @@ async def update_branch(
     if branch is None:
         raise _not_found(id)
     return branch
-
 
 @router.delete("/branch/{id}", status_code=status.HTTP_204_NO_CONTENT, summary="Deactivate a restaurant branch", responses=NOT_FOUND)
 async def deactivate_branch(

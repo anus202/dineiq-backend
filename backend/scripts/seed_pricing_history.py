@@ -1,16 +1,3 @@
-"""Seed Pricing_History with realistic historical price-change records.
-
-SRS dataset requirement: "Multiple historical pricing records" per menu item.
-Pricing_History exists but was never populated. This backfills 2-4 price changes
-per menu item over the last ~20 months, walking backward from each item's CURRENT
-real price (Menu_Items.Price) so the history is consistent with what customers
-see today -- the last historical NewPrice always equals the current catalog price.
-
-Safe to run repeatedly: skipped entirely if Pricing_History already has rows.
-
-    cd backend
-    .venv\\Scripts\\python scripts\\seed_pricing_history.py
-"""
 import os
 import random
 import sys
@@ -26,7 +13,6 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 HISTORY_DAYS = 600
 
-
 def sql():
     return pyodbc.connect(
         f"Driver={{{os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server')}}};Server={os.getenv('DB_SERVER', '.')};"
@@ -35,10 +21,8 @@ def sql():
         autocommit=False,
     )
 
-
 def round_price(value: Decimal) -> Decimal:
     return value.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-
 
 def main() -> None:
     conn = sql()
@@ -60,18 +44,16 @@ def main() -> None:
     for menu_item_id, current_price in menu_items:
         current_price = Decimal(str(current_price))
         n_changes = random.randint(2, 4)
-        # Change dates spread across the window, oldest first, most recent last.
+
         offsets = sorted(random.sample(range(30, HISTORY_DAYS), n_changes))
         change_dates = [history_start + timedelta(days=o) for o in offsets]
 
-        # Walk backward from the current (final) price to build the earlier prices,
-        # then reverse so we insert oldest-to-newest with correct Old/New pairing.
         prices = [current_price]
         for _ in range(n_changes - 1):
             pct = Decimal(random.uniform(-0.15, 0.15))
             prev_price = round_price(prices[-1] / (1 + pct)) if pct != -1 else prices[-1]
             prices.append(max(Decimal("50"), prev_price))
-        prices.reverse()  # oldest -> newest, prices[-1] == current_price
+        prices.reverse()
 
         old_price = None
         for change_date, new_price in zip(change_dates, prices):
@@ -85,7 +67,6 @@ def main() -> None:
     )
     conn.commit()
     print(f"Pricing_History seeded: +{len(rows):,} price-change records across {len(menu_items)} menu items.", flush=True)
-
 
 if __name__ == "__main__":
     main()

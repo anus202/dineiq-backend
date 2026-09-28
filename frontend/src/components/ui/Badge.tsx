@@ -23,7 +23,6 @@ export function Badge({ tone = 'gray', children, dot = false }: { tone?: BadgeTo
   )
 }
 
-/** Consistent colours for statuses used across the app. */
 export const statusTone = (status: string): BadgeTone => {
   switch (status) {
     case 'AVAILABLE':

@@ -11,14 +11,12 @@ if TYPE_CHECKING:
     from app.models.restaurant_branch import RestaurantBranch
     from app.models.role import Role
 
-
 class Signup(CommonFields):
-    """A login account (staff or customer)."""
 
     __tablename__ = "tbl_Signup"
-    # Names match app/db/migrations.py, which adds these to existing databases.
+
     __table_args__ = (
-        # One account per customer profile; many accounts (staff) have none.
+
         Index(
             "UX_tbl_Signup_CustomerId",
             "CustomerId",
@@ -33,17 +31,15 @@ class Signup(CommonFields):
     PhoneNumber: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     PasswordHash: Mapped[str] = mapped_column(String(255), nullable=False)
     RoleId: Mapped[int] = mapped_column(ForeignKey("tbl_Role.Id", name="FK_tbl_Signup_RoleId"), nullable=False)
-    # Set for CUSTOMER accounts: the tbl_Customer profile this login belongs to.
+
     CustomerId: Mapped[Optional[int]] = mapped_column(
         ForeignKey("Customers.Id", name="FK_tbl_Signup_CustomerId"), nullable=True
     )
-    # Which branch this staff account is scoped to; NULL means all branches (e.g. an admin).
+
     BranchId: Mapped[Optional[int]] = mapped_column(
         ForeignKey("Restaurants.Id", name="FK_tbl_Signup_BranchId"), nullable=True
     )
-    # Granular permission flags (FR 1.6-iii). These are stored and returned by the API but
-    # are not yet enforced by require_roles()/other endpoint dependencies — enforcing them
-    # would mean auditing every protected route in the app, which is out of scope here.
+
     CanAccessInventory: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("0"))
     CanTriggerPipeline: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("0"))
     CanAccessMenuManagement: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("0"))

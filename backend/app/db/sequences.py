@@ -1,11 +1,3 @@
-"""Yearly document numbers (ORD-2026-000042, INV-2026-000042) from SQL Server SEQUENCEs.
-
-One SEQUENCE per kind per year. A SEQUENCE hands out numbers without holding any lock
-afterwards, even inside an open transaction. Holding a lock across the order transaction
-(or needing a second pooled connection for a counter) froze the app under concurrent
-orders: waiting requests used up the driver's worker threads and pool connections the
-lock holder needed to finish. A rolled-back transaction leaves a gap, which is harmless.
-"""
 from dataclasses import dataclass
 from typing import Union
 
@@ -15,12 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 
 Executor = Union[AsyncSession, AsyncConnection]
 
-
 @dataclass(frozen=True)
 class YearlyNumberSequence:
-    sequence_base: str  # e.g. "OrderNumberSeq" -> dbo.[OrderNumberSeq_2026]
-    prefix: str  # e.g. "ORD"
-    table: str  # table holding the numbers, to seed a new year's sequence
+    sequence_base: str
+    prefix: str
+    table: str
     column: str
 
     def _prefix(self, year: int) -> str:
@@ -30,11 +21,6 @@ class YearlyNumberSequence:
         return f"dbo.[{self.sequence_base}_{int(year)}]"
 
     async def ensure(self, db: Executor, year: int) -> None:
-        """Create this year's sequence if missing, starting after any existing numbers.
-
-        Commits (or rolls back) immediately, so call it before loading anything the
-        caller still needs from the session.
-        """
         exists = await db.scalar(text("SELECT OBJECT_ID(:name, 'SO')"), {"name": self._sequence_name(year)})
         if exists is not None:
             return
@@ -46,11 +32,11 @@ class YearlyNumberSequence:
             {"prefix": self._prefix(year)},
         )
         try:
-            # NO CACHE: numbers aren't skipped when SQL Server restarts.
+
             await db.execute(text(f"CREATE SEQUENCE {self._sequence_name(year)} AS INT START WITH {int(start)} NO CACHE"))
             await db.commit()
         except DBAPIError:
-            # Another request created it at the same moment.
+
             await db.rollback()
 
     async def next(self, db: Executor, year: int) -> str:
@@ -58,17 +44,6 @@ class YearlyNumberSequence:
         return f"{self._prefix(year)}{seq:06d}"
 
     async def resync(self, db: Executor, year: int) -> None:
-        """Fast-forward this year's sequence past every existing number, in case rows were
-        added by something other than `next()` -- a raw-SQL bulk insert (e.g. the Big Data
-        scale-up seed script), a restored backup, or a manual fix. `ensure()` only seeds a
-        sequence the first time it's created; once it exists, it's never re-synced on its
-        own, so a bulk insert that runs *after* the sequence already exists (the normal
-        case -- `init_db()` creates it on the app's very first startup, typically against
-        an empty table) leaves it permanently behind, and every order placed through the
-        API afterwards collides with an already-used number until the sequence counts back
-        up to where the bulk data left off. Safe to call anytime, including when the
-        sequence doesn't exist yet (falls through to `ensure()`).
-        """
         await self.ensure(db, year)
         next_value = await db.scalar(
             text(
@@ -79,7 +54,6 @@ class YearlyNumberSequence:
         )
         await db.execute(text(f"ALTER SEQUENCE {self._sequence_name(year)} RESTART WITH {int(next_value)}"))
         await db.commit()
-
 
 ORDER_NUMBERS = YearlyNumberSequence("OrderNumberSeq", "ORD", "Orders", "OrderNumber")
 INVOICE_NUMBERS = YearlyNumberSequence("InvoiceNumberSeq", "INV", "tbl_Payment", "InvoiceNumber")

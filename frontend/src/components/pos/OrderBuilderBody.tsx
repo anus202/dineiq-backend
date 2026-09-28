@@ -13,9 +13,6 @@ interface Props {
 
 type Cart = Map<number, { item: MenuItem; qty: number }>
 
-/** Quick POS order body: pick dishes, optionally attach a customer, and seat it at a table.
- * Shared by the table-specific seating modal and the standalone "New Takeaway/Delivery Order" page.
- */
 export function OrderBuilderBody({ table, onCreated }: Props) {
   const toast = useToast()
   const menu = useApi(() => menuApi.all(true), [])
@@ -43,7 +40,7 @@ export function OrderBuilderBody({ table, onCreated }: Props) {
     setCustomer(null)
     setFilter('')
     setCategory('All')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [table?.Id])
 
   const categories = useMemo(() => ['All', ...new Set((menu.data ?? []).map((m) => m.Category.CategoryName))], [menu.data])
@@ -95,7 +92,7 @@ export function OrderBuilderBody({ table, onCreated }: Props) {
 
   return (
     <div className="grid gap-5 lg:grid-cols-5">
-      {/* Menu */}
+
       <div className="lg:col-span-3">
         <input className="field-input mb-3" placeholder="Search dishes…" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Search dishes" />
         <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1">
@@ -134,7 +131,6 @@ export function OrderBuilderBody({ table, onCreated }: Props) {
         </div>
       </div>
 
-      {/* Cart */}
       <div className="flex flex-col rounded-2xl bg-slate-50 dark:bg-slate-800 p-4 lg:col-span-2">
         <div className="grid grid-cols-2 gap-3">
           <SelectField label="Order type" value={orderType} disabled={table !== null} onChange={(e) => setOrderType(e.target.value as OrderType)}>

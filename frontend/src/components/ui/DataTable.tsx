@@ -7,13 +7,12 @@ export interface Column<T> {
   key: string
   header: string
   render: (row: T) => ReactNode
-  /** Enables sorting on this column (client mode). */
+
   sortValue?: (row: T) => string | number
   align?: 'left' | 'right' | 'center'
   className?: string
 }
 
-/** Paging and search done by the API (large tables such as 500k customers). */
 export interface ServerPaging {
   total: number
   page: number
@@ -30,7 +29,7 @@ export interface DataTableProps<T> {
   loading?: boolean
   error?: string | null
   onRetry?: () => void
-  /** Client mode: text a row is searched by. Omit to hide the search box. */
+
   searchText?: (row: T) => string
   searchPlaceholder?: string
   pageSize?: number
@@ -68,7 +67,6 @@ export function DataTable<T>({
   const [localPage, setLocalPage] = useState(1)
   const [expanded, setExpanded] = useState<string | number | null>(null)
 
-  // Client mode: filter -> sort -> slice. Server mode: rows are already one page.
   const processed = useMemo(() => {
     if (server) return rows
     let result = rows

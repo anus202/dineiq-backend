@@ -24,27 +24,21 @@ from app.controllers import (
     table_controller,
 )
 
-from app.core import audit  # noqa: F401  (registers the audit flush hook)
+from app.core import audit
 from app.core.cache_warmup import start_background_warmup
 from app.core.config import CORS_ORIGINS
 from app.db.init_db import init_db
 from app.db.session import engine
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    # Fire-and-forget: warms every heavy dashboard/analytics cache immediately, then
-    # keeps re-warming it forever, so no real request ever pays a cold-scan cost. Started
-    # as a background task rather than awaited here so it never delays the app accepting
-    # requests -- the first few seconds of traffic may still hit a cold cache, but nothing
-    # waits on this loop.
+
     warmup_tasks = start_background_warmup()
     yield
     for task in warmup_tasks:
         task.cancel()
     await engine.dispose()
-
 
 app = FastAPI(
     title="DineIQ API",
@@ -84,11 +78,9 @@ app.include_router(favorite_controller.router)
 app.include_router(promotion_controller.router)
 app.include_router(assistant_controller.router)
 
-
 @app.get("/", tags=["Health"], summary="Health check")
 def root():
     return {"status": "ok"}
-
 
 def _print_startup_banner(host: str, port: int) -> None:
     base = f"http://{host}:{port}"
@@ -104,7 +96,6 @@ def _print_startup_banner(host: str, port: int) -> None:
     for line in lines:
         print("|  " + line.ljust(width - 2) + "|", flush=True)
     print("+" + "-" * width + "+", flush=True)
-
 
 if __name__ == "__main__":
     import uvicorn
