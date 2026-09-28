@@ -2,46 +2,50 @@ import { motion } from 'framer-motion'
 import type { CustomerMe } from '../../types/api'
 import { count, money } from '../../utils/format'
 
-const tierStyle: Record<string, { ring: string; chip: string; emoji: string }> = {
-  Silver: { ring: 'from-slate-300 to-slate-500', chip: 'bg-slate-100 text-slate-700', emoji: '🥈' },
-  Gold: { ring: 'from-amber-300 to-amber-500', chip: 'bg-amber-100 text-amber-800', emoji: '🥇' },
-  Platinum: { ring: 'from-cyan-300 to-violet-500', chip: 'bg-violet-100 text-violet-800', emoji: '💎' },
-}
+const tierEmoji: Record<string, string> = { Silver: '🥈', Gold: '🥇', Platinum: '💎' }
 
-/** Silver → Gold → Platinum bar; each tier's marker sits at its minimum points. */
+/** Silver → Gold → Platinum progress, styled to match the rest of the dashboard's plain
+ * white stat-card look (no tier-colored banner) instead of standing out as its own
+ * theme. */
 export function LoyaltyProgress({ me }: { me: CustomerMe }) {
   const tiers = me.Tiers
   const top = tiers[tiers.length - 1]
   // The bar ends a little past the top tier so Platinum members still see movement.
   const scaleMax = Math.max(top.MinPoints * 1.25, me.LoyaltyPoints)
   const fill = Math.min(100, (me.LoyaltyPoints / scaleMax) * 100)
-  const style = tierStyle[me.TierStatus.Tier] ?? tierStyle.Silver
+  const emoji = tierEmoji[me.TierStatus.Tier] ?? '🥈'
 
   return (
-    <div className="card overflow-hidden">
-      <div className={`bg-gradient-to-r ${style.ring} px-6 py-5 text-white`}>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-sm text-white/80">Your tier</p>
-            <p className="text-3xl font-semibold">
-              {style.emoji} {me.TierStatus.Tier}
-            </p>
-            <p className="text-sm text-white/90">{me.TierStatus.DiscountPercentage}% off every bill</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-white/80">Points balance</p>
-            <motion.p className="text-4xl font-bold" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-              {count(me.LoyaltyPoints)}
-            </motion.p>
-            <p className="text-sm text-white/90">worth {money(me.PointsValue)}</p>
-          </div>
+    <div className="card p-5">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-xl border border-slate-100 p-4">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-base text-brand-700">{emoji}</span>
+          <p className="mt-2.5 text-[11px] font-semibold tracking-wide text-slate-400 uppercase">Your tier</p>
+          <p className="mt-0.5 text-xl font-bold text-ink">{me.TierStatus.Tier}</p>
+          <span className="mt-1 inline-block rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold text-brand-700">{me.TierStatus.DiscountPercentage}% off every bill</span>
+        </div>
+        <div className="rounded-xl border border-slate-100 p-4">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-base text-amber-700">★</span>
+          <p className="mt-2.5 text-[11px] font-semibold tracking-wide text-slate-400 uppercase">Points balance</p>
+          <motion.p className="mt-0.5 text-xl font-bold text-ink" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+            {count(me.LoyaltyPoints)}
+          </motion.p>
+          <p className="mt-1 text-xs text-slate-500">worth {money(me.PointsValue)}</p>
+        </div>
+        <div className="rounded-xl border border-slate-100 p-4">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-base text-sky-700">→</span>
+          <p className="mt-2.5 text-[11px] font-semibold tracking-wide text-slate-400 uppercase">Next tier</p>
+          <p className="mt-0.5 text-xl font-bold text-ink">{me.TierStatus.NextTier ?? 'Top tier'}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {me.TierStatus.NextTier ? `${count(me.TierStatus.PointsToNextTier ?? 0)} points to go` : `Stay above ${count(top.MinPoints)} pts`}
+          </p>
         </div>
       </div>
 
-      <div className="px-6 py-6">
-        <div className="relative h-4 rounded-full bg-slate-100">
+      <div className="mt-6">
+        <div className="relative h-2 rounded-full bg-slate-100">
           <motion.div
-            className={`absolute inset-y-0 left-0 rounded-full bg-gradient-to-r ${style.ring}`}
+            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-teal-300 to-brand-600"
             initial={{ width: 0 }}
             animate={{ width: `${fill}%` }}
             transition={{ duration: 1.1, ease: 'easeOut' }}
@@ -51,7 +55,7 @@ export function LoyaltyProgress({ me }: { me: CustomerMe }) {
             const reached = me.LoyaltyPoints >= tier.MinPoints
             return (
               <div key={tier.Name} className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ left: `${Math.max(at, 1.5)}%` }}>
-                <span className={`block h-6 w-6 rounded-full border-4 border-white shadow ${reached ? 'bg-brand-600' : 'bg-slate-300'}`} />
+                <span className={`block h-3.5 w-3.5 rounded-full border-2 border-white shadow ${reached ? 'bg-brand-600' : 'bg-slate-300'}`} />
               </div>
             )
           })}
@@ -66,15 +70,6 @@ export function LoyaltyProgress({ me }: { me: CustomerMe }) {
             </div>
           ))}
         </div>
-        <p className="mt-2 text-sm text-slate-600">
-          {me.TierStatus.NextTier ? (
-            <>
-              <b className="text-ink">{count(me.TierStatus.PointsToNextTier ?? 0)} points</b> to {me.TierStatus.NextTier}. You earn points on every bill paid by cash or card.
-            </>
-          ) : (
-            <>You’re at the top tier. Keep your balance above {count(top.MinPoints)} points to stay Platinum.</>
-          )}
-        </p>
       </div>
     </div>
   )
