@@ -71,10 +71,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   {styles[t.kind].icon}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-ink">{t.title}</p>
-                  {t.message && <p className="mt-0.5 text-xs break-words text-slate-500">{t.message}</p>}
+                  <p className="text-sm font-semibold text-ink dark:text-white">{t.title}</p>
+                  {t.message && <p className="mt-0.5 text-xs break-words text-slate-500 dark:text-slate-400">{t.message}</p>}
                 </div>
-                <button onClick={() => dismiss(t.id)} className="self-start text-slate-400 hover:text-slate-600" aria-label="Dismiss">
+                <button
+                  onClick={() => dismiss(t.id)}
+                  className="self-start text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  aria-label="Dismiss"
+                >
                   ✕
                 </button>
               </div>

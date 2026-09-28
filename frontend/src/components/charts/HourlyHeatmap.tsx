@@ -24,11 +24,11 @@ export function HourlyHeatmap({ data, loading }: { data?: HeatmapData; loading: 
     <div className="card p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="font-semibold text-ink">Hourly demand heatmap</h3>
-          <p className="text-xs text-slate-500">Completed orders by weekday and hour (00:00–23:00, local time), last 90 days</p>
+          <h3 className="font-semibold text-ink dark:text-white">Hourly demand heatmap</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Completed orders by weekday and hour (00:00–23:00, local time), last 90 days</p>
         </div>
         {data?.BusiestSlot && (
-          <p className="rounded-lg bg-brand-50 px-3 py-1.5 text-xs text-brand-700">
+          <p className="rounded-lg bg-brand-50 px-3 py-1.5 text-xs text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
             Busiest: <b>{data.BusiestSlot.DayName}</b> at <b>{String(data.BusiestSlot.Hour).padStart(2, '0')}:00</b> ({count(data.BusiestSlot.Orders)} orders)
           </p>
         )}
@@ -41,13 +41,13 @@ export function HourlyHeatmap({ data, loading }: { data?: HeatmapData; loading: 
             <div className="grid min-w-[640px] gap-[3px]" style={{ gridTemplateColumns: '36px repeat(24, minmax(0, 1fr))' }}>
               <span />
               {HOURS.map((h) => (
-                <span key={h} className="text-center text-[10px] text-slate-400">
+                <span key={h} className="text-center text-[10px] text-slate-400 dark:text-slate-500">
                   {h % 3 === 0 ? String(h).padStart(2, '0') : ''}
                 </span>
               ))}
               {DAYS.map((day, d) => (
                 <div key={day} className="contents">
-                  <span className="self-center text-xs font-medium text-slate-500">{day}</span>
+                  <span className="self-center text-xs font-medium text-slate-500 dark:text-slate-400">{day}</span>
                   {HOURS.map((h) => {
                     const cell = byKey.get(`${d}-${h}`)
                     return (
@@ -65,7 +65,7 @@ export function HourlyHeatmap({ data, loading }: { data?: HeatmapData; loading: 
               ))}
             </div>
           </div>
-          <div className="mt-3 flex h-5 items-center justify-between text-xs text-slate-500">
+          <div className="mt-3 flex h-5 items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span>
               {hover
                 ? `${hover.DayName} ${String(hover.Hour).padStart(2, '0')}:00 — ${count(hover.Orders)} orders, ${money(hover.Revenue)}`

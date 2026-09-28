@@ -114,10 +114,10 @@ export function DataTable<T>({
   return (
     <div className="card overflow-hidden">
       {(showSearch || toolbar) && (
-        <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
           {showSearch && (
             <div className="relative min-w-56 flex-1">
-              <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-slate-400">⌕</span>
+              <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-slate-400 dark:text-slate-500">⌕</span>
               <input
                 value={searchValue}
                 onChange={(e) => onSearch(e.target.value)}
@@ -139,14 +139,14 @@ export function DataTable<T>({
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+          <thead className="bg-slate-50 text-xs tracking-wide text-slate-500 uppercase dark:bg-slate-800/60 dark:text-slate-400">
             <tr>
               {columns.map((column) => (
                 <th
                   key={column.key}
                   scope="col"
                   onClick={() => toggleSort(column)}
-                  className={`px-4 py-3 font-medium whitespace-nowrap ${alignClass[column.align ?? 'left']} ${column.sortValue && !server ? 'cursor-pointer select-none hover:text-slate-700' : ''}`}
+                  className={`px-4 py-3 font-medium whitespace-nowrap ${alignClass[column.align ?? 'left']} ${column.sortValue && !server ? 'cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200' : ''}`}
                   aria-sort={sort?.key === column.key ? (sort.direction === 'asc' ? 'ascending' : 'descending') : undefined}
                 >
                   {column.header}
@@ -155,7 +155,7 @@ export function DataTable<T>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800 dark:text-slate-200">
             {!loading &&
               visible.map((row) => {
                 const key = rowKey(row)
@@ -167,7 +167,7 @@ export function DataTable<T>({
                         if (expandRow) setExpanded(isOpen ? null : key)
                         onRowClick?.(row)
                       }}
-                      className={`transition-colors ${onRowClick || expandRow ? 'cursor-pointer hover:bg-brand-50/50' : 'hover:bg-slate-50/60'} ${isOpen ? 'bg-brand-50/40' : ''}`}
+                      className={`transition-colors ${onRowClick || expandRow ? 'cursor-pointer hover:bg-brand-50/50 dark:hover:bg-brand-900/20' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/40'} ${isOpen ? 'bg-brand-50/40 dark:bg-brand-900/20' : ''}`}
                     >
                       {columns.map((column) => (
                         <td key={column.key} className={`px-4 py-3 align-middle ${alignClass[column.align ?? 'left']} ${column.className ?? ''}`}>
@@ -178,7 +178,7 @@ export function DataTable<T>({
                     <AnimatePresence>
                       {expandRow && isOpen && (
                         <tr>
-                          <td colSpan={columns.length} className="bg-slate-50 p-0">
+                          <td colSpan={columns.length} className="bg-slate-50 p-0 dark:bg-slate-800/60">
                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
                               <div className="px-4 py-3">{expandRow(row)}</div>
                             </motion.div>
@@ -195,14 +195,14 @@ export function DataTable<T>({
         {!loading && !error && visible.length === 0 && <EmptyState title={emptyTitle} message={emptyMessage} />}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
         <span>
           {total === 0 ? 'No results' : `Showing ${(page - 1) * size + 1}–${Math.min(page * size, total)} of ${total.toLocaleString('en')}`}
         </span>
         <div className="flex items-center gap-1">
           <PagerButton label="«" disabled={page <= 1 || loading} onClick={() => setPage(1)} />
           <PagerButton label="‹ Prev" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)} />
-          <span className="px-2 font-medium text-slate-700">
+          <span className="px-2 font-medium text-slate-700 dark:text-slate-300">
             Page {page.toLocaleString('en')} of {pages.toLocaleString('en')}
           </span>
           <PagerButton label="Next ›" disabled={page >= pages || loading} onClick={() => setPage(page + 1)} />
@@ -215,7 +215,11 @@ export function DataTable<T>({
 
 function PagerButton({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} disabled={disabled} className="rounded-md px-2 py-1 font-medium text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded-md px-2 py-1 font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800"
+    >
       {label}
     </button>
   )

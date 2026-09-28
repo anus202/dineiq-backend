@@ -21,14 +21,20 @@ export function RFMMatrix({ data, loading }: { data?: RFMData; loading: boolean 
     <div className="card p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold text-ink">Customer RFM matrix</h3>
-          <p className="text-xs text-slate-500">
+          <h3 className="font-semibold text-ink dark:text-white">Customer RFM matrix</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             {data ? `${count(data.PurchasingCustomers)} purchasing customers` : 'Scores 1–5 relative to all purchasing customers'}
           </p>
         </div>
-        <div className="flex rounded-lg bg-slate-100 p-0.5 text-xs">
+        <div className="flex rounded-lg bg-slate-100 p-0.5 text-xs dark:bg-slate-800">
           {(['Monetary', 'Frequency'] as Axis[]).map((a) => (
-            <button key={a} onClick={() => setAxis(a)} className={`rounded-md px-3 py-1 font-medium ${axis === a ? 'bg-white text-ink shadow-sm' : 'text-slate-500'}`}>
+            <button
+              key={a}
+              onClick={() => setAxis(a)}
+              className={`rounded-md px-3 py-1 font-medium transition-colors ${
+                axis === a ? 'bg-white text-ink shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
               R × {a[0]}
             </button>
           ))}
@@ -39,7 +45,7 @@ export function RFMMatrix({ data, loading }: { data?: RFMData; loading: boolean 
       ) : (
         <div className="flex gap-3">
           <div className="flex flex-col justify-center">
-            <span className="-rotate-90 text-xs font-medium whitespace-nowrap text-slate-500">{axis} score →</span>
+            <span className="-rotate-90 text-xs font-medium whitespace-nowrap text-slate-500 dark:text-slate-400">{axis} score →</span>
           </div>
           <div className="flex-1">
             <div className="grid grid-cols-5 gap-1.5">
@@ -61,12 +67,12 @@ export function RFMMatrix({ data, loading }: { data?: RFMData; loading: boolean 
                 }),
               )}
             </div>
-            <div className="mt-2 grid grid-cols-5 text-center text-xs text-slate-500">
+            <div className="mt-2 grid grid-cols-5 text-center text-xs text-slate-500 dark:text-slate-400">
               {[1, 2, 3, 4, 5].map((r) => (
                 <span key={r}>R{r}</span>
               ))}
             </div>
-            <p className="mt-1 text-center text-xs font-medium text-slate-500">Recency score → (5 = most recent)</p>
+            <p className="mt-1 text-center text-xs font-medium text-slate-500 dark:text-slate-400">Recency score → (5 = most recent)</p>
           </div>
         </div>
       )}

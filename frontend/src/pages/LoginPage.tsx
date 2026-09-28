@@ -229,16 +229,22 @@ export function LoginPage() {
 // A fixed, deterministic set of drifting-particle positions for the auth backdrop below
 // (not randomized per render, so the layout is stable and reviewable).
 const PARTICLES: { top: string; left: string; size: number; delay: number; gold?: boolean }[] = [
-  { top: '12%', left: '15%', size: 6, delay: 0 },
-  { top: '32%', left: '10%', size: 4, delay: 2 },
-  { top: '20%', left: '86%', size: 5, delay: 1, gold: true },
-  { top: '64%', left: '90%', size: 7, delay: 3 },
-  { top: '74%', left: '18%', size: 4, delay: 1.5, gold: true },
-  { top: '8%', left: '60%', size: 5, delay: 2.5 },
-  { top: '86%', left: '60%', size: 6, delay: 0.5 },
-  { top: '46%', left: '6%', size: 4, delay: 3.5, gold: true },
-  { top: '5%', left: '40%', size: 5, delay: 1.2 },
-  { top: '90%', left: '42%', size: 6, delay: 2.2 },
+  { top: '12%', left: '15%', size: 7, delay: 0 },
+  { top: '32%', left: '10%', size: 5, delay: 2 },
+  { top: '20%', left: '86%', size: 6, delay: 1, gold: true },
+  { top: '64%', left: '90%', size: 8, delay: 3 },
+  { top: '74%', left: '18%', size: 5, delay: 1.5, gold: true },
+  { top: '8%', left: '60%', size: 6, delay: 2.5 },
+  { top: '86%', left: '60%', size: 7, delay: 0.5 },
+  { top: '46%', left: '6%', size: 5, delay: 3.5, gold: true },
+  { top: '5%', left: '40%', size: 6, delay: 1.2 },
+  { top: '90%', left: '42%', size: 7, delay: 2.2 },
+  { top: '15%', left: '48%', size: 4, delay: 0.8, gold: true },
+  { top: '55%', left: '78%', size: 5, delay: 2.8 },
+  { top: '38%', left: '28%', size: 4, delay: 1.8 },
+  { top: '68%', left: '52%', size: 5, delay: 3.2, gold: true },
+  { top: '28%', left: '92%', size: 4, delay: 0.3 },
+  { top: '80%', left: '30%', size: 6, delay: 2.6 },
 ]
 
 /** Ambient "living" backdrop shared by the login/register cards: a deep teal gradient
@@ -251,33 +257,63 @@ function AuthBackdrop() {
     <div className="pointer-events-none absolute inset-0 overflow-hidden bg-ink" aria-hidden>
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(15,118,110,0.9),transparent_55%),radial-gradient(circle_at_85%_15%,rgba(19,78,74,0.8),transparent_50%),radial-gradient(circle_at_55%_90%,rgba(12,74,68,0.85),transparent_55%)]" />
 
+      {/* Slowly rotating conic "aurora" sweep -- the biggest driver of the video-like
+          feel, since it's continuous full-field motion rather than a few local blobs. */}
       <motion.div
-        className="absolute -top-20 -left-20 h-72 w-72 rounded-full bg-teal-400/25 blur-[90px]"
-        animate={{ x: [0, 30, 0], y: [0, 20, 0] }}
-        transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
+        className="absolute top-1/2 left-1/2 h-[140vmax] w-[140vmax] -translate-x-1/2 -translate-y-1/2 opacity-40"
+        style={{
+          background:
+            'conic-gradient(from 0deg, transparent 0deg, rgba(45,212,191,0.25) 60deg, transparent 140deg, rgba(251,191,36,0.12) 220deg, transparent 300deg, rgba(45,212,191,0.2) 360deg)',
+        }}
+        animate={{ rotate: 360 }}
+        transition={{ duration: 50, repeat: Infinity, ease: 'linear' }}
+      />
+
+      <motion.div
+        className="absolute -top-32 -left-32 h-[30rem] w-[30rem] rounded-full bg-teal-400/35 blur-[110px]"
+        animate={{ x: [0, 60, 0], y: [0, 40, 0], scale: [1, 1.15, 1] }}
+        transition={{ duration: 13, repeat: Infinity, ease: 'easeInOut' }}
       />
       <motion.div
-        className="absolute -right-16 -bottom-16 h-60 w-60 rounded-full bg-amber-400/10 blur-[90px]"
-        animate={{ x: [0, -20, 0], y: [0, -15, 0] }}
-        transition={{ duration: 24, repeat: Infinity, ease: 'easeInOut' }}
+        className="absolute -right-28 -bottom-28 h-96 w-96 rounded-full bg-amber-400/20 blur-[110px]"
+        animate={{ x: [0, -40, 0], y: [0, -30, 0], scale: [1, 1.2, 1] }}
+        transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="absolute top-1/3 right-1/4 h-72 w-72 rounded-full bg-cyan-300/20 blur-[100px]"
+        animate={{ x: [0, -30, 20, 0], y: [0, 30, -10, 0] }}
+        transition={{ duration: 19, repeat: Infinity, ease: 'easeInOut' }}
       />
 
       {PARTICLES.map((p, i) => (
         <motion.span
           key={i}
-          className={`absolute rounded-full ${p.gold ? 'bg-amber-300/70' : 'bg-teal-300/70'}`}
-          style={{ top: p.top, left: p.left, width: p.size, height: p.size }}
-          animate={{ y: [0, -22, 0], x: [0, 12, 0], opacity: [0.35, 0.85, 0.35] }}
-          transition={{ duration: 7 + i * 0.4, repeat: Infinity, ease: 'easeInOut', delay: p.delay }}
+          className={`absolute rounded-full ${p.gold ? 'bg-amber-300/80' : 'bg-teal-300/80'}`}
+          style={{
+            top: p.top,
+            left: p.left,
+            width: p.size,
+            height: p.size,
+            boxShadow: p.gold ? '0 0 10px 2px rgba(252,211,77,0.6)' : '0 0 10px 2px rgba(94,234,212,0.6)',
+          }}
+          animate={{ y: [0, -34, 0], x: [0, 16, 0], opacity: [0.3, 1, 0.3] }}
+          transition={{ duration: 6 + i * 0.35, repeat: Infinity, ease: 'easeInOut', delay: p.delay }}
         />
       ))}
 
-      <svg className="absolute bottom-0 left-0 h-40 w-full opacity-60" viewBox="0 0 1440 200" preserveAspectRatio="none" aria-hidden>
-        <path d="M0,120 C240,60 480,160 720,100 C960,40 1200,140 1440,90 L1440,200 L0,200 Z" fill="rgba(20,184,166,0.10)" />
-        <path d="M0,150 C260,100 500,180 740,130 C980,80 1220,170 1440,120 L1440,200 L0,200 Z" fill="rgba(20,184,166,0.16)" />
-      </svg>
+      <motion.svg
+        className="absolute bottom-0 left-0 h-48 w-[130%] opacity-70"
+        viewBox="0 0 1440 200"
+        preserveAspectRatio="none"
+        aria-hidden
+        animate={{ x: ['0%', '-13%', '0%'] }}
+        transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        <path d="M0,120 C240,60 480,160 720,100 C960,40 1200,140 1440,90 L1440,200 L0,200 Z" fill="rgba(20,184,166,0.14)" />
+        <path d="M0,150 C260,100 500,180 740,130 C980,80 1220,170 1440,120 L1440,200 L0,200 Z" fill="rgba(20,184,166,0.22)" />
+      </motion.svg>
 
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_60%_at_50%_45%,rgba(7,26,23,0.15),rgba(7,26,23,0.6))]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_60%_at_50%_45%,rgba(7,26,23,0.1),rgba(7,26,23,0.55))]" />
     </div>
   )
 }

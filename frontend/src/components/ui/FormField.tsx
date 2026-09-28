@@ -56,9 +56,9 @@ export function Toggle({ label, checked, onChange }: { label: string; checked: b
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className="flex items-center gap-3 text-sm text-slate-700"
+      className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-200"
     >
-      <span className={`relative h-6 w-11 rounded-full transition-colors ${checked ? 'bg-brand-600' : 'bg-slate-300'}`}>
+      <span className={`relative h-6 w-11 rounded-full transition-colors ${checked ? 'bg-brand-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
         <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${checked ? 'left-5.5' : 'left-0.5'}`} />
       </span>
       {label}
