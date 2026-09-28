@@ -23,6 +23,7 @@ PASSWORD = os.getenv("DEMO_PASSWORD", "Demo@12345")
 
 ADMIN = {"FullName": "Demo Admin", "Email": "admin@dineiq.demo"}
 STAFF = [
+    {"FullName": "Demo Branch Manager", "Email": "manager@dineiq.demo", "Role": "RESTAURANT_MANAGER"},
     {"FullName": "Demo Inventory Manager", "Email": "inventory@dineiq.demo", "Role": "INVENTORY_MANAGER"},
     {"FullName": "Demo Cashier", "Email": "cashier@dineiq.demo", "Role": "CASHIER"},
 ]

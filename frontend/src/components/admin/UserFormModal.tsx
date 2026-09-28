@@ -12,7 +12,7 @@ interface Props {
   onSaved: () => void
 }
 
-const ASSIGNABLE_ROLES: RoleName[] = ['ADMIN', 'INVENTORY_MANAGER', 'CASHIER']
+const ASSIGNABLE_ROLES: RoleName[] = ['ADMIN', 'RESTAURANT_MANAGER', 'INVENTORY_MANAGER', 'CASHIER']
 
 const EMPTY: StaffCreateInput = {
   FullName: '',

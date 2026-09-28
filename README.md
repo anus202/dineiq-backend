@@ -442,6 +442,7 @@ Created by `backend/scripts/seed_demo_data.py`. Password for all of them: **`Dem
 | Role | Email |
 |---|---|
 | ADMIN | `admin@dineiq.demo` |
+| RESTAURANT_MANAGER | `manager@dineiq.demo` |
 | INVENTORY_MANAGER | `inventory@dineiq.demo` |
 | CASHIER | `cashier@dineiq.demo` |
 | CUSTOMER | linked to an existing seeded customer profile |
@@ -451,8 +452,8 @@ creates a `CUSTOMER` account (there's no admin yet who could create a staff acco
 through the API) — so `seed_demo_data.py` signs up its `admin@dineiq.demo` account
 normally and then promotes *that one account* to `ADMIN` with a direct SQL update
 (`UPDATE tbl_Signup SET RoleId = (SELECT Id FROM tbl_Role WHERE Name = 'ADMIN') WHERE
-Email = 'admin@dineiq.demo'`). Every other account after that — `INVENTORY_MANAGER`,
-`CASHIER`, and any further `ADMIN` — is created normally through `POST /api/v1/users`
+Email = 'admin@dineiq.demo'`). Every other account after that — `RESTAURANT_MANAGER`,
+`INVENTORY_MANAGER`, `CASHIER`, and any further `ADMIN` — is created normally through `POST /api/v1/users`
 once logged in as that first admin. To get a `SUPER_ADMIN`, promote an account to
 `SUPER_ADMIN` the same way (by direct SQL update), since no endpoint can create one from
 scratch.
