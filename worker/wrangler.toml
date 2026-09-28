@@ -1,0 +1,12 @@
+name = "dineiq-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "dineiq-database"
+database_id = "b3b9c902-3fda-4a48-abc7-abcead1f4d78"
+
+[vars]
+JWT_SECRET = "dineiq-jwt-secret-change-in-production-2024"
+ENVIRONMENT = "production"
