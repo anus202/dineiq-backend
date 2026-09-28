@@ -1,42 +1,13 @@
-import { motion } from 'framer-motion'
-import type { ReactNode } from 'react'
 import { RecentOrdersFeed } from '../components/admin/RecentOrdersFeed'
 import { HourlyHeatmap } from '../components/charts/HourlyHeatmap'
 import { RevenueTrendChart } from '../components/charts/RevenueTrendChart'
 import { RFMMatrix } from '../components/charts/RFMMatrix'
 import { TopItemsChart } from '../components/charts/TopItemsChart'
 import { PageHeader } from '../components/layout/AppLayout'
-import { Button, ErrorBanner, StatsCard } from '../components/ui'
+import { Button, ErrorBanner, Panel, Scene, StatsCard } from '../components/ui'
 import { useApi } from '../hooks/useApi'
 import { adminDashboardApi, analyticsApi } from '../services/endpoints'
 import { count, isoDaysAgo, money } from '../utils/format'
-
-/** A perspective wrapper so children's `rotateX` entrance animations (see StatsCard)
- * read as a genuine 3D flip rather than a flat 2D one. */
-function Scene({ children }: { children: ReactNode }) {
-  return (
-    <div style={{ perspective: 1400 }} className="space-y-6">
-      {children}
-    </div>
-  )
-}
-
-/** A section card that flips in from a slight 3D tilt, staggered by `delay` -- used for
- * the larger panels (charts, feed) below the stat-card row, echoing the same "load-in"
- * language as StatsCard's own entrance. */
-function Panel({ children, delay = 0, className = '' }: { children: ReactNode; delay?: number; className?: string }) {
-  return (
-    <motion.div
-      style={{ transformPerspective: 1400 }}
-      initial={{ opacity: 0, y: 40, rotateX: -10, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
-      transition={{ delay, type: 'spring', stiffness: 200, damping: 22 }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  )
-}
 
 export function AdminOverviewPage() {
   // Today's live figures refresh every 30 s; the heavier analytics load once.

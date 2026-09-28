@@ -10,6 +10,7 @@ from app.db.session import get_db
 from app.schemas.branch_analytics_schema import (
     AnomalyReportResponse,
     BranchComparisonResponse,
+    BranchSnapshotResponse,
     BusinessRecommendation,
     ChannelMixResponse,
     DemandForecastResponse,
@@ -82,6 +83,19 @@ async def restaurant_manager_recommendations(
     db: AsyncSession = Depends(get_db),
 ):
     return await branch_analytics_service.get_recommendations(db, start_date, end_date, branch_id)
+
+
+@router.get(
+    "/restaurant-manager/branch-snapshot",
+    response_model=BranchSnapshotResponse,
+    dependencies=[Depends(require_roles(BRANCH_MANAGERS))],
+    summary="Live snapshot for a branch: today's sales, recent orders, tables and stock alerts",
+)
+async def restaurant_manager_branch_snapshot(
+    branch_id: Optional[int] = Depends(branch_scope()),
+    db: AsyncSession = Depends(get_db),
+):
+    return await branch_analytics_service.get_branch_snapshot(db, branch_id)
 
 
 @router.get(

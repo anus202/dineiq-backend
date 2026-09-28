@@ -559,6 +559,22 @@ export interface ChannelMixResponse {
   Channels: ChannelMixEntry[]
 }
 
+export interface BranchSnapshotResponse {
+  BranchId: number | null
+  BusinessDate: string
+  SalesToday: number
+  OrdersToday: number
+  CompletedOrdersToday: number
+  PendingOrders: number
+  RecentOrders: Order[]
+  ActiveTables: number
+  ReservedTables: number
+  TotalTables: number
+  LowStockItems: number
+  OutOfStockItems: number
+  WastageCost30Days: number
+}
+
 export type MenuQuadrant = 'Profit Driver' | 'Volume Driver' | 'Hidden Opportunity' | 'Low Performer'
 
 export interface MenuQuadrantItem {

@@ -6,6 +6,7 @@ import type {
   AuditLog,
   AuthResponse,
   BranchComparisonResponse,
+  BranchSnapshotResponse,
   BusinessRecommendation,
   Category,
   ChannelMixResponse,
@@ -100,6 +101,7 @@ export const analyticsApi = {
 export const branchAnalyticsApi = {
   overview: (params: { start_date?: string; end_date?: string; branch_id?: number } = {}) =>
     get<Overview>('/dashboard/restaurant-manager/overview', params),
+  snapshot: (params: { branch_id?: number } = {}) => get<BranchSnapshotResponse>('/dashboard/restaurant-manager/branch-snapshot', params),
   channelMix: (params: { start_date?: string; end_date?: string; branch_id?: number } = {}) =>
     get<ChannelMixResponse>('/dashboard/restaurant-manager/channel-mix', params),
   menuQuadrants: (params: { start_date?: string; end_date?: string; branch_id?: number; refresh?: boolean } = {}) =>

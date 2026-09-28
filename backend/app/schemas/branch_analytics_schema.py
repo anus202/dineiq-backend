@@ -2,9 +2,10 @@ from datetime import date
 from decimal import Decimal
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.schemas.common import MoneyTotal
+from app.schemas.order_schema import OrderResponse
 
 
 class ChannelMixEntry(BaseModel):
@@ -136,3 +137,21 @@ class SalesAnomaly(BaseModel):
 
 class AnomalyReportResponse(BaseModel):
     SalesAnomalies: List[SalesAnomaly]
+
+
+class BranchSnapshotResponse(BaseModel):
+    BranchId: Optional[int]
+    BusinessDate: date
+    SalesToday: MoneyTotal
+    OrdersToday: int = Field(..., description="Orders placed today at this branch, excluding cancelled")
+    CompletedOrdersToday: int
+    PendingOrders: int = Field(..., description="This branch's orders still Pending, any date")
+    RecentOrders: List[OrderResponse] = Field(..., description="This branch's 6 most recent orders, newest first")
+    ActiveTables: int = Field(..., description="Tables OCCUPIED now, across the restaurant (tables aren't assigned to a single branch in this schema)")
+    ReservedTables: int
+    TotalTables: int
+    LowStockItems: int = Field(
+        ..., description="Inventory items at or below reorder level, across the restaurant (today's seeded stock is a shared pool, not split per branch)"
+    )
+    OutOfStockItems: int
+    WastageCost30Days: MoneyTotal = Field(..., description="This branch's recorded wastage cost, last 30 days")

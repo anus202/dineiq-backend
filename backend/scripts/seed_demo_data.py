@@ -102,6 +102,17 @@ def main() -> None:
         created = ok(client.post(f"{API}/users", headers=admin, json={**member, "Password": PASSWORD}), 400)
         print(f"{'created' if created else 'exists '} {member['Role']:18} {member['Email']}")
 
+    # RESTAURANT_MANAGER and INVENTORY_MANAGER are branch-scoped roles (see
+    # BRANCH_SCOPED_ROLES) -- without an assigned branch, every branch-scoped endpoint
+    # they call 400s. Assign the first active branch so the demo accounts actually work,
+    # whether they were just created above or already existed without one.
+    demo_branch = db.execute("SELECT TOP 1 Id, BranchName FROM Restaurants WHERE IsActive = 1 ORDER BY Id").fetchone()
+    if demo_branch:
+        for member in STAFF:
+            if member["Role"] in ("RESTAURANT_MANAGER", "INVENTORY_MANAGER"):
+                db.execute("UPDATE tbl_Signup SET BranchId = ? WHERE Email = ? AND BranchId IS NULL", demo_branch.Id, member["Email"])
+        print(f"branch-scoped demo staff assigned to: {demo_branch.BranchName} (#{demo_branch.Id})")
+
     # 3. Customer login linked to a dataset customer (same phone + email).
     customer = db.execute("SELECT Name, Phone, Email FROM Customers WHERE Id = ?", CUSTOMER_ID).fetchone()
     created = ok(

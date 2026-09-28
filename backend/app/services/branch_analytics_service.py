@@ -11,17 +11,19 @@ from decimal import Decimal
 from statistics import median
 from typing import Optional
 
-from sqlalchemy import Date, cast, func, literal_column, select
+from sqlalchemy import Date, case, cast, func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.cache import TTLCache
 from app.services import ml_analytics_service
 from app.core.config import BUSINESS_UTC_OFFSET_MINUTES
-from app.models import InventoryItem, MenuItem, Order, OrderDetail, Recipe, RestaurantBranch, StockMovementLog, Wastage
+from app.models import DiningTable, InventoryItem, MenuItem, Order, OrderDetail, Recipe, RestaurantBranch, StockMovementLog, Wastage
 from app.schemas.branch_analytics_schema import (
     AnomalyReportResponse,
     BranchComparisonResponse,
     BranchComparisonRow,
+    BranchSnapshotResponse,
     BusinessRecommendation,
     ChannelMixEntry,
     ChannelMixResponse,
@@ -36,7 +38,9 @@ from app.schemas.branch_analytics_schema import (
     WastageByReason,
     WastageSummaryResponse,
 )
+from app.schemas.order_schema import OrderResponse, OrderStatusEnum
 from app.services.analytics_service import _money, _order_filters
+from app.services.dashboard_service import _local_today, _utc_start_of
 from app.services.rating_service import branch_average_rating
 
 ZERO = Decimal("0")
@@ -575,3 +579,83 @@ async def _detect_sales_anomalies_uncached(db: AsyncSession, lookback_days: int 
             )
     anomalies.sort(key=lambda a: abs(a.DeviationPercentage), reverse=True)
     return AnomalyReportResponse(SalesAnomalies=anomalies[:50])
+
+
+# --- Branch snapshot ("everything about my branch, right now") --------------------------
+
+
+async def get_branch_snapshot(db: AsyncSession, branch_id: Optional[int]) -> BranchSnapshotResponse:
+    """"Right now" detail for a branch manager's own branch: today's sales/orders and the
+    branch's most recent order (cashier) activity are genuinely filtered by Order.BranchId,
+    and wastage cost reuses get_wastage_summary's own branch filter. Table occupancy and
+    inventory stock levels stay restaurant-wide -- DiningTable has no BranchId and every
+    seeded InventoryItem is BranchId=NULL (shared) in this schema, so filtering those to
+    "this branch" would just produce a number that looks branch-specific without being one.
+    """
+    today = _local_today()
+    start, end = _utc_start_of(today), _utc_start_of(today + timedelta(days=1))
+    not_deleted = Order.IsDeleted == False  # noqa: E712
+    branch_filter = () if branch_id is None else (Order.BranchId == branch_id,)
+
+    today_row = (
+        await db.execute(
+            select(
+                func.sum(case((Order.Status == OrderStatusEnum.COMPLETED.value, Order.NetAmount), else_=0)),
+                func.sum(case((Order.Status == OrderStatusEnum.COMPLETED.value, 1), else_=0)),
+                func.sum(case((Order.Status != OrderStatusEnum.CANCELLED.value, 1), else_=0)),
+            ).where(not_deleted, Order.OrderDate >= start, Order.OrderDate < end, *branch_filter)
+        )
+    ).one()
+    sales, completed, placed = _money(today_row[0]), today_row[1] or 0, today_row[2] or 0
+    pending = await db.scalar(
+        select(func.count()).select_from(Order).where(not_deleted, Order.Status == OrderStatusEnum.PENDING.value, *branch_filter)
+    )
+
+    recent = (
+        await db.scalars(
+            select(Order)
+            .options(
+                selectinload(Order.Customer),
+                selectinload(Order.Table),
+                selectinload(Order.Payment),
+                selectinload(Order.items).selectinload(OrderDetail.MenuItem),
+            )
+            .where(not_deleted, *branch_filter)
+            .order_by(Order.OrderDate.desc(), Order.Id.desc())
+            .limit(6)
+        )
+    ).all()
+
+    tables = dict(
+        (
+            await db.execute(
+                select(DiningTable.Status, func.count()).where(DiningTable.IsDeleted == False).group_by(DiningTable.Status)  # noqa: E712
+            )
+        ).all()
+    )
+    stock = (
+        await db.execute(
+            select(
+                func.sum(case((InventoryItem.CurrentStock <= InventoryItem.ReorderLevel, 1), else_=0)),
+                func.sum(case((InventoryItem.CurrentStock <= 0, 1), else_=0)),
+            ).where(InventoryItem.IsDeleted == False)  # noqa: E712
+        )
+    ).one()
+
+    wastage = await get_wastage_summary(db, today - timedelta(days=29), today, branch_id)
+
+    return BranchSnapshotResponse(
+        BranchId=branch_id,
+        BusinessDate=today,
+        SalesToday=sales,
+        OrdersToday=placed,
+        CompletedOrdersToday=completed,
+        PendingOrders=pending or 0,
+        RecentOrders=[OrderResponse.from_model(o) for o in recent],
+        ActiveTables=tables.get("OCCUPIED", 0),
+        ReservedTables=tables.get("RESERVED", 0),
+        TotalTables=sum(tables.values()),
+        LowStockItems=stock[0] or 0,
+        OutOfStockItems=stock[1] or 0,
+        WastageCost30Days=wastage.TotalWastageCost,
+    )
