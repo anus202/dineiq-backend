@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
 from typing import Any, Awaitable, Callable, Hashable, TypeVar
 
@@ -12,6 +13,8 @@ class TTLCache:
         self._store: dict[Hashable, tuple[float, Any]] = {}
 
         self._inflight: dict[Hashable, asyncio.Future] = {}
+
+        self._sync_lock = threading.Lock()
 
     async def get_or_set(self, key: Hashable, ttl_seconds: float, compute: Callable[[], Awaitable[T]]) -> T:
         now = time.monotonic()
@@ -33,13 +36,20 @@ class TTLCache:
         return value
 
     def get_or_set_sync(self, key: Hashable, ttl_seconds: float, compute: Callable[[], T]) -> T:
-        now = time.monotonic()
         hit = self._store.get(key)
-        if hit is not None and now - hit[0] < ttl_seconds:
+        if hit is not None and time.monotonic() - hit[0] < ttl_seconds:
             return hit[1]
-        value = compute()
-        self._store[key] = (now, value)
-        return value
+        # Callers run this from worker threads, so a request and the background warm-up can
+        # miss at the same time; the lock makes the second one wait for the first result
+        # instead of repeating a multi-second computation.
+        with self._sync_lock:
+            now = time.monotonic()
+            hit = self._store.get(key)
+            if hit is not None and now - hit[0] < ttl_seconds:
+                return hit[1]
+            value = compute()
+            self._store[key] = (now, value)
+            return value
 
     def invalidate(self, key: Hashable) -> None:
         self._store.pop(key, None)

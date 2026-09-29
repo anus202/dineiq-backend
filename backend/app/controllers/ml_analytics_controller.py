@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.concurrency import run_in_threadpool
 
 from app.core.dependencies import require_roles
 from app.core.roles import BRANCH_MANAGERS, FORECAST_VIEWERS
@@ -33,7 +34,7 @@ router = APIRouter(
 )
 async def market_basket():
     try:
-        return ml_analytics_service.get_market_basket_rules()
+        return await run_in_threadpool(ml_analytics_service.get_market_basket_rules)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -45,7 +46,7 @@ async def market_basket():
 )
 async def price_sensitivity():
     try:
-        return ml_analytics_service.get_price_sensitivity()
+        return await run_in_threadpool(ml_analytics_service.get_price_sensitivity)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -57,7 +58,7 @@ async def price_sensitivity():
 )
 async def promotion_traps():
     try:
-        return ml_analytics_service.get_promotion_traps()
+        return await run_in_threadpool(ml_analytics_service.get_promotion_traps)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -69,7 +70,7 @@ async def promotion_traps():
 )
 async def ml_recommendations():
     try:
-        return ml_analytics_service.get_ml_recommendations()
+        return await run_in_threadpool(ml_analytics_service.get_ml_recommendations)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -80,7 +81,7 @@ async def ml_recommendations():
 )
 async def dual_pipeline_comparison():
     try:
-        return ml_analytics_service.get_dual_pipeline_comparison()
+        return await run_in_threadpool(ml_analytics_service.get_dual_pipeline_comparison)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 

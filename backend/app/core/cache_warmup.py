@@ -61,7 +61,9 @@ async def _warm_heavy() -> None:
 
     for name, fn in _SYNC_WARMERS:
         try:
-            fn()
+            # CPU-bound (pandas / mlxtend): off the event loop, or every API request stalls
+            # until the whole batch finishes.
+            await asyncio.to_thread(fn)
         except Exception:
             logger.warning("cache warm-up failed for %r", name, exc_info=True)
 
