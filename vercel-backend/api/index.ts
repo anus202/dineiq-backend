@@ -380,10 +380,12 @@ app.post('/api/inventory/adjust', async (c) => {
   const { InventoryItemId, Quantity, Reason } = await c.req.json();
   const cur = await one(DB, 'SELECT * FROM Inventory WHERE Id = ?', InventoryItemId);
   if (!cur) return c.json({ error: 'Not found' }, 404);
-  const after = num(cur.CurrentStock) + num(Quantity);
+  const requested = num(Quantity);
+  const after = Math.max(0, num(cur.CurrentStock) + requested);
+  const applied = after - num(cur.CurrentStock);
   await run(DB, 'UPDATE Inventory SET CurrentStock = ?, UpdatedAt = ? WHERE Id = ?', after, nowIso(), InventoryItemId);
-  const type = num(Quantity) >= 0 ? 'MANUAL_ADDITION' : 'MANUAL_DEDUCTION';
-  await run(DB, 'INSERT INTO tbl_StockMovementLog (InventoryItemId, MovementType, QuantityChange, StockAfter, Reason) VALUES (?,?,?,?,?)', InventoryItemId, type, Quantity, after, Reason ?? null);
+  const type = applied >= 0 ? 'MANUAL_ADDITION' : 'MANUAL_DEDUCTION';
+  await run(DB, 'INSERT INTO tbl_StockMovementLog (InventoryItemId, MovementType, QuantityChange, StockAfter, Reason) VALUES (?,?,?,?,?)', InventoryItemId, type, applied, after, Reason ?? null);
   const item = await fetchInv(DB, InventoryItemId);
   const mv = await one(DB, 'SELECT * FROM tbl_StockMovementLog WHERE InventoryItemId = ? ORDER BY Id DESC LIMIT 1', InventoryItemId);
   const low = after <= num(cur.ReorderLevel) ? { InventoryItemId, ItemName: cur.ItemName, Unit: cur.Unit, CurrentStock: after, ReorderLevel: num(cur.ReorderLevel), Shortfall: num(cur.ReorderLevel) - after } : null;
@@ -531,9 +533,12 @@ app.post('/api/orders', async (c) => {
     for (const r of recipe) {
       const inv = await one(DB, 'SELECT * FROM Inventory WHERE Id = ?', r.InventoryItemId);
       if (!inv) continue;
-      const after = num(inv.CurrentStock) - num(r.QuantityRequired) * l.qty;
+      // Recipe consumption can overshoot the on-hand quantity, so clamp at zero:
+      // stock can never go negative and "out of stock" counts stay accurate.
+      const requested = num(r.QuantityRequired) * l.qty;
+      const after = Math.max(0, num(inv.CurrentStock) - requested);
       await run(DB, 'UPDATE Inventory SET CurrentStock = ? WHERE Id = ?', after, inv.Id);
-      await run(DB, 'INSERT INTO tbl_StockMovementLog (InventoryItemId, MovementType, QuantityChange, StockAfter, OrderId) VALUES (?,?,?,?,?)', inv.Id, 'ORDER_CONSUMPTION', -num(r.QuantityRequired) * l.qty, after, orderId);
+      await run(DB, 'INSERT INTO tbl_StockMovementLog (InventoryItemId, MovementType, QuantityChange, StockAfter, OrderId) VALUES (?,?,?,?,?)', inv.Id, 'ORDER_CONSUMPTION', -Math.min(requested, num(inv.CurrentStock)), after, orderId);
     }
   }
   return c.json(await loadOrder(DB, orderId));
