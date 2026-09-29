@@ -26,7 +26,7 @@ from app.controllers import (
 
 from app.core import audit
 from app.core.cache_warmup import start_background_warmup
-from app.core.config import CORS_ORIGINS
+from app.core.config import CACHE_WARMUP_ENABLED, CORS_ORIGINS
 from app.db.init_db import init_db
 from app.db.session import engine
 
@@ -34,7 +34,7 @@ from app.db.session import engine
 async def lifespan(app: FastAPI):
     await init_db()
 
-    warmup_tasks = start_background_warmup()
+    warmup_tasks = start_background_warmup() if CACHE_WARMUP_ENABLED else []
     yield
     for task in warmup_tasks:
         task.cancel()

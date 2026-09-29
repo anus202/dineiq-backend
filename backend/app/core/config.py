@@ -15,6 +15,8 @@ DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
 
 BUSINESS_UTC_OFFSET_MINUTES = int(os.getenv("BUSINESS_UTC_OFFSET_MINUTES", "300"))
 
+CACHE_WARMUP_ENABLED = os.getenv("CACHE_WARMUP_ENABLED", "true").strip().lower() not in ("0", "false", "no", "off")
+
 CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if o.strip()]
 
 RESTAURANT_NAME = os.getenv("RESTAURANT_NAME", "DineIQ Restaurant")
