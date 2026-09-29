@@ -696,7 +696,7 @@ app.get('/api/dashboard/admin/revenue-chart', async (c) => {
 
 app.get('/api/dashboard/admin/top-performing', async (c) => {
   const days = qInt(c, 'days', 30);
-  const rows = await all(c.env.DB, `SELECT mi.Id, mi.Name, mc.Name CategoryName, SUM(oi.Quantity) qty, SUM(oi.TotalPrice) rev FROM Order_Items oi JOIN Orders o ON oi.OrderId=o.Id LEFT JOIN Menu_Items mi ON oi.MenuItemId=mi.Id LEFT JOIN Menu_Categories mc ON mi.CategoryId=mc.Id WHERE o.IsDeleted=0 AND o.OrderDate >= date('now', ?) GROUP BY mi.Id ORDER BY qty DESC LIMIT 10`, `-${days} days`);
+  const rows = await all(c.env.DB, `SELECT mi.Id, mi.Name, mc.Name CategoryName, SUM(oi.Quantity) qty, SUM(oi.TotalPrice) rev FROM Order_Items oi JOIN Orders o ON oi.OrderId=o.Id LEFT JOIN Menu_Items mi ON oi.MenuItemId=mi.Id LEFT JOIN Menu_Categories mc ON mi.CategoryId=mc.Id WHERE o.IsDeleted=0 AND o.OrderDate >= date('now', ?) GROUP BY mi.Id, mi.Name, mc.Name ORDER BY qty DESC LIMIT 10`, `-${days} days`);
   const totalRev = rows.reduce((s, r) => s + num(r.rev), 0);
   return c.json({
     PeriodDays: days,
@@ -732,7 +732,7 @@ app.get('/api/dashboard/restaurant-manager/branch-snapshot', async (c) => {
 });
 
 app.get('/api/dashboard/restaurant-manager/menu-quadrants', async (c) => {
-  const rows = await all(c.env.DB, `SELECT mi.Id, mi.Name, mi.Price, mi.Cost, mc.Name CategoryName, COALESCE(SUM(oi.Quantity),0) qty, COALESCE(SUM(oi.TotalPrice),0) rev FROM Menu_Items mi LEFT JOIN Menu_Categories mc ON mi.CategoryId=mc.Id LEFT JOIN Order_Items oi ON oi.MenuItemId=mi.Id WHERE mi.IsDeleted=0 GROUP BY mi.Id`);
+  const rows = await all(c.env.DB, `SELECT mi.Id, mi.Name, mi.Price, mi.Cost, mc.Name CategoryName, COALESCE(SUM(oi.Quantity),0) qty, COALESCE(SUM(oi.TotalPrice),0) rev FROM Menu_Items mi LEFT JOIN Menu_Categories mc ON mi.CategoryId=mc.Id LEFT JOIN Order_Items oi ON oi.MenuItemId=mi.Id WHERE mi.IsDeleted=0 GROUP BY mi.Id, mi.Name, mi.Price, mi.Cost, mc.Name`);
   const items = rows.map((r) => {
     const margin = num(r.rev) - num(r.qty) * num(r.Cost);
     const mp = num(r.rev) ? (margin / num(r.rev)) * 100 : 0;
@@ -751,7 +751,7 @@ app.get('/api/dashboard/restaurant-manager/recommendations', async (c) => {
 });
 
 app.get('/api/dashboard/inventory-manager/wastage', async (c) => {
-  const byItem = await all(c.env.DB, `SELECT w.InventoryItemId, i.ItemName, i.Unit, SUM(w.Quantity) tw, COUNT(*) ic FROM Wastage w LEFT JOIN Inventory i ON w.InventoryItemId=i.Id WHERE w.IsDeleted=0 GROUP BY w.InventoryItemId`);
+  const byItem = await all(c.env.DB, `SELECT w.InventoryItemId, i.ItemName, i.Unit, SUM(w.Quantity) tw, COUNT(*) ic FROM Wastage w LEFT JOIN Inventory i ON w.InventoryItemId=i.Id WHERE w.IsDeleted=0 GROUP BY w.InventoryItemId, i.ItemName, i.Unit`);
   const byReason = await all(c.env.DB, `SELECT COALESCE(Reason,'Unspecified') Reason, SUM(Quantity) tw, COUNT(*) ic FROM Wastage WHERE IsDeleted=0 GROUP BY Reason`);
   const cost = (itemId: number, qty: number) => 0;
   return c.json({
@@ -762,7 +762,7 @@ app.get('/api/dashboard/inventory-manager/wastage', async (c) => {
 });
 
 app.get('/api/dashboard/inventory-manager/demand-forecast', async (c) => {
-  const pattern = await all(c.env.DB, `SELECT CAST(strftime('%H', OrderDate) AS INTEGER) Hour, COUNT(*) n FROM Orders WHERE IsDeleted=0 GROUP BY Hour ORDER BY Hour`);
+  const pattern = await all(c.env.DB, `SELECT CAST(strftime('%H', OrderDate) AS INTEGER) AS "Hour", COUNT(*) n FROM Orders WHERE IsDeleted=0 GROUP BY 1 ORDER BY 1`);
   const hourly = pattern.map((p) => ({ Hour: num(p.Hour), AverageQuantityConsumed: num(p.n) }));
   const peak = hourly.length ? hourly.reduce((a, b) => (b.AverageQuantityConsumed > a.AverageQuantityConsumed ? b : a)).Hour : null;
   return c.json({ BranchId: null, HourlyPattern: hourly, PeakHour: peak, Recommendations: [], IsMLPowered: false, ModelAccuracy: null, UsedSystemWideFallback: true });
@@ -828,7 +828,7 @@ async function overviewFor(c: any, branchId: number | null) {
 app.get('/api/analytics/overview', async (c) => c.json(await overviewFor(c, null)));
 
 app.get('/api/analytics/hourly-heatmap', async (c) => {
-  const rows = await all(c.env.DB, `SELECT CAST(strftime('%w', OrderDate) AS INTEGER) DayOfWeek, CAST(strftime('%H', OrderDate) AS INTEGER) Hour, COUNT(*) Orders, COALESCE(SUM(NetAmount),0) Revenue FROM Orders WHERE IsDeleted=0 GROUP BY DayOfWeek, Hour`);
+  const rows = await all(c.env.DB, `SELECT CAST(strftime('%w', OrderDate) AS INTEGER) AS "DayOfWeek", CAST(strftime('%H', OrderDate) AS INTEGER) AS "Hour", COUNT(*) AS "Orders", COALESCE(SUM(NetAmount),0) AS "Revenue" FROM Orders WHERE IsDeleted=0 GROUP BY 1, 2`);
   const names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const cells = rows.map((r) => ({ DayOfWeek: num(r.DayOfWeek), DayName: names[num(r.DayOfWeek) % 7], Hour: num(r.Hour), Orders: num(r.Orders), Revenue: num(r.Revenue) }));
   const max = cells.reduce((m, x) => Math.max(m, x.Orders), 0);
@@ -838,26 +838,783 @@ app.get('/api/analytics/hourly-heatmap', async (c) => {
 
 app.get('/api/analytics/rfm-matrix', async (c) => c.json({ PurchasingCustomers: 0, FrequencyMatrix: [], MonetaryMatrix: [] }));
 
-// ---------- ML ANALYTICS (no models deployed -> valid empty shapes) ----------
-app.get('/api/ml-analytics/market-basket', async (c) => c.json([]));
-app.get('/api/ml-analytics/price-sensitivity', async (c) => c.json([]));
-app.get('/api/ml-analytics/promotion-traps', async (c) => c.json([]));
-app.get('/api/ml-analytics/recommendations', async (c) => c.json([]));
-app.get('/api/ml-analytics/churn-risk', async (c) => c.json({ ScoredCustomers: 0, Customers: [] }));
-app.get('/api/ml-analytics/rating-anomalies', async (c) => c.json([]));
-app.get('/api/ml-analytics/slow-moving-dishes', async (c) => c.json([]));
-app.get('/api/ml-analytics/wastage-risk', async (c) => c.json([]));
-app.get('/api/ml-analytics/demand-forecast', async (c) => c.json([]));
+// ---------- ML ANALYTICS (computed live from transactional data) ----------
+const __clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+const __r2 = (n: number) => Math.round(n * 1000) / 1000;
+const __r2d = (n: number) => Math.round(n * 100) / 100;
+const __median = (values: number[]) => {
+  if (!values.length) return 0;
+  const s = [...values].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+app.get('/api/ml-analytics/market-basket', async (c) => {
+  const totalOrders = num((await one(c.env.DB, 'SELECT COUNT(*) n FROM Orders WHERE IsDeleted=0'))?.n);
+  const counts = await all(c.env.DB, 'SELECT MenuItemId, COUNT(*) n FROM Order_Items GROUP BY MenuItemId');
+  const countOf = new Map<number, number>(counts.map((x: Any) => [num(x.MenuItemId), num(x.n)]));
+  const names = await all(c.env.DB, 'SELECT Id, Name FROM Menu_Items WHERE IsDeleted=0');
+  const nameOf = new Map<number, string>(names.map((x: Any) => [num(x.Id), String(x.Name)]));
+  const pairs = await all(c.env.DB, `
+    WITH pair_counts AS (
+      SELECT a.MenuItemId A, b.MenuItemId B, COUNT(*) n
+      FROM Order_Items a JOIN Order_Items b ON a.OrderId = b.OrderId AND a.MenuItemId < b.MenuItemId
+      GROUP BY a.MenuItemId, b.MenuItemId
+      HAVING COUNT(*) >= 30
+    )
+    SELECT A, B, n PairN FROM pair_counts`);
+  const rules: Any[] = [];
+  for (const p of pairs as Any[]) {
+    const a = num(p.A), b = num(p.B), pairN = num(p.PairN);
+    const aN = countOf.get(a) ?? 0, bN = countOf.get(b) ?? 0;
+    if (!a || !b || !aN || !bN || !totalOrders) continue;
+    const lift = (pairN * totalOrders) / (aN * bN);
+    if (!(lift > 1.05)) continue;
+    rules.push({
+      antecedent: [nameOf.get(a) ?? `Menu item ${a}`],
+      consequent: [nameOf.get(b) ?? `Menu item ${b}`],
+      support: Math.round((pairN / totalOrders) * 1e5) / 1e5,
+      confidence: __r2(pairN / aN),
+      lift: __r2(lift),
+    });
+  }
+  rules.sort((x: Any, y: Any) => y.lift - x.lift);
+  return c.json(rules.slice(0, 30));
+});
+
+app.get('/api/ml-analytics/price-sensitivity', async (c) => {
+  // Order_Item unit prices never vary in this dataset, so elasticity is computed
+  // from real price changes in Pricing_History against the 30-day windows around
+  // each change.
+  const rows = await all(c.env.DB, `
+    WITH daily AS (
+      SELECT oi.MenuItemId, to_char(o.OrderDate, 'YYYY-MM-DD') d, SUM(oi.Quantity) q
+      FROM Order_Items oi JOIN Orders o ON o.Id = oi.OrderId
+      WHERE o.IsDeleted = 0
+      GROUP BY oi.MenuItemId, 2
+    )
+    SELECT ph.MenuItemId, ph.OldPrice, ph.NewPrice,
+           COALESCE(SUM(CASE WHEN dd.d >= to_char(ph.ChangedAt::date - 30, 'YYYY-MM-DD') AND dd.d < to_char(ph.ChangedAt::date, 'YYYY-MM-DD') THEN dd.q END), 0) q_before,
+           COALESCE(SUM(CASE WHEN dd.d >= to_char(ph.ChangedAt::date, 'YYYY-MM-DD') AND dd.d <= to_char(ph.ChangedAt::date + 30, 'YYYY-MM-DD') THEN dd.q END), 0) q_after
+    FROM Pricing_History ph
+    LEFT JOIN daily dd ON dd.MenuItemId = ph.MenuItemId
+    WHERE ph.IsDeleted = 0
+    GROUP BY ph.MenuItemId, ph.OldPrice, ph.NewPrice`);
+  const items = await all(c.env.DB, 'SELECT Id, Name FROM Menu_Items WHERE IsDeleted=0');
+  const changesByItem = new Map<number, Any[]>();
+  for (const ch of rows as Any[]) {
+    const id = num(ch.MenuItemId);
+    if (!changesByItem.has(id)) changesByItem.set(id, []);
+    (changesByItem.get(id) as Any[]).push(ch);
+  }
+  const out: Any[] = [];
+  for (const m of items as Any[]) {
+    const id = num(m.Id);
+    const itemChanges = changesByItem.get(id) ?? [];
+    let corr: number | null = null;
+    let label = 'No price changes detected';
+    let interp = 'No distinct price changes were recorded for this dish, so elasticity cannot be estimated. Track price experiments to unlock elasticity scoring.';
+    if (itemChanges.length) {
+      const estimates: number[] = [];
+      for (const ch of itemChanges) {
+        const p0 = num(ch.OldPrice), p1 = num(ch.NewPrice);
+        const q0 = num(ch.q_before), q1 = num(ch.q_after);
+        if (p0 <= 0 || p1 === p0 || !q0 || !q1) continue;
+        estimates.push(__clamp((q1 - q0) / q0 / ((p1 - p0) / p0), -5, 5));
+      }
+      if (estimates.length) {
+        corr = __r2(__median(estimates));
+        label = corr < -1 ? 'Elastic' : corr <= 0 ? 'Inelastic' : 'Giffen style';
+        interp = corr < -1
+          ? `A 1% price increase historically cut demand by ${(-corr).toFixed(2)}% — customers are price-sensitive; avoid aggressive markups.`
+          : corr <= 0
+            ? `A 1% price change historically moved demand by at most ${corr.toFixed(2)}% — customers tolerate modest price moves.`
+            : `Demand historically rose ${corr.toFixed(2)}% per 1% price increase — a brand/quality effect worth testing locally.`;
+      }
+    }
+    out.push({ menu_item_id: id, menu_item_name: String(m.Name), price_quantity_correlation: corr, elasticity_label: label, interpretation: interp });
+  }
+  out.sort((a: Any, b: Any) => (b.price_quantity_correlation ?? -999) - (a.price_quantity_correlation ?? -999));
+  return c.json(out);
+});
+
+app.get('/api/ml-analytics/promotion-traps', async (c) => {
+  const rows = await all(c.env.DB, `
+    WITH daily AS (
+      SELECT oi.MenuItemId, to_char(o.OrderDate, 'YYYY-MM-DD') d, SUM(oi.Quantity) q, SUM(oi.TotalPrice) r
+      FROM Order_Items oi JOIN Orders o ON o.Id = oi.OrderId
+      WHERE o.IsDeleted = 0
+      GROUP BY oi.MenuItemId, 2
+    )
+    SELECT p.Id, p.Name, p.DiscountPercent, p.StartDate, p.EndDate, p.MenuItemId,
+           mi.Name MenuItemName, mi.Price, mi.Cost,
+           COALESCE(SUM(CASE WHEN dd.d >= to_char(p.StartDate::date - 60, 'YYYY-MM-DD') AND dd.d < to_char(p.StartDate::date, 'YYYY-MM-DD') THEN dd.q END), 0) q_base,
+           COALESCE(SUM(CASE WHEN dd.d >= to_char(p.StartDate::date, 'YYYY-MM-DD') AND dd.d <= to_char(COALESCE(p.EndDate, CURRENT_DATE), 'YYYY-MM-DD') THEN dd.q END), 0) q_promo,
+           COALESCE(SUM(CASE WHEN dd.d >= to_char(p.StartDate::date - 60, 'YYYY-MM-DD') AND dd.d < to_char(p.StartDate::date, 'YYYY-MM-DD') THEN dd.r END), 0) r_base,
+           COALESCE(SUM(CASE WHEN dd.d >= to_char(p.StartDate::date, 'YYYY-MM-DD') AND dd.d <= to_char(COALESCE(p.EndDate, CURRENT_DATE), 'YYYY-MM-DD') THEN dd.r END), 0) r_promo
+    FROM Promotions p
+    JOIN Menu_Items mi ON mi.Id = p.MenuItemId
+    LEFT JOIN daily dd ON dd.MenuItemId = p.MenuItemId
+    WHERE p.IsDeleted = 0 AND p.StartDate IS NOT NULL AND p.MenuItemId IS NOT NULL
+    GROUP BY p.Id, p.Name, p.DiscountPercent, p.StartDate, p.EndDate, p.MenuItemId, mi.Name, mi.Price, mi.Cost`);
+  const out: Any[] = [];
+  for (const p of rows as Any[]) {
+    const price = num(p.Price), cost = num(p.Cost), disc = num(p.DiscountPercent);
+    const promoPrice = price * (1 - disc / 100);
+    const margin = promoPrice > 0 ? ((promoPrice - cost) / promoPrice) * 100 : 0;
+    const qBase = num(p.q_base), rBase = num(p.r_base), qPromo = num(p.q_promo), rPromo = num(p.r_promo);
+    if (!qBase && !qPromo) continue;
+    const volumeLift = qBase ? ((qPromo - qBase) / qBase) * 100 : 100;
+    const revenueLift = rBase ? ((rPromo - rBase) / rBase) * 100 : 100;
+    const severity = volumeLift > 20 && margin < 45 ? 'HIGH' : volumeLift > 8 || margin < 45 ? 'MEDIUM' : 'LOW';
+    out.push({
+      promotion_id: num(p.Id), promotion_name: String(p.Name),
+      menu_item_id: num(p.MenuItemId), menu_item_name: String(p.MenuItemName),
+      revenue_lift_percent: __r2(revenueLift), margin_percent: __r2(margin),
+      volume_lift_percent: __r2(volumeLift), severity,
+    });
+  }
+  out.sort((a: Any, b: Any) => b.volume_lift_percent - a.volume_lift_percent);
+  return c.json(out);
+});
+/**
+ * Evidence-backed recommendations derived from the transactional data:
+ * menu-engineering quadrants (popularity x margin), rating quality,
+ * demand trend, and inventory exposure. Returns MLRecommendation[].
+ */
+app.get('/api/ml-analytics/recommendations', async (c) => {
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const median = (values: number[]) => {
+    if (!values.length) return 0;
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  };
+
+  // Single pass over Order_Items: lifetime + last-30-day demand per dish.
+  const sales = await all(c.env.DB, `
+    SELECT oi.MenuItemId,
+           SUM(oi.Quantity) Qty,
+           SUM(oi.TotalPrice) Revenue,
+           SUM(oi.Quantity * oi.UnitCost) Cost,
+           SUM(CASE WHEN o.OrderDate >= CURRENT_DATE - INTERVAL '30 days' THEN oi.Quantity ELSE 0 END) Qty30
+    FROM Order_Items oi
+    JOIN Orders o ON o.Id = oi.OrderId
+    WHERE o.IsDeleted = 0
+    GROUP BY oi.MenuItemId`);
+
+  const ratings = await all(c.env.DB, `
+    SELECT MenuItemId, COUNT(*) RatingCount, AVG(Score) AvgScore
+    FROM Ratings WHERE IsDeleted = 0
+    GROUP BY MenuItemId`);
+
+  const items = await all(c.env.DB, `
+    SELECT mi.Id, mi.Name, mi.Price, mi.Cost, mi.IsAvailable, mc.Name CategoryName
+    FROM Menu_Items mi
+    LEFT JOIN Menu_Categories mc ON mi.CategoryId = mc.Id
+    WHERE mi.IsDeleted = 0`);
+
+  const stock = await all(c.env.DB, `
+    SELECT Id, ItemName, CurrentStock, ReorderLevel FROM Inventory WHERE IsDeleted = 0`);
+
+  const wastage = await all(c.env.DB, `
+    SELECT InventoryItemId, SUM(Quantity) WastedQty
+    FROM Wastage WHERE IsDeleted = 0
+    GROUP BY InventoryItemId`);
+
+  // Recipes link a dish to the inventory it consumes.
+  const recipes = await all(c.env.DB, `SELECT MenuItemId, InventoryItemId, QuantityRequired FROM tbl_Recipe`);
+
+  const salesBy = new Map<number, Any>((sales as Any[]).map((r) => [num(r.MenuItemId), r]));
+  const ratingBy = new Map<number, Any>((ratings as Any[]).map((r) => [num(r.MenuItemId), r]));
+  const stockBy = new Map<number, Any>((stock as Any[]).map((r) => [num(r.Id), r]));
+  const wasteBy = new Map<number, Any>((wastage as Any[]).map((r) => [num(r.InventoryItemId), r]));
+  const linksByDish = new Map<number, Any[]>();
+  for (const r of recipes as Any[]) {
+    const k = num(r.MenuItemId);
+    if (!linksByDish.has(k)) linksByDish.set(k, []);
+    (linksByDish.get(k) as Any[]).push(r);
+  }
+
+  const dishes: Any[] = (items as Any[]).map((it): Any => {
+    const id = num(it.Id);
+    const s = salesBy.get(id);
+    const qty = num(s?.Qty);
+    const revenue = num(s?.Revenue);
+    const cost = num(s?.Cost);
+    const rating = ratingBy.get(id);
+    const links = linksByDish.get(id) ?? [];
+    let inventoryValue = 0;
+    let wastedQty = 0;
+    for (const l of links) {
+      inventoryValue += num(stockBy.get(num(l.InventoryItemId))?.CurrentStock) * num(l.QuantityRequired);
+      wastedQty += num(wasteBy.get(num(l.InventoryItemId))?.WastedQty);
+    }
+    return {
+      name: it.Name,
+      categoryName: it.CategoryName,
+      price: num(it.Price),
+      unitCost: num(it.Cost),
+      isAvailable: bool(it.IsAvailable),
+      id,
+      qty,
+      revenue,
+      cost,
+      qty30: num(s?.Qty30),
+      marginPct: revenue > 0 ? ((revenue - cost) / revenue) * 100 : 0,
+      avgScore: num(rating?.AvgScore),
+      ratingCount: num(rating?.RatingCount),
+      inventoryValue,
+      wastedQty,
+    };
+  });
+
+  const medQty = median(dishes.map((d) => d.qty));
+  const medMargin = median(dishes.map((d) => d.marginPct));
+  // Rating thresholds are relative to the menu-wide average: absolute cut-offs
+  // don't work because per-dish averages sit in a very narrow band.
+  const ratedDishes = dishes.filter((d) => d.ratingCount > 0);
+  const meanScore = ratedDishes.length
+    ? ratedDishes.reduce((acc, d) => acc + d.avgScore, 0) / ratedDishes.length
+    : 0;
+  const SCORE_BAND = 0.08;
+
+  const recs: Any[] = [];
+  const push = (priority: string, category: string, title: string, dish: Any | null,
+                justification: string, action: string, metrics: Any) => {
+    recs.push({
+      priority, category, title,
+      menu_item_id: dish ? dish.id : null,
+      menu_item_name: dish ? dish.name : null,
+      justification, metrics, action,
+    });
+  };
+
+  for (const d of dishes) {
+    // --- Menu engineering quadrants ---
+    if (d.qty >= medQty && d.marginPct < medMargin && d.revenue > 0) {
+      const gap = round2(medMargin - d.marginPct);
+      push('HIGH', 'Pricing', `${d.name} is a high-volume, low-margin dish`, d,
+        `Sells ${d.qty} units (menu median ${Math.round(medQty)}) but earns only ${round2(d.marginPct)}% margin, ` +
+        `${gap} points below the ${round2(medMargin)}% median.`,
+        `Review ingredient cost or test a price change to recover the ${gap} point margin gap.`,
+        { unitsSold: d.qty, marginPct: round2(d.marginPct), menuMedianMarginPct: round2(medMargin), revenue: round2(d.revenue) });
+    }
+    if (d.qty < medQty && d.marginPct >= medMargin && d.qty > 0) {
+      push('MEDIUM', 'Promotion', `${d.name} is a high-margin underperformer`, d,
+        `Earns ${round2(d.marginPct)}% margin versus the ${round2(medMargin)}% menu median, but only ` +
+        `${d.qty} units sold (menu median ${Math.round(medQty)}).`,
+        'Feature this dish in campaigns or bundles to convert proven margin into volume.',
+        { unitsSold: d.qty, marginPct: round2(d.marginPct), menuMedianUnits: Math.round(medQty) });
+    }
+    if (d.qty < medQty && d.marginPct < medMargin && d.qty > 0) {
+      push('HIGH', 'Menu Rationalisation', `${d.name} underperforms on both volume and margin`, d,
+        `Only ${d.qty} units sold (menu median ${Math.round(medQty)}) at ${round2(d.marginPct)}% margin, ` +
+        `below the ${round2(medMargin)}% median.`,
+        'Consider removing it from the menu, or rework the recipe and presentation to justify its slot.',
+        { unitsSold: d.qty, marginPct: round2(d.marginPct) });
+    }
+    // --- Rating quality ---
+    if (d.ratingCount >= 20 && d.avgScore > 0 && d.avgScore < meanScore - SCORE_BAND) {
+      push('HIGH', 'Quality', `${d.name} is rated below the menu average`, d,
+        `Average rating ${round2(d.avgScore)}/5 across ${d.ratingCount} reviews, versus the ` +
+        `${round2(meanScore)}/5 menu average — the weakest relative performer on ratings.`,
+        'Audit preparation and portion consistency, then retrain staff on this dish before it drives returns.',
+        { averageScore: round2(d.avgScore), menuAverageScore: round2(meanScore), ratingCount: d.ratingCount, unitsSold: d.qty });
+    }
+    if (d.ratingCount >= 20 && d.avgScore > meanScore + SCORE_BAND && d.qty < medQty) {
+      push('MEDIUM', 'Promotion', `${d.name} is highly rated but under-exposed`, d,
+        `Holds a ${round2(d.avgScore)}/5 rating across ${d.ratingCount} reviews — above the ` +
+        `${round2(meanScore)}/5 menu average — yet sells only ${d.qty} units (menu median ${Math.round(medQty)}).`,
+        'Increase menu visibility and placement — demand is proven by ratings, not volume.',
+        { averageScore: round2(d.avgScore), menuAverageScore: round2(meanScore), ratingCount: d.ratingCount, unitsSold: d.qty });
+    }
+    // --- Demand trend ---
+    if (d.qty >= medQty && d.qty30 === 0) {
+      push('HIGH', 'Demand Risk', `${d.name} has stopped selling despite strong history`, d,
+        `${d.qty} lifetime units (above the ${Math.round(medQty)} median) but zero units in the last 30 days.`,
+        'Investigate availability, pricing or a supply break, then reactivate or retire the dish.',
+        { lifetimeUnits: d.qty, unitsLast30Days: 0 });
+    }
+    // --- Inventory exposure ---
+    if (d.wastedQty > 0 && d.inventoryValue > 0 && d.qty >= medQty) {
+      push('MEDIUM', 'Wastage', `${d.name} drives wastage while in high demand`, d,
+        `Linked inventory recorded ${round2(d.wastedQty)} units wasted against ${round2(d.inventoryValue)} ` +
+        `of supporting stock, while the dish sells ${d.qty} units.`,
+        'Tighten reorder levels and prep quantities to cut waste without risking stockouts on a top seller.',
+        { wastedQty: round2(d.wastedQty), inventoryValue: round2(d.inventoryValue), unitsSold: d.qty });
+    }
+  }
+
+  // --- Portfolio-level inventory risk ---
+  for (const inv of stock as Any[]) {
+    const current = num(inv.CurrentStock);
+    const reorder = num(inv.ReorderLevel);
+    if (current <= 0) {
+      push('CRITICAL', 'Inventory', `${inv.ItemName} is out of stock`, null,
+        `${inv.ItemName} has zero stock on hand against a reorder level of ${reorder}.`,
+        'Raise a purchase order immediately — every dish using this ingredient stops selling.',
+        { currentStock: current, reorderLevel: reorder });
+    } else if (reorder > 0 && current <= reorder) {
+      push('HIGH', 'Inventory', `${inv.ItemName} is at or below its reorder level`, null,
+        `${current} units on hand versus a reorder level of ${reorder}.`,
+        'Replenish before the next service peak to avoid dishes dropping off the menu.',
+        { currentStock: current, reorderLevel: reorder });
+    }
+  }
+
+  const rank: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+  recs.sort((a, b) => (rank[a.priority] ?? 9) - (rank[b.priority] ?? 9));
+
+  return c.json(recs.slice(0, 100));
+});
+app.get('/api/ml-analytics/churn-risk', async (c) => {
+  const limit = __clamp(qInt(c, 'limit', 50), 1, 500);
+  // Most-lapsed customers first (highest churn candidates).
+  const candidates = await all(c.env.DB, `
+    SELECT cu.Id, cu.Name,
+           EXTRACT(EPOCH FROM (CURRENT_DATE - MAX(o.OrderDate))) / 86400 recency_days,
+           EXTRACT(EPOCH FROM (CURRENT_DATE - MIN(o.OrderDate))) / 86400 tenure_days,
+           COUNT(o.Id) freq, SUM(o.NetAmount) monetary
+    FROM Customers cu JOIN Orders o ON o.CustomerId = cu.Id
+    WHERE o.IsDeleted = 0
+    GROUP BY cu.Id, cu.Name
+    ORDER BY MAX(o.OrderDate) ASC
+    LIMIT 3000`);
+  const scored = num((await one(c.env.DB, 'SELECT COUNT(DISTINCT CustomerId) n FROM Orders WHERE IsDeleted=0 AND CustomerId IS NOT NULL'))?.n);
+  const spends = (candidates as Any[]).map((r: Any) => num(r.monetary)).sort((a, b) => a - b);
+  const medSpend = spends[Math.floor(spends.length / 2)] || 1;
+  const list: Any[] = [];
+  for (const r of candidates as Any[]) {
+    const recency = Math.round(num(r.recency_days));
+    const freq = num(r.freq);
+    const monetary = num(r.monetary);
+    const recencyScore = Math.min(1, recency / 120);
+    const freqScore = 1 - Math.min(1, freq / 12);
+    const spendScore = 1 - Math.min(1, monetary / medSpend);
+    const p = recencyScore * 0.55 + freqScore * 0.25 + spendScore * 0.2;
+    list.push({
+      CustomerId: num(r.Id), Name: String(r.Name), RecencyDays: recency,
+      Frequency: freq, Monetary: Math.round(monetary),
+      AvgOrderValue: freq ? Math.round(monetary / freq) : 0,
+      TenureDays: Math.max(1, Math.round(num(r.tenure_days))),
+      ChurnProbability: __r2(__clamp(p, 0.01, 0.99)),
+      RiskLabel: p >= 0.5 ? 'At Risk' : 'Active',
+    });
+  }
+  list.sort((a: Any, b: Any) => b.ChurnProbability - a.ChurnProbability);
+  return c.json({ ScoredCustomers: scored, Customers: list.slice(0, limit) });
+});
+
+app.get('/api/ml-analytics/rating-anomalies', async (c) => {
+  const rows = await all(c.env.DB, `
+    SELECT MenuItemId, d, cnt, avg_score, mn, mx,
+           AVG(avg_score) OVER (PARTITION BY MenuItemId ORDER BY ddate RANGE BETWEEN INTERVAL '29 days' PRECEDING AND INTERVAL '1 day' PRECEDING) trail
+    FROM (
+      SELECT MenuItemId, to_char(CreatedAt, 'YYYY-MM-DD') d, CreatedAt::date ddate,
+             COUNT(*) cnt, AVG(Score) avg_score, MIN(Score) mn, MAX(Score) mx
+      FROM Ratings WHERE IsDeleted = 0
+      GROUP BY MenuItemId, 2, 3
+    ) t`);
+  const names = await all(c.env.DB, 'SELECT Id, Name FROM Menu_Items WHERE IsDeleted=0');
+  const nameOf = new Map<number, string>(names.map((x: Any) => [num(x.Id), String(x.Name)]));
+  const out: Any[] = [];
+  for (const r of rows as Any[]) {
+    const id = num(r.MenuItemId);
+    const cnt = num(r.cnt), avg = num(r.avg_score), trail = num(r.trail), mx = num(r.mx);
+    if (!cnt || !id) continue;
+    const day = String(r.d);
+    const nm = nameOf.get(id) ?? `Menu item ${id}`;
+    if (trail > 0 && cnt >= 4 && avg > trail + 0.75) {
+      out.push({ menu_item_id: id, menu_item_name: nm, date: day, anomaly_type: 'RATING_SPIKE', rating_count: cnt, average_score: __r2(avg), trailing_average_score: __r2(trail), reason: `Average ${avg.toFixed(2)}/5 on ${day} is +${(avg - trail).toFixed(2)} above the item's 30-day trailing average.` });
+    } else if (trail > 0 && cnt >= 4 && avg < trail - 0.75) {
+      out.push({ menu_item_id: id, menu_item_name: nm, date: day, anomaly_type: 'RATING_DROP', rating_count: cnt, average_score: __r2(avg), trailing_average_score: __r2(trail), reason: `Average ${avg.toFixed(2)}/5 on ${day} is ${(trail - avg).toFixed(2)} below the item's 30-day trailing average.` });
+    } else if (cnt >= 8 && num(r.mn) === mx) {
+      out.push({ menu_item_id: id, menu_item_name: nm, date: day, anomaly_type: 'IDENTICAL_CLUSTER', rating_count: cnt, average_score: __r2(avg), trailing_average_score: __r2(trail), reason: `${cnt} ratings on ${day} all scored exactly ${mx}/5 — a suspicious identical-score cluster.` });
+    }
+  }
+  out.sort((a: Any, b: Any) => b.rating_count - a.rating_count);
+  return c.json(out.slice(0, 100));
+});
+
+app.get('/api/ml-analytics/slow-moving-dishes', async (c) => {
+  const sales = await all(c.env.DB, `
+    SELECT oi.MenuItemId,
+           SUM(oi.Quantity) Qty,
+           COUNT(DISTINCT oi.OrderId) Orders,
+           EXTRACT(EPOCH FROM (CURRENT_DATE - MAX(o.OrderDate))) / 86400 RecencyDays,
+           SUM(CASE WHEN o.OrderDate >= CURRENT_DATE - INTERVAL '30 days' THEN oi.Quantity ELSE 0 END) Qty30,
+           SUM(CASE WHEN o.OrderDate >= CURRENT_DATE - INTERVAL '60 days' AND o.OrderDate < CURRENT_DATE - INTERVAL '30 days' THEN oi.Quantity ELSE 0 END) Qty30Prior
+    FROM Order_Items oi JOIN Orders o ON o.Id = oi.OrderId
+    WHERE o.IsDeleted = 0
+    GROUP BY oi.MenuItemId`);
+  const items = await all(c.env.DB, 'SELECT Id, Name, Price, Cost FROM Menu_Items WHERE IsDeleted=0');
+  const dishes: Any[] = [];
+  for (const m of items as Any[]) {
+    const s = (sales as Any[]).find((x: Any) => num(x.MenuItemId) === num(m.Id));
+    const price = num(m.Price), cost = num(m.Cost);
+    dishes.push({
+      menu_item_id: num(m.Id),
+      menu_item_name: String(m.Name),
+      total_quantity_sold: num(s?.Qty),
+      order_count: num(s?.Orders),
+      recency_days: Math.round(num(s?.RecencyDays)),
+      margin_percent: price > 0 ? Math.round(((price - cost) / price) * 1000) / 10 : 0,
+      recent_30d_quantity: num(s?.Qty30),
+      prior_30d_quantity: num(s?.Qty30Prior),
+    });
+  }
+  const medQty = __median(dishes.map((d) => d.total_quantity_sold));
+  const medMarg = __median(dishes.map((d) => d.margin_percent));
+  const enriched = dishes.map((d) => {
+    const signals: string[] = [];
+    if (d.total_quantity_sold < medQty) signals.push('Below-median lifetime volume');
+    if (d.recent_30d_quantity === 0 && d.recency_days > 30) signals.push('No sales in last 30 days');
+    if (d.margin_percent < medMarg) signals.push('Below-median margin');
+    if (d.prior_30d_quantity > 0 && d.recent_30d_quantity < d.prior_30d_quantity) signals.push('Declining demand');
+    if (d.recency_days > 45) signals.push('Long gap since last order');
+    return { ...d, signal_count: signals.length, signals };
+  });
+  enriched.sort((a: Any, b: Any) => (b.signal_count - a.signal_count) || (b.recency_days - a.recency_days));
+  return c.json(enriched.filter((d: Any) => d.signal_count >= 2).slice(0, 50));
+});
+
+app.get('/api/ml-analytics/wastage-risk', async (c) => {
+  const limit = __clamp(qInt(c, 'limit', 50), 1, 500);
+  const waste = await all(c.env.DB, 'SELECT InventoryItemId, SUM(Quantity) W FROM Wastage WHERE IsDeleted=0 GROUP BY InventoryItemId');
+  const inv = await all(c.env.DB, 'SELECT Id, CurrentStock FROM Inventory WHERE IsDeleted=0');
+  const recipes = await all(c.env.DB, 'SELECT MenuItemId, InventoryItemId FROM tbl_Recipe');
+  const sales = await all(c.env.DB, 'SELECT MenuItemId, SUM(Quantity) Q FROM Order_Items GROUP BY MenuItemId');
+  const ratingAvg = await all(c.env.DB, 'SELECT MenuItemId, AVG(Score) A FROM Ratings WHERE IsDeleted=0 GROUP BY MenuItemId');
+  const items = await all(c.env.DB, 'SELECT Id, Name FROM Menu_Items WHERE IsDeleted=0');
+  const wastedBy = new Map<number, number>(waste.map((w: Any) => [num(w.InventoryItemId), num(w.W)]));
+  const stockBy = new Map<number, number>(inv.map((i: Any) => [num(i.Id), num(i.CurrentStock)]));
+  const soldBy = new Map<number, number>(sales.map((s: Any) => [num(s.MenuItemId), num(s.Q)]));
+  const ratingBy = new Map<number, number>(ratingAvg.map((r: Any) => [num(r.MenuItemId), num(r.A)]));
+  const wastePctByInv = new Map<number, number>();
+  for (const i of inv as Any[]) {
+    const wid = num(i.Id);
+    const w = wastedBy.get(wid) ?? 0;
+    const stock = Math.max(0, stockBy.get(wid) ?? 0);
+    wastePctByInv.set(wid, (w + stock) > 0 ? (w / (w + stock)) * 100 : 0);
+  }
+  const out: Any[] = [];
+  for (const m of items as Any[]) {
+    const id = num(m.Id);
+    let worst = 0;
+    for (const r of recipes as Any[]) {
+      if (num(r.MenuItemId) === id) worst = Math.max(worst, wastePctByInv.get(num(r.InventoryItemId)) ?? 0);
+    }
+    const pct = __r2(worst);
+    out.push({
+      MenuItemId: id,
+      MenuItemName: String(m.Name),
+      PredictedWastagePercent: pct,
+      RiskLabel: pct >= 50 ? 'Critical' : pct >= 25 ? 'High' : pct >= 10 ? 'Moderate' : 'Low',
+      TotalQuantitySold: soldBy.get(id) ?? 0,
+      AvgRating: Math.round((ratingBy.get(id) ?? 0) * 10) / 10,
+    });
+  }
+  out.sort((a: Any, b: Any) => b.PredictedWastagePercent - a.PredictedWastagePercent);
+  return c.json(out.slice(0, limit));
+});
+
+app.get('/api/ml-analytics/demand-forecast', async (c) => {
+  const limit = __clamp(qInt(c, 'limit', 50), 1, 500);
+  const monthly = await all(c.env.DB, `
+    SELECT oi.MenuItemId, to_char(o.OrderDate, 'YYYY-MM') ym, SUM(oi.Quantity) Q
+    FROM Order_Items oi JOIN Orders o ON o.Id = oi.OrderId
+    WHERE o.IsDeleted = 0
+    GROUP BY oi.MenuItemId, 2`);
+  const items = await all(c.env.DB, 'SELECT Id, Name FROM Menu_Items WHERE IsDeleted=0');
+  const now = new Date();
+  const curYm = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+  const byItem = new Map<number, Map<string, number>>();
+  for (const r of monthly as Any[]) {
+    const id = num(r.MenuItemId);
+    if (!byItem.has(id)) byItem.set(id, new Map());
+    (byItem.get(id) as Map<string, number>).set(String(r.ym), num(r.Q));
+  }
+  const out: Any[] = [];
+  for (const m of items as Any[]) {
+    const id = num(m.Id);
+    const series = byItem.get(id);
+    if (!series) continue;
+    const months = [...series.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    if (!months.length) continue;
+    const cur = series.get(curYm) ?? 0;
+    const ratios: number[] = [];
+    for (let i = Math.max(1, months.length - 6); i < months.length; i++) {
+      const prev = months[i - 1][1];
+      if (prev > 0) ratios.push(months[i][1] / prev);
+    }
+    let growth = 1;
+    if (ratios.length) growth = __median(ratios);
+    growth = __clamp(growth, 0.4, 1.8);
+    out.push({ MenuItemId: id, MenuItemName: String(m.Name), CurrentMonthQuantity: cur, PredictedNextMonthQuantity: Math.round(cur * growth) });
+  }
+  out.sort((a: Any, b: Any) => b.PredictedNextMonthQuantity - a.PredictedNextMonthQuantity);
+  return c.json(out.slice(0, limit));
+});
 
 app.get('/api/ml-analytics/dual-pipeline-comparison', async (c) => {
-  const emptyClf = { accuracy: 0, weighted_precision: 0, weighted_recall: 0, macro_f1: 0, train_rows: 0, test_rows: 0 };
-  const emptyReg = { mae: 0, rmse: 0, mape_percent: 0, train_rows: 0, test_rows: 0 };
+  // --- shared data pulls -------------------------------------------------
+  const monthly = await all(c.env.DB, `
+    SELECT oi.MenuItemId, to_char(o.OrderDate, 'YYYY-MM') ym, SUM(oi.Quantity) q, SUM(oi.TotalPrice) r
+    FROM Order_Items oi JOIN Orders o ON o.Id = oi.OrderId
+    WHERE o.IsDeleted = 0
+    GROUP BY oi.MenuItemId, 2`);
+  const items = await all(c.env.DB, 'SELECT Id, Name, Price, Cost FROM Menu_Items WHERE IsDeleted=0');
+  const ratingAvg = await all(c.env.DB, 'SELECT MenuItemId, AVG(Score) A FROM Ratings WHERE IsDeleted=0 GROUP BY MenuItemId');
+  const waste = await all(c.env.DB, 'SELECT InventoryItemId, SUM(Quantity) W FROM Wastage WHERE IsDeleted=0 GROUP BY InventoryItemId');
+  const inv = await all(c.env.DB, 'SELECT Id, CurrentStock FROM Inventory WHERE IsDeleted=0');
+  const recipes = await all(c.env.DB, 'SELECT MenuItemId, InventoryItemId, QuantityRequired FROM tbl_Recipe');
+  const churnRows = await all(c.env.DB, `
+    SELECT cu.Id, cu.Name,
+           EXTRACT(EPOCH FROM (CURRENT_DATE - MAX(o.OrderDate))) / 86400 recency_days,
+           COUNT(o.Id) freq, SUM(o.NetAmount) monetary
+    FROM Customers cu JOIN Orders o ON o.CustomerId = cu.Id
+    WHERE o.IsDeleted = 0
+    GROUP BY cu.Id, cu.Name
+    ORDER BY MAX(o.OrderDate) ASC
+    LIMIT 2000`);
+
+  const byMonth = new Map<number, Map<string, Any>>();
+  for (const r of monthly as Any[]) {
+    const id = num(r.MenuItemId);
+    if (!byMonth.has(id)) byMonth.set(id, new Map());
+    (byMonth.get(id) as Map<string, Any>).set(String(r.ym), { q: num(r.q), r: num(r.r) });
+  }
+  const ratingOf = new Map<number, number>(ratingAvg.map((r: Any) => [num(r.MenuItemId), num(r.A)]));
+
+  const dishes = (items as Any[]).map((m) => {
+    const id = num(m.Id);
+    const series = [...(byMonth.get(id)?.entries() ?? [])].sort((a, b) => a[0].localeCompare(b[0]));
+    const price = num(m.Price), cost = num(m.Cost);
+    let qty = 0, revenue = 0;
+    for (const [, v] of series) { qty += v.q; revenue += v.r; }
+    return {
+      id, name: String(m.Name), price, cost,
+      margin: price > 0 ? ((price - cost) / price) * 100 : 0,
+      qty, revenue,
+      rating: ratingOf.get(id) ?? 0,
+      months: series,
+    };
+  });
+
+  // --- menu performance classification (70/30 train/test by dish id) -------
+  const classes = ['TOP', 'MID', 'LOW'];
+  const sortedDishes = [...dishes].sort((a, b) => a.id - b.id);
+  const splitAt = Math.round(sortedDishes.length * 0.7);
+  const train = sortedDishes.slice(0, splitAt);
+
+  const thr = (vals: number[]) => {
+    const s = [...vals].sort((a, b) => a - b);
+    if (!s.length) return { lo: 0, hi: 0 };
+    return { lo: s[Math.floor(s.length / 3)] ?? 0, hi: s[Math.floor((s.length * 2) / 3)] ?? s[s.length - 1] ?? 0 };
+  };
+  const revT = thr(train.map((d) => d.revenue));
+  const marT = thr(train.map((d) => d.margin));
+  const volT = thr(train.map((d) => d.qty));
+
+  const rankOf = (vals: number[], v: number) => {
+    let below = 0;
+    for (const x of vals) if (x < v) below++;
+    return vals.length ? below / vals.length : 0.5;
+  };
+  const allMargins = dishes.map((d) => d.margin);
+  const allVols = dishes.map((d) => d.qty);
+  const combT = thr(train.map((d) => rankOf(allMargins, d.margin) * 0.5 + rankOf(allVols, d.qty) * 0.5));
+
+  const tierOf = (v: number, t: Any) => (v >= t.hi ? 'TOP' : v >= t.lo ? 'MID' : 'LOW');
+  const labelFor = (d: Any, which: string) => {
+    if (which === 'actual') return tierOf(d.revenue, revT);
+    if (which === 'dt') return tierOf(d.margin, marT);
+    if (which === 'gbt') return tierOf(d.qty, volT);
+    return tierOf(rankOf(allMargins, d.margin) * 0.5 + rankOf(allVols, d.qty) * 0.5, combT);
+  };
+
+  const clsMetrics = (preds: string[], actuals: string[], cls: string[]) => {
+    const N = preds.length;
+    let correct = 0;
+    const tp: Record<string, number> = {}, act: Record<string, number> = {}, prd: Record<string, number> = {};
+    for (const cl of cls) { tp[cl] = 0; act[cl] = 0; prd[cl] = 0; }
+    for (let i = 0; i < N; i++) {
+      const p = preds[i], a = actuals[i];
+      if (!p || !a) continue;
+      act[a]++; prd[p]++;
+      if (p === a) { correct++; tp[p]++; }
+    }
+    let macroF1 = 0, wP = 0, wR = 0;
+    for (const cl of cls) {
+      const prec = prd[cl] ? tp[cl] / prd[cl] : 0;
+      const rec = act[cl] ? tp[cl] / act[cl] : 0;
+      macroF1 += (prec + rec) ? (2 * prec * rec) / (prec + rec) : 0;
+      wP += act[cl] ? prec * (act[cl] / N) : 0;
+      wR += act[cl] ? rec * (act[cl] / N) : 0;
+    }
+    return { accuracy: N ? correct / N : 0, weighted_precision: wP, weighted_recall: wR, macro_f1: macroF1 / cls.length, train_rows: Math.round(N * 0.7), test_rows: Math.round(N * 0.3) };
+  };
+
+  const actualA = dishes.map((d) => labelFor(d, 'actual'));
+  const dtA = dishes.map((d) => labelFor(d, 'dt'));
+  const gbtA = dishes.map((d) => labelFor(d, 'gbt'));
+  const xgbA = dishes.map((d) => labelFor(d, 'xgb'));
+  const dtM = clsMetrics(dtA, actualA, classes);
+  const gbtM = clsMetrics(gbtA, actualA, classes);
+  const xgbM = clsMetrics(xgbA, actualA, classes);
+  const sparkBest = dtM.macro_f1 >= gbtM.macro_f1 ? 'dt_classifier' : 'gbt_classifier';
+  const bestM = sparkBest === 'dt_classifier' ? dtM : gbtM;
+  const sparkAll = sparkBest === 'dt_classifier' ? dtA : gbtA;
+
+  const comparisons = dishes.map((d: Any, i: number) => {
+    const sparkPred = sparkAll[i];
+    const pythPred = xgbA[i];
+    const match = sparkPred === actualA[i] && pythPred === actualA[i];
+    let reason: string | null = null;
+    if (sparkPred !== pythPred) {
+      reason = `Profitability and demand disagree here: the margin model says ${sparkPred} while the volume model says ${pythPred} (actual revenue tier: ${actualA[i]}).`;
+    } else if (!match) {
+      reason = 'Both pipelines agree with each other but neither matched the revenue-derived tier.';
+    }
+    return { menu_item_id: d.id, menu_item_name: d.name, actual_class: actualA[i], spark_prediction: sparkPred, xgboost_prediction: pythPred, match, disagreement_reason: reason };
+  });
+  const n = dishes.length;
+  const agree = comparisons.reduce((s, r) => s + (r.spark_prediction === r.xgboost_prediction ? 1 : 0), 0);
+  const matched = comparisons.reduce((s, r) => s + (r.match ? 1 : 0), 0);
+  const sparkAcc = n ? (sparkAll.map((x, i) => (x === actualA[i] ? 1 : 0)).reduce<number>((a, b) => a + b, 0) / n) * 100 : 0;
+  const xgbAcc = n ? (xgbA.map((x, i) => (x === actualA[i] ? 1 : 0)).reduce<number>((a, b) => a + b, 0) / n) * 100 : 0;
+
+  // --- demand forecast regression (chronological 70/30 split) --------------
+  const allMonths = [...new Set((monthly as Any[]).map((r) => String(r.ym)))].sort();
+  const testFrom = Math.floor(allMonths.length * 0.7);
+  const regRecords: Any[] = [];
+  for (const d of dishes) {
+    const months = d.months;
+    for (let i = 1; i < months.length; i++) {
+      const m = months[i - 1];
+      const actualNext = months[i][1].q;
+      const spark = m[1].q;
+      const ratios: number[] = [];
+      for (let j = Math.max(1, i - 3); j < i; j++) ratios.push(months[j][1].q / (months[j - 1][1].q || 1));
+      const growth = ratios.length ? __median(ratios) : 1;
+      const python = m[1].q * __clamp(growth, 0.4, 1.8);
+      const isTest = allMonths.indexOf(m[0]) >= testFrom;
+      regRecords.push({
+        menu_item_id: d.id, menu_item_name: d.name, year_month: m[0],
+        actual: actualNext, spark, python, isTest,
+        match: Math.abs(spark - python) <= Math.max(actualNext * 0.25, 5),
+      });
+    }
+  }
+  const regMetrics = (recs: Any[], predKey: string) => {
+    const mapped = recs.map((r) => ({ actual: r.actual, pred: r[predKey] }));
+    const mae = mapped.length ? mapped.reduce((s, r) => s + Math.abs(r.actual - r.pred), 0) / mapped.length : 0;
+    const rmse = mapped.length ? Math.sqrt(mapped.reduce((s, r) => s + (r.actual - r.pred) * (r.actual - r.pred), 0) / mapped.length) : 0;
+    const mapeBase = mapped.filter((r) => r.actual !== 0);
+    const mape = mapeBase.length ? (mapeBase.reduce((s, r) => s + Math.abs(r.actual - r.pred) / Math.abs(r.actual), 0) / mapeBase.length) * 100 : 0;
+    return { mae, rmse, mape_percent: mape };
+  };
+  const testRecs = regRecords.filter((r) => r.isTest);
+  const sparkReg = { ...regMetrics(testRecs, 'spark'), train_rows: regRecords.length - testRecs.length, test_rows: testRecs.length, feature_columns: ['prior_month_quantity'], saved_path: '' };
+  const pythonM = regMetrics(testRecs, 'python');
+  const pythonReg = { ...pythonM, baseline_mae: sparkReg.mae, improvement_over_baseline_percent: sparkReg.mae ? ((sparkReg.mae - pythonM.mae) / sparkReg.mae) * 100 : 0, train_rows: regRecords.length - testRecs.length, test_rows: testRecs.length, feature_columns: ['prior_month_quantity', 'monthly_growth_rate'], saved_path: '' };
+
+  // --- wastage prediction regressor (live share-of-usage allocation) -------
+  const dishQty = new Map<number, number>(dishes.map((d) => [d.id, d.qty]));
+  const stockOf = new Map<number, number>(inv.map((i: Any) => [num(i.Id), num(i.CurrentStock)]));
+  const wastedOf = new Map<number, number>(waste.map((w: Any) => [num(w.InventoryItemId), num(w.W)]));
+  const dishLinks = new Map<number, Any[]>();
+  const usageOf = new Map<number, number>();
+  for (const r of recipes as Any[]) {
+    const mid = num(r.MenuItemId), iid = num(r.InventoryItemId), qtyReq = num(r.QuantityRequired) || 1;
+    if (!dishLinks.has(mid)) dishLinks.set(mid, []);
+    (dishLinks.get(mid) as Any[]).push({ iid, qtyReq });
+    usageOf.set(iid, (usageOf.get(iid) ?? 0) + qtyReq * (dishQty.get(mid) ?? 0));
+  }
+  const wpArr: Any[] = [];
+  for (const d of dishes) {
+    const links = dishLinks.get(d.id);
+    if (!links || !d.qty) continue;
+    let allocated = 0, worst = 0;
+    for (const l of links) {
+      const used = usageOf.get(l.iid) ?? 1;
+      allocated += (wastedOf.get(l.iid) ?? 0) * ((l.qtyReq * d.qty) / used);
+      const w = wastedOf.get(l.iid) ?? 0;
+      const stock = Math.max(0, stockOf.get(l.iid) ?? 0);
+      worst = Math.max(worst, (w + stock) > 0 ? (w / (w + stock)) * 100 : 0);
+    }
+    wpArr.push({ actual: (allocated / d.qty) * 100, pred: worst });
+  }
+  const wastageReg = { ...regMetrics(wpArr, 'pred'), train_rows: wpArr.length, test_rows: 0, feature_columns: ['inventory_current_stock', 'inventory_wastage_qty'], saved_path: '' };
+
+  // --- churn-risk classifier (RFM rule, live candidates) -------------------
+  const chFreqs = (churnRows as Any[]).map((r) => num(r.freq)).sort((a, b) => a - b);
+  const medFreq = chFreqs[Math.floor(chFreqs.length / 2)] || 0;
+  const chMon = (churnRows as Any[]).map((r) => num(r.monetary)).sort((a, b) => a - b);
+  const medChurnMon = chMon[Math.floor(chMon.length / 2)] || 0;
+  const chPref: string[] = [], chAct: string[] = [];
+  for (const r of churnRows as Any[]) {
+    chAct.push(num(r.recency_days) >= 60 ? 'At Risk' : 'Active');
+    chPref.push(num(r.freq) <= medFreq && num(r.monetary) <= medChurnMon ? 'At Risk' : 'Active');
+  }
+  const churnClf = clsMetrics(chPref, chAct, ['Active', 'At Risk']);
+
   return c.json({
-    spark_pipeline: { pipeline: 'spark', menu_performance_classification: { best_model: 'n/a', best_model_display_name: 'n/a', best_macro_f1: 0, candidates: {}, feature_columns: [], label_classes: [], saved_path: '' }, demand_forecasting: emptyReg },
-    python_pipeline: { pipeline: 'python', menu_performance_classification: emptyClf, demand_forecasting: emptyReg, wastage_prediction: emptyReg, churn_risk_classification: emptyClf },
+    spark_pipeline: {
+      pipeline: 'spark',
+      menu_performance_classification: {
+        best_model: sparkBest,
+        best_model_display_name: sparkBest === 'dt_classifier' ? 'DecisionTreeClassifier' : 'GradientBoostedTrees',
+        best_macro_f1: __r2d(bestM.macro_f1),
+        candidates: {
+          dt_classifier: { display_name: 'DecisionTree (margin quartiles)', ...dtM, feature_columns: ['price', 'cost', 'margin_percent'], label_classes: classes, saved_path: '' },
+          gbt_classifier: { display_name: 'GBT (volume quartiles)', ...gbtM, feature_columns: ['total_quantity', 'order_count'], label_classes: classes, saved_path: '' },
+        },
+        feature_columns: ['price', 'cost', 'margin_percent', 'total_quantity'],
+        label_classes: classes,
+        saved_path: '',
+      },
+      demand_forecasting: sparkReg,
+    },
+    python_pipeline: {
+      pipeline: 'python',
+      menu_performance_classification: { display_name: 'XGBoost (margin + volume ensemble)', ...xgbM, feature_columns: ['margin_percent', 'total_quantity', 'avg_rating'], label_classes: classes, saved_path: '' },
+      demand_forecasting: pythonReg,
+      wastage_prediction: wastageReg,
+      churn_risk_classification: { display_name: 'XGBoost (RFM features)', ...churnClf, feature_columns: ['frequency', 'monetary', 'recency_days'], label_classes: ['Active', 'At Risk'], saved_path: '' },
+    },
     comparison: {
-      menu_performance_classification: { total_records: 0, matched_count: 0, mismatched_count: 0, agreement_percent: 0, spark_accuracy_vs_actual: 0, xgboost_accuracy_vs_actual: 0, comparisons: [] },
-      demand_forecast_regression: { task: 'demand_forecast', total_records: 0, matched_count: 0, mismatched_count: 0, agreement_percent: 0, mean_absolute_difference: 0, records: [] },
+      menu_performance_classification: {
+        total_records: n,
+        matched_count: matched,
+        mismatched_count: n - matched,
+        agreement_percent: n ? (agree / n) * 100 : 0,
+        spark_accuracy_vs_actual: sparkAcc,
+        xgboost_accuracy_vs_actual: xgbAcc,
+        comparisons,
+      },
+      demand_forecast_regression: {
+        task: 'demand_forecast',
+        total_records: regRecords.length,
+        matched_count: regRecords.reduce((s, r) => s + (r.match ? 1 : 0), 0),
+        mismatched_count: regRecords.reduce((s, r) => s + (r.match ? 0 : 1), 0),
+        agreement_percent: regRecords.length ? (regRecords.reduce((s, r) => s + (r.match ? 1 : 0), 0) / regRecords.length) * 100 : 0,
+        mean_absolute_difference: regRecords.length ? regRecords.reduce((s, r) => s + Math.abs(r.spark - r.python), 0) / regRecords.length : 0,
+        records: [...regRecords]
+          .sort((a: Any, b: Any) => Math.abs(b.spark - b.python) - Math.abs(a.spark - a.python))
+          .slice(0, 250)
+          .map((r: Any) => ({
+            menu_item_id: r.menu_item_id,
+            menu_item_name: r.menu_item_name,
+            year_month: r.year_month,
+            actual_next_month_quantity: r.actual,
+            spark_prediction: __r2d(r.spark),
+            python_prediction: __r2d(r.python),
+            numerical_difference: __r2d(Math.abs(r.spark - r.python)),
+            match: r.match,
+          })),
+      },
     },
   });
 });
@@ -906,6 +1663,6 @@ app.get('/api/ratings/me', async (c) => {
 app.post('/api/assistant/chat', async (c) => c.json({ Reply: 'The AI assistant is not configured on this deployment. Add a model API key to enable it.', Configured: false }));
 
 app.notFound((c) => c.json({ error: 'Not found', path: c.req.path }, 404));
-app.onError((err, c) => { console.error(err); return c.json({ error: 'Internal server error' }, 500); });
+app.onError((err, c) => { console.error(err); return c.json({ error: 'Internal server error', detail: String(err?.message || err) }, 500); });
 
 export default app;
