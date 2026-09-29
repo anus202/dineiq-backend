@@ -30,12 +30,6 @@ app.use('*', cors({
   credentials: true,
 }));
 
-// API responses must never be cached by the edge.
-app.use('/api/*', async (c, next) => {
-  await next();
-  c.header('Cache-Control', 'no-store, no-cache, must-revalidate');
-});
-
 app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 const PUBLIC = new Set(['/api/health', '/api/auth/login', '/api/auth/signup']);
@@ -47,6 +41,39 @@ app.use('/api/*', async (c, next) => {
     c.set('jwtPayload', await jwtVerify(h.substring(7), c.env.JWT_SECRET, 'HS256'));
   } catch { return c.json({ error: 'Invalid token' }, 401); }
   await next();
+});
+
+// Response cache for heavy, non-user-specific GET endpoints. This dramatically
+// reduces D1 rows read (the free-tier limiting factor) for dashboards/analytics.
+const CACHE_PREFIXES = [
+  '/api/dashboard/admin', '/api/dashboard/restaurant-manager', '/api/dashboard/inventory-manager',
+  '/api/dashboard/inventory', '/api/analytics', '/api/ml-analytics', '/api/categories',
+  '/api/menu-items', '/api/restaurants', '/api/inventory', '/api/tables', '/api/customers',
+  '/api/orders', '/api/audit-logs', '/api/users',
+];
+const CACHE_TTL = 300; // seconds
+
+app.use('/api/*', async (c, next) => {
+  const cacheable = c.req.method === 'GET' && CACHE_PREFIXES.some((p) => c.req.path.startsWith(p));
+  if (!cacheable) {
+    await next();
+    c.header('Cache-Control', 'no-store, no-cache, must-revalidate');
+    return;
+  }
+  const key = new Request(new URL(c.req.url).toString(), { method: 'GET' });
+  const cache = caches.default;
+  try {
+    const hit = await cache.match(key);
+    if (hit) { c.header('X-Cache', 'HIT'); return hit; }
+  } catch { /* cache unavailable */ }
+  await next();
+  if (c.res.status === 200) {
+    c.header('Cache-Control', `public, max-age=${CACHE_TTL}, s-maxage=${CACHE_TTL}`);
+    c.header('X-Cache', 'MISS');
+    try { c.executionCtx.waitUntil(cache.put(key, c.res.clone())); } catch { /* ignore */ }
+  } else {
+    c.header('Cache-Control', 'no-store');
+  }
 });
 
 // ---------- helpers ----------
