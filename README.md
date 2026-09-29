@@ -399,6 +399,13 @@ anyway (403), but without a round trip. Each dashboard is its own lazy-loaded ch
   Driver 17 for SQL Server installed.
 - Node.js (developed and run on 24.x).
 
+### Quick start (Windows)
+
+With SQL Server running, double-click `start-local.bat` in the repo root. It creates
+`backend\.env` from the example on first run (fill in `DB_PASSWORD` and `JWT_SECRET_KEY`),
+installs backend and frontend packages if they are missing, starts both servers in their
+own windows, and opens http://localhost:5173. The manual steps below do the same thing.
+
 ### Backend
 
 ```bash
